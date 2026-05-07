@@ -16,16 +16,18 @@ class MainWindow(ctk.CTk):
         
         # Configuração de Grid: Sidebar (0), Editor (1)
         self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(0, weight=0) # Sidebar column, initially no weight
         self.grid_rowconfigure(0, weight=1)
 
         # Inicialização do Contexto
         self.ctx = AppContext()
         self.ctx.set_window(self)
         self.ctx.project_root = SessionManager.load_session()
+        self.ctx.current_file = "Novo Arquivo" # Default text for new buffer
 
-        # Sidebar
-        self.sidebar = Sidebar(self, width=0, corner_radius=0)
-        self.sidebar.grid(row=0, column=0, sticky="nsew", rowspan=2)
+        # Sidebar (Initially hidden, so not gridded)
+        self.sidebar = Sidebar(self, width=200, corner_radius=0) # Give it a default width when visible
+        # self.sidebar.grid(row=0, column=0, sticky="nsew", rowspan=2) # Do NOT grid it initially
         self.ctx.set_sidebar(self.sidebar)
 
         # Editor Area
@@ -41,4 +43,8 @@ class MainWindow(ctk.CTk):
 
         # Atalhos
         ShortcutManager.setup_shortcuts(self)
-        
+
+        # If a project root is loaded, refresh the sidebar
+        if self.ctx.project_root:
+            self.sidebar.refresh_explorer()
+            self.status_bar.update_status(1, 0, f"Projeto: {self.ctx.project_root}")

@@ -20,12 +20,18 @@ class ShortcutManager:
     def toggle_sidebar(event=None):
         ctx = AppContext()
         if ctx.sidebar:
-            # Se a largura for 0 ou próxima, expande; caso contrário, recolhe.
-            if ctx.sidebar.winfo_width() <= 1:
-                ctx.sidebar.configure(width=200)
+            if ctx.sidebar.winfo_ismapped(): # Check if it's currently visible
+                ctx.sidebar.grid_forget()
+                # When sidebar is hidden, the editor should take full width
+                ctx.window.grid_columnconfigure(0, weight=0) # Sidebar column
+                ctx.window.grid_columnconfigure(1, weight=1) # Editor column
             else:
-                ctx.sidebar.configure(width=0)
-            ctx.window.update()
+                ctx.sidebar.grid(row=0, column=0, sticky="nsew", rowspan=2)
+                # When sidebar is shown, it takes its width, editor takes rest
+                ctx.window.grid_columnconfigure(0, weight=0) # Sidebar column (fixed width by widget)
+                ctx.window.grid_columnconfigure(1, weight=1) # Editor column
+            ctx.window.update_idletasks() # Force redraw of the main window layout
+        return "break" # Stop event propagation
 
     @staticmethod
     def save_file(event=None):
@@ -35,7 +41,7 @@ class ShortcutManager:
             if not path: return
             ctx.current_file = path
         
-        content = ctx.editor_container.get_text()
+        content = ctx.editor_container.get_text().rstrip('\n') # Remove trailing newline from Tkinter Text
         if BufferManager.save_file(ctx.current_file, content):
             ctx.is_dirty = False
             ctx.editor_container._update_status_bar()
@@ -62,3 +68,6 @@ class ShortcutManager:
         ctx.current_file = None
         ctx.is_dirty = False
         ctx.editor_container.set_text("")
+        if ctx.status_bar:
+            ctx.status_bar.update_status(1, 0, "Novo Arquivo")
+        return "break"

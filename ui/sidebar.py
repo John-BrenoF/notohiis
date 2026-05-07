@@ -53,7 +53,7 @@ class Sidebar(ctk.CTkFrame):
             self._add_item(item["name"], item["path"], item["is_dir"])
 
     def _add_item(self, name, path, is_dir):
-        prefix = "📁 " if is_dir else "📄 "
+        prefix = " " if is_dir else " "
         btn = ctk.CTkButton(
             self.scrollable_frame, 
             text=f"{prefix}{name}",
@@ -98,5 +98,7 @@ class Sidebar(ctk.CTkFrame):
 
     def _menu_delete(self):
         if self._menu_target and messagebox.askyesno("Excluir", f"Deseja excluir {os.path.basename(self._menu_target)}?"):
-            FileManager.delete_path(self._menu_target)
-            self.refresh_explorer()
+            if FileManager.delete_path(self._menu_target):
+                self.refresh_explorer()
+            else:
+                messagebox.showerror("Erro", "Não foi possível excluir o item.", parent=self)

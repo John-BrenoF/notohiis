@@ -19,14 +19,29 @@ class EditorArea(ctk.CTkFrame):
         )
         self.textbox.pack(side="right", fill="both", expand=True)
 
+        # Set the yscrollcommand of the internal Tkinter Text widget
+        # This will be called whenever the textbox is scrolled
+        self.textbox._textbox.config(yscrollcommand=self._on_text_scroll)
+
         self.textbox.bind("<KeyRelease>", self._on_event)
         self.textbox.bind("<ButtonRelease-1>", self._on_event)
         self.textbox.bind("<MouseWheel>", self._on_event)
         self.textbox._textbox.bind("<Configure>", self._on_event)
         self.textbox._textbox.bind("<Key>", self._set_dirty)
 
+        # Bind mouse wheel on line numbers to scroll textbox
+        self.line_numbers.bind("<MouseWheel>", self._on_canvas_mousewheel)
+        self.line_numbers.bind("<Button-4>", self._on_canvas_mousewheel) # Linux scroll up
+        self.line_numbers.bind("<Button-5>", self._on_canvas_mousewheel) # Linux scroll down
+
     def _set_dirty(self, event=None):
         AppContext().is_dirty = True
+
+    def _on_text_scroll(self, *args):
+        """Callback for the textbox's yscrollcommand."""
+        # The *args are typically (fraction_start, fraction_end) for an external scrollbar.
+        self.redraw_line_numbers()
+        self._update_status_bar()
 
     def _on_event(self, event=None):
         self.redraw_line_numbers()
@@ -34,16 +49,24 @@ class EditorArea(ctk.CTkFrame):
 
     def redraw_line_numbers(self):
         self.line_numbers.delete("all")
-        i = self.textbox.index("@0,0")
-        while True :
-            dline= self.textbox._textbox.dlineinfo(i)
+
+        # Get the first and last visible line numbers
+        # Use dlineinfo to get the y-coordinate of the line
+        # Iterate from the top of the textbox to the bottom
+        i = self.textbox.index("@0,0") # Start from the top-left visible character
+        while True:
+            dline = self.textbox._textbox.dlineinfo(i)
             if dline is None: break
             y = dline[1]
             linenum = str(i).split(".")[0]
             self.line_numbers.create_text(35, y, anchor="ne", text=linenum, fill="#858585", font=("Consolas", 12))
-            i = self.textbox.index("%s+1line" % i)
+            i = self.textbox.index(f"{i}+1line") # Move to the next line
 
     def get_text(self) -> str:
+        # Tkinter Text widget always adds a newline at the end, so remove it if it's the only content
+        content = self.textbox.get("1.0", tk.END)
+        if content.endswith('\n') and len(content) == 1:
+            return ""
         return self.textbox.get("1.0", tk.END)
 
     def set_text(self, text: str):
@@ -52,10 +75,19 @@ class EditorArea(ctk.CTkFrame):
         self.redraw_line_numbers()
         AppContext().is_dirty = False
 
+    def _on_canvas_mousewheel(self, event):
+        """Scroll the textbox when mouse wheel is used on the line numbers canvas."""
+        if event.num == 4 or event.delta > 0: # Scroll up
+            self.textbox._textbox.yview_scroll(-1, "units")
+        elif event.num == 5 or event.delta < 0: # Scroll down
+            self.textbox._textbox.yview_scroll(1, "units")
+        # The textbox's yscrollcommand will trigger _on_text_scroll, which redraws line numbers and updates status.
+        return "break" # Prevent event propagation to parent widgets
+
     def _update_status_bar(self):
         ctx = AppContext()
         if ctx.status_bar:
-            cursor_pos = self.textbox.index(ctk.INSERT).split(".")
+            cursor_pos = self.textbox.index(tk.INSERT).split(".")
             line = cursor_pos[0]
             col = cursor_pos[1]
             ctx.status_bar.update_status(line, col, ctx.current_file or "Novo Arquivo")
