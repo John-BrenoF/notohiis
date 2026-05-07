@@ -1,0 +1,10 @@
+import customtkinter as ctk
+from ui.window import MainWindow
+
+if __name__ == "__main__":
+    # Configuração de tema do CustomTkinter
+    ctk.set_appearance_mode("Dark")
+    ctk.set_default_color_theme("blue")
+
+    app = MainWindow()
+    app.mainloop()

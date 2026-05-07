@@ -1,0 +1,7 @@
+├── 📁 core/ #nucleo moto do editor 
+│   ├── 📁 core_plugin/ #plugins de nivel core , exeplo sitaxe etc
+│   └── 📁 src/ #arquivos docore 
+├── 📁 docs/  #documentação do editor 
+├── 📁 plugins/ #plugins .py 
+├── 📁 ui/ #interface do editor totalmente  indepedente do core 
+└── 📄 notohiis.sh # executavel que asiona o main.py e o core .
