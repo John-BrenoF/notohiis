@@ -5,8 +5,14 @@ from core.src.app_context import AppContext
 
 class Sidebar(ctk.CTkFrame):
     """Explorador de arquivos lateral."""
-    def __init__(self, master, **kwargs):
-        super().__init__(master, width=0, corner_radius=0, **kwargs)
+    def __init__(self, master, width=0, corner_radius=0, **kwargs):
+        # Extraímos width e corner_radius da assinatura para evitar duplicidade no **kwargs
+        super().__init__(
+            master, 
+            width=width, 
+            corner_radius=corner_radius, 
+            **kwargs
+        )
         self.grid_propagate(False)
         
         self.label = ctk.CTkLabel(self, text="EXPLORER", font=("Segoe UI", 12, "bold"))

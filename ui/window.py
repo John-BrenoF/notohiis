@@ -21,8 +21,8 @@ class MainWindow(ctk.CTk):
         self.ctx = AppContext()
         self.ctx.set_window(self)
 
-        # Sidebar (Inicia com largura 0 para ser "invisível")
-        self.sidebar = Sidebar(self, width=0)
+        # Sidebar (Inicia com largura 0 e corner_radius 0 conforme requisitos)
+        self.sidebar = Sidebar(self, width=0, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew", rowspan=2)
         self.ctx.set_sidebar(self.sidebar)
 
