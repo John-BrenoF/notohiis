@@ -30,6 +30,7 @@ class MarkdownPlugin:
         self.ctx = AppContext()
         self.view_states = {} 
         self.html_view = None
+        self.last_rendered_content = {} # Cache para evitar re-renderização
         self._inject_status_button()
 
     def _inject_status_button(self):
@@ -69,10 +70,12 @@ class MarkdownPlugin:
         if not is_preview_active:
             # Converter Markdown para HTML
             text_content = container.get_text()
-            html_content = markdown2.markdown(text_content, extras=["fenced-code-blocks", "tables"])
             
-            # Carregar no visualizador HTML com o estilo Dark
-            self.html_view.load_html(f"{DARK_STYLE}{html_content}")
+            # Só atualiza o HTML se o conteúdo mudou desde a última vez
+            if self.last_rendered_content.get(file_path) != text_content:
+                html_content = markdown2.markdown(text_content, extras=["fenced-code-blocks", "tables", "break-on-newline"])
+                self.html_view.load_html(f"{DARK_STYLE}{html_content}")
+                self.last_rendered_content[file_path] = text_content
             
             # Ocultar componentes do editor
             container.textbox.grid_remove()

@@ -42,6 +42,10 @@ class EditorArea(ctk.CTkFrame):
         self.line_numbers.bind("<MouseWheel>", self._on_canvas_mousewheel)
         self.git_margin.bind("<MouseWheel>", self._on_canvas_mousewheel)
 
+        # Inicializa tags de sintaxe se o plugin estiver carregado
+        if AppContext().py_plugin:
+            AppContext().py_plugin.setup_tags(self.textbox._textbox)
+
     def _set_dirty(self, event=None):
         AppContext().is_dirty = True
 
@@ -54,6 +58,10 @@ class EditorArea(ctk.CTkFrame):
     def _on_event(self, event=None):
         self.redraw_line_numbers()
         self._update_status_bar()
+        
+        # Dispara realce de sintaxe Python
+        if AppContext().py_plugin:
+            AppContext().py_plugin.highlight()
 
     def redraw_line_numbers(self):
         self.line_numbers.delete("all")

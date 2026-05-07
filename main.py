@@ -17,6 +17,12 @@ def load_plugins():
     except ImportError:
         print("[CORE] Markdown Plugin não encontrado.")
 
+    try:
+        from core.core_plugin.python_syntax import PythonSyntaxPlugin
+        ctx.py_plugin = PythonSyntaxPlugin()
+    except ImportError:
+        print("[CORE] Python Syntax Plugin não encontrado.")
+
 if __name__ == "__main__":
     # Configuração de tema do CustomTkinter
     ctk.set_appearance_mode("Dark")
