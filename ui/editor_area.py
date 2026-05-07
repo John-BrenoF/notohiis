@@ -47,6 +47,8 @@ class EditorArea(ctk.CTkFrame):
         self.line_numbers.bind("<MouseWheel>", self._on_canvas_mousewheel)
         self.git_margin.bind("<MouseWheel>", self._on_canvas_mousewheel)
 
+        self.popup = None # Widget de sugestões
+
         # Inicializa tags de sintaxe se o plugin estiver carregado
         if AppContext().py_plugin:
             AppContext().py_plugin.setup_tags(self.textbox._textbox)
@@ -63,10 +65,15 @@ class EditorArea(ctk.CTkFrame):
     def _on_event(self, event=None):
         self.redraw_line_numbers()
         self._update_status_bar()
+
+        # Regras de fechamento do popup
+        if event and (event.keysym in ("Escape", "space", "Return") or event.type == "4"):
+            self._hide_autocomplete()
         
         # Dispara realce de sintaxe Python
         if AppContext().py_plugin:
             AppContext().py_plugin.highlight()
+            self._trigger_autocomplete(event)
 
     def redraw_line_numbers(self):
         self.line_numbers.delete("all")
@@ -96,6 +103,60 @@ class EditorArea(ctk.CTkFrame):
         self.textbox.insert("1.0", text)
         self.redraw_line_numbers()
         AppContext().is_dirty = False
+
+    def _trigger_autocomplete(self, event=None):
+        """Consulta o core e decide se mostra o popup."""
+        if not event or len(event.keysym) > 1 and event.keysym != "BackSpace":
+            return
+
+        ctx = AppContext()
+        index = self.textbox.index(tk.INSERT)
+        line, col = map(int, index.split("."))
+        
+        suggestions = ctx.autocomplete_engine.get_suggestions(self.get_text(), line, col)
+
+        if suggestions:
+            self._show_autocomplete_popup(suggestions)
+        else:
+            self._hide_autocomplete()
+
+    def _show_autocomplete_popup(self, suggestions):
+        self._hide_autocomplete()
+        
+        # Localiza as coordenadas X,Y do cursor de texto na tela
+        pos = self.textbox._textbox.bbox(tk.INSERT)
+        if not pos: return
+        
+        x, y, _, h = pos
+        root_x = self.textbox._textbox.winfo_rootx() + x
+        root_y = self.textbox._textbox.winfo_rooty() + y + h
+
+        self.popup = tk.Listbox(
+            self.master, 
+            height=min(len(suggestions), 8),
+            bg=AppContext().theme.get("sidebar", {}).get("bg", "#21252b"),
+            fg=AppContext().theme.get("editor", {}).get("fg", "#abb2bf"),
+            selectbackground=AppContext().theme.get("editor", {}).get("selection_bg", "#3e4451"),
+            borderwidth=1, highlightthickness=0
+        )
+        for s in suggestions: self.popup.insert(tk.END, s)
+        
+        # Posiciona o popup logo abaixo do cursor
+        self.popup.place(x=root_x - self.winfo_rootx(), y=root_y - self.winfo_rooty())
+        self.popup.bind("<Button-1>", self._on_suggestion_select)
+
+    def _hide_autocomplete(self):
+        if self.popup:
+            self.popup.destroy()
+            self.popup = None
+
+    def _on_suggestion_select(self, event):
+        if not self.popup: return
+        selection = self.popup.get(self.popup.curselection())
+        # Substitui o prefixo pela palavra completa
+        self.textbox._textbox.delete("insert wordstart", tk.INSERT)
+        self.textbox.insert(tk.INSERT, selection)
+        self._hide_autocomplete()
 
     def _on_canvas_mousewheel(self, event):
         """Scroll the textbox when mouse wheel is used on the line numbers canvas."""

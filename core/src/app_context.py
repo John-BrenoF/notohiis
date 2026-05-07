@@ -22,6 +22,7 @@ class AppContext:
             cls._instance.md_plugin = None
             cls._instance.py_plugin = None
             cls._instance.theme = {}
+            cls._instance.autocomplete_engine = None
         return cls._instance
 
     def set_window(self, window: Any):

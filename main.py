@@ -3,6 +3,7 @@ import os
 import customtkinter as ctk
 from ui.window import MainWindow
 from core.src.app_context import AppContext
+from core.src.autocomplete_engine import AutocompleteEngine
 
 def load_plugins():
     """Carregamento dinâmico e seguro de plugins core."""
@@ -29,6 +30,9 @@ if __name__ == "__main__":
     # Configuração de tema do CustomTkinter
     ctk.set_appearance_mode("Dark")
     ctk.set_default_color_theme("blue")
+
+    # Inicializa Engine de Autocomplete no Contexto Global
+    AppContext().autocomplete_engine = AutocompleteEngine()
 
     load_plugins()
     app = MainWindow()
