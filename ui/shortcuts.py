@@ -15,6 +15,13 @@ class ShortcutManager:
         window.bind("<Control-S>", ShortcutManager.save_file)
         window.bind("<Control-o>", ShortcutManager.open_folder)
         window.bind("<Control-n>", ShortcutManager.new_buffer)
+        window.bind("<Control-n>", ShortcutManager.new_buffer)
+        
+        # Atalhos de Plugins
+        window.bind("<Control-m>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
+        window.bind("<Control-M>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
+        window.bind("<Control-g>", lambda e: AppContext().git_plugin.quick_commit_ui() if AppContext().git_plugin else None)
+        window.bind("<Control-G>", lambda e: AppContext().git_plugin.quick_commit_ui() if AppContext().git_plugin else None)
 
     @staticmethod
     def toggle_sidebar(event=None):

@@ -22,3 +22,9 @@ class StatusBar(ctk.CTkFrame):
     def update_status(self, line: int, column: int, file_path: str = "Novo Arquivo"):
         self.info_label.configure(text=f"Linha: {line}, Coluna: {column} | UTF-8")
         self.file_label.configure(text=file_path)
+        
+        # Hook para plugin de Git
+        from core.src.app_context import AppContext
+        ctx = AppContext()
+        if ctx.git_plugin:
+            ctx.git_plugin.async_update_status()

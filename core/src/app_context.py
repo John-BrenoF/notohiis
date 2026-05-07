@@ -17,6 +17,9 @@ class AppContext:
             cls._instance.current_file: Optional[str] = None
             cls._instance.project_root: Optional[str] = None
             cls._instance.is_dirty: bool = False
+            # Registrador de Plugins
+            cls._instance.git_plugin = None
+            cls._instance.md_plugin = None
         return cls._instance
 
     def set_window(self, window: Any):
