@@ -7,7 +7,10 @@ class EditorArea(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, corner_radius=0, fg_color="transparent", **kwargs)
         
-        self.line_numbers = tk.Canvas(self, width=40, bg='#1e1e1e', bd=0, highlightthickness=0)
+        # Calha (gutter) expandida para acomodar indicadores sem sobreposição
+        # Largura aumentada de 40 para 60 para separar números de indicadores de Git/Status
+        self.gutter_width = 60
+        self.line_numbers = tk.Canvas(self, width=self.gutter_width, bg='#1e1e1e', bd=0, highlightthickness=0)
         self.line_numbers.pack(side="left", fill="y")
 
         self.textbox = ctk.CTkTextbox(
@@ -59,7 +62,8 @@ class EditorArea(ctk.CTkFrame):
             if dline is None: break
             y = dline[1]
             linenum = str(i).split(".")[0]
-            self.line_numbers.create_text(35, y, anchor="ne", text=linenum, fill="#858585", font=("Consolas", 12))
+            # Alinhamento dos números à direita (x=35) mantendo espaço à esquerda para Git Status
+            self.line_numbers.create_text(38, y, anchor="ne", text=linenum, fill="#858585", font=("Consolas", 12))
             i = self.textbox.index(f"{i}+1line") # Move to the next line
 
     def get_text(self) -> str:

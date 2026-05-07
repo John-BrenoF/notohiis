@@ -3,6 +3,7 @@
 
 import re
 import tkinter as tk
+import customtkinter as ctk
 from core.src.app_context import AppContext
 
 class MarkdownPlugin:
@@ -12,8 +13,22 @@ class MarkdownPlugin:
     """
     def __init__(self):
         self.ctx = AppContext()
-        self.is_preview_mode = False
+        self.view_states = {}  # Persistência de estado por arquivo
         self._setup_tags()
+        self._inject_status_button()
+
+    def _inject_status_button(self):
+        """Injeta o botão de toggle na StatusBar do AppContext."""
+        if self.ctx.status_bar:
+            self.btn_view = ctk.CTkButton(
+                self.ctx.status_bar,
+                text="View Mode",
+                width=80,
+                height=20,
+                font=("Segoe UI", 10),
+                command=self.toggle_preview
+            )
+            self.btn_view.pack(side="right", padx=10)
 
     def _setup_tags(self):
         """Configura os estilos de renderização na área de texto."""
@@ -27,16 +42,20 @@ class MarkdownPlugin:
         if not self.ctx.current_file or not self.ctx.current_file.endswith(".md"):
             return "break"
 
+        file_path = self.ctx.current_file
+        is_preview = self.view_states.get(file_path, False)
         editor_widget = self.ctx.editor_container.textbox
         
-        if not self.is_preview_mode:
+        if not is_preview:
             self._apply_markdown_tags(editor_widget)
             editor_widget.configure(state="disabled")
-            self.is_preview_mode = True
+            self.view_states[file_path] = True
+            self.btn_view.configure(fg_color="#1f538d", text="Preview ON")
         else:
             self._clear_tags(editor_widget)
             editor_widget.configure(state="normal")
-            self.is_preview_mode = False
+            self.view_states[file_path] = False
+            self.btn_view.configure(fg_color=["#3B8ED0", "#1F6AA5"], text="View Mode")
         
         return "break"
 

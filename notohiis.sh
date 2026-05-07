@@ -3,7 +3,45 @@
 # Notohiis Editor Bootstrapper
 # Este script gerencia o ambiente virtual, dependências e inicialização do sistema.
 
+FIRST_RUN=false
 set -e # Aborta em caso de erro simples
+
+# Função para exibir a Splash Screen (Zenity ou Fallback Terminal)
+show_splash() {
+    local TITLE="Notohiis - Versão 0.1-alpha"
+    local MSG="Codename: Batata Crua\n\nNovidades:\n- Arquitetura de Core Plugins implementada.\n- Suporte a Markdown Preview.\n- Integração Git na StatusBar.\n- Correção de sincronia de scroll e layout."
+    local BTN="Continuar para o Editor"
+
+    if command -v zenity &> /dev/null; then
+        # Janela gráfica pequena e centralizada
+        zenity --info --title="$TITLE" --text="$MSG" --ok-label="$BTN" --width=400 --height=250 2>/dev/null
+    else
+        # Fallback terminal com moldura ASCII caso Zenity falte
+        clear
+        echo "+---------------------------------------------------+"
+        echo "|          Notohiis - Versão 0.1-alpha              |"
+        echo "+---------------------------------------------------+"
+        echo "| Codename: Batata Crua                             |"
+        echo "|                                                   |"
+        echo "| Novidades:                                        |"
+        echo "| - Arquitetura de Core Plugins implementada.       |"
+        echo "| - Suporte a Markdown Preview.                     |"
+        echo "| - Integração Git na StatusBar.                    |"
+        echo "| - Correção de sincronia de scroll e layout.       |"
+        echo "+---------------------------------------------------+"
+        echo ""
+        read -p ">> $BTN [Pressione ENTER] <<" dummy
+    fi
+}
+
+# 0. Splash Screen e Lógica de Auto-Edição
+if [ "$FIRST_RUN" = true ]; then
+    show_splash
+    
+    # Sed técnico: Altera a flag no próprio arquivo ($0) para false 
+    # para evitar re-exibição na próxima inicialização.
+    sed -i "s/FIRST_RUN=false/FIRST_RUN=false/" "$0"
+fi
 
 # 1. Verificação de dependências do sistema
 if ! command -v python3 &> /dev/null; then
@@ -30,13 +68,8 @@ source "$VENV_DIR/bin/activate"
 echo "[INFO] Sincronizando dependências..."
 pip install --upgrade pip --quiet
 
-if [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt --quiet
-else
-    # Fallback caso o requirements.txt não exista, garante o CustomTkinter
-    echo "[WARN] requirements.txt não encontrado. Instalando dependência base..."
-    pip install customtkinter --quiet
-fi
+# Garante a instalação do customtkinter silenciosamente
+pip install customtkinter --upgrade --quiet
 
 # 5. Configuração de ambiente e execução
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
