@@ -14,6 +14,7 @@ class ShortcutManager:
         window.bind("<Control-s>", ShortcutManager.save_file)
         window.bind("<Control-S>", ShortcutManager.save_file)
         window.bind("<Control-o>", ShortcutManager.open_folder)
+        window.bind("<F1>", ShortcutManager.show_help)
         window.bind("<Control-n>", ShortcutManager.new_buffer)
         window.bind("<Control-n>", ShortcutManager.new_buffer)
         
@@ -78,3 +79,17 @@ class ShortcutManager:
         if ctx.status_bar:
             ctx.status_bar.update_status(1, 0, "Novo Arquivo")
         return "break"
+
+    @staticmethod
+    def show_help(event=None):
+        help_text = (
+            "Atalhos do Notohiis:\n\n"
+            "Ctrl+N: Novo Arquivo\n"
+            "Ctrl+S: Salvar\n"
+            "Ctrl+O: Abrir Pasta\n"
+            "Ctrl+B: Alternar Sidebar\n"
+            "Ctrl+M: Markdown Preview (.md)\n"
+            "Ctrl+G: Git Quick Commit\n"
+            "F1: Ajuda"
+        )
+        messagebox.showinfo("Ajuda - Notohiis", help_text)

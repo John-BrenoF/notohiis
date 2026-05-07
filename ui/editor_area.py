@@ -101,3 +101,7 @@ class EditorArea(ctk.CTkFrame):
             ctx.status_bar.update_status(line, col, ctx.current_file or "Novo Arquivo")
             if ctx.is_dirty:
                 ctx.status_bar.file_label.configure(text=f"* {ctx.current_file or 'Novo Arquivo'}")
+        
+        # Atualizar visibilidade do botão Markdown
+        if ctx.md_plugin:
+            ctx.md_plugin.update_button_visibility(ctx.current_file)
