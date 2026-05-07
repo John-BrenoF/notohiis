@@ -32,5 +32,5 @@ class EditorArea(TextArea):
         self.ctx.is_dirty = False
 
     def load_text(self, text: str):
-        self.text = text
+        super().load_text(text)
         self.ctx.is_dirty = False
