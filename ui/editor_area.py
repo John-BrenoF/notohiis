@@ -41,6 +41,8 @@ class EditorArea(ctk.CTkFrame):
         self.textbox.bind("<KeyRelease>", self._on_event)
         self.textbox.bind("<ButtonRelease-1>", self._on_event)
         self.textbox.bind("<MouseWheel>", self._on_event)
+        self.textbox._textbox.bind("<KeyPress>", self._on_key_press, add="+")
+        self.textbox._textbox.bind("<Control-Tab>", self._force_autocomplete)
         self.textbox._textbox.bind("<Configure>", self._on_event)
         self.textbox._textbox.bind("<Key>", self._set_dirty)
 
@@ -65,15 +67,45 @@ class EditorArea(ctk.CTkFrame):
     def _on_event(self, event=None):
         self.redraw_line_numbers()
         self._update_status_bar()
-
-        # Regras de fechamento do popup
-        if event and (event.keysym in ("Escape", "space", "Return") or event.type == "4"):
-            self._hide_autocomplete()
         
         # Dispara realce de sintaxe Python
         if AppContext().py_plugin:
             AppContext().py_plugin.highlight()
             self._trigger_autocomplete(event)
+
+    def _force_autocomplete(self, event=None):
+        self._trigger_autocomplete(event, forced=True)
+        return "break"
+
+    def _on_key_press(self, event):
+        """Intervém nas teclas de navegação quando o popup está ativo."""
+        if not self.popup: return
+
+        if event.keysym in ("Down", "n", "Next"):
+            current = self.popup.curselection()
+            idx = (current[0] + 1) if current else 0
+            if idx < self.popup.size():
+                self.popup.selection_clear(0, tk.END)
+                self.popup.selection_set(idx)
+                self.popup.see(idx)
+            return "break"
+
+        elif event.keysym in ("Up", "p", "Prior"):
+            current = self.popup.curselection()
+            idx = (current[0] - 1) if current else 0
+            if idx >= 0:
+                self.popup.selection_clear(0, tk.END)
+                self.popup.selection_set(idx)
+                self.popup.see(idx)
+            return "break"
+
+        elif event.keysym in ("Tab", "Return", "KP_Enter"):
+            self._on_suggestion_select(None)
+            return "break"
+
+        elif event.keysym == "Escape":
+            self._hide_autocomplete()
+            return "break"
 
     def redraw_line_numbers(self):
         self.line_numbers.delete("all")
@@ -99,22 +131,37 @@ class EditorArea(ctk.CTkFrame):
         return self.textbox.get("1.0", tk.END)
 
     def set_text(self, text: str):
+        ctx = AppContext()
         self.textbox.delete("1.0", tk.END)
         self.textbox.insert("1.0", text)
+        
+        # Notifica o motor de autocomplete sobre o novo conteúdo
+        if ctx.autocomplete_engine and ctx.current_file:
+            ctx.autocomplete_engine.notify_open(ctx.current_file, text)
+            
         self.redraw_line_numbers()
         AppContext().is_dirty = False
 
-    def _trigger_autocomplete(self, event=None):
+    def _trigger_autocomplete(self, event=None, forced=False):
         """Consulta o core e decide se mostra o popup."""
-        if not event or len(event.keysym) > 1 and event.keysym != "BackSpace":
-            return
+        if not event and not forced: return
+        
+        if not forced:
+            is_char = len(event.char) > 0 and (event.char.isalnum() or event.char == ".")
+            is_backspace = event.keysym == "BackSpace"
+            if not (is_char or is_backspace): return
 
         ctx = AppContext()
         index = self.textbox.index(tk.INSERT)
         line, col = map(int, index.split("."))
         
-        suggestions = ctx.autocomplete_engine.get_suggestions(self.get_text(), line, col)
+        def on_data_ready(suggestions):
+            # Volta para a thread principal do Tkinter para desenhar a UI
+            self.textbox.after(0, lambda: self._update_popup_safe(suggestions))
 
+        ctx.autocomplete_engine.request_completion(line, col, on_data_ready)
+
+    def _update_popup_safe(self, suggestions):
         if suggestions:
             self._show_autocomplete_popup(suggestions)
         else:
@@ -140,6 +187,7 @@ class EditorArea(ctk.CTkFrame):
             borderwidth=1, highlightthickness=0
         )
         for s in suggestions: self.popup.insert(tk.END, s)
+        self.popup.selection_set(0) # Pré-seleciona a primeira opção
         
         # Posiciona o popup logo abaixo do cursor
         self.popup.place(x=root_x - self.winfo_rootx(), y=root_y - self.winfo_rooty())
@@ -152,7 +200,9 @@ class EditorArea(ctk.CTkFrame):
 
     def _on_suggestion_select(self, event):
         if not self.popup: return
-        selection = self.popup.get(self.popup.curselection())
+        sel = self.popup.curselection()
+        if not sel: return
+        selection = self.popup.get(sel[0])
         # Substitui o prefixo pela palavra completa
         self.textbox._textbox.delete("insert wordstart", tk.INSERT)
         self.textbox.insert(tk.INSERT, selection)
