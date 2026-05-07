@@ -6,21 +6,23 @@ import markdown2
 from tkinterweb import HtmlFrame
 from core.src.app_context import AppContext
 
-DARK_STYLE = """
+def get_dynamic_style(theme):
+    editor = theme.get("editor", {})
+    syntax = theme.get("syntax", {})
+    return f"""
 <style>
-    body { background-color: #1e1e1e; color: #d4d4d4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; line-height: 1.6; }
-    h1, h2, h3, h4 { color: #569cd6; border-bottom: 1px solid #333; padding-bottom: 5px; }
-    code { background-color: #2d2d2d; color: #ce9178; padding: 2px 5px; border-radius: 3px; font-family: 'Consolas', monospace; }
-    pre { background-color: #2d2d2d; padding: 15px; border-radius: 5px; overflow-x: auto; border: 1px solid #444; }
-    pre code { background-color: transparent; padding: 0; color: #dcdcdc; }
-    blockquote { border-left: 4px solid #569cd6; margin: 0; padding-left: 15px; color: #9cdcfe; font-style: italic; }
+    body {{ background-color: {editor.get('bg', '#1e1e1e')}; color: {editor.get('fg', '#d4d4d4')}; 
+           font-family: 'Segoe UI', sans-serif; padding: 20px; line-height: 1.6; }}
+    h1, h2, h3 {{ color: {syntax.get('definition', '#569cd6')}; border-bottom: 1px solid #3e4451; }}
+    code {{ background-color: {theme.get('sidebar', {}).get('hover', '#2d2d2d')}; 
+           color: {syntax.get('string', '#ce9178')}; padding: 2px 5px; border-radius: 3px; }}
+    pre {{ background-color: #21252b; padding: 15px; border-radius: 5px; border: 1px solid #3e4451; }}
+    blockquote {{ border-left: 4px solid {syntax.get('keyword', '#c678dd')}; padding-left: 15px; color: #9da5b4; }}
     table { border-collapse: collapse; width: 100%; margin: 15px 0; }
-    th, td { border: 1px solid #444; padding: 8px; text-align: left; }
-    th { background-color: #333; color: #569cd6; }
-    hr { border: 0; border-top: 1px solid #444; margin: 20px 0; }
+    th, td {{ border: 1px solid #3e4451; padding: 8px; }}
+    th {{ background-color: #2c313a; color: {syntax.get('definition', '#569cd6')}; }}
 </style>
 """
-
 class MarkdownPlugin:
     """
     Plugin para visualização básica de Markdown.
@@ -74,7 +76,8 @@ class MarkdownPlugin:
             # Só atualiza o HTML se o conteúdo mudou desde a última vez
             if self.last_rendered_content.get(file_path) != text_content:
                 html_content = markdown2.markdown(text_content, extras=["fenced-code-blocks", "tables", "break-on-newline"])
-                self.html_view.load_html(f"{DARK_STYLE}{html_content}")
+                style = get_dynamic_style(self.ctx.theme)
+                self.html_view.load_html(f"{style}{html_content}")
                 self.last_rendered_content[file_path] = text_content
             
             # Ocultar componentes do editor

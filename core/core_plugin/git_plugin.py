@@ -42,9 +42,7 @@ class GitPlugin:
             if self.ctx.status_bar and branch:
                 status_str = f" {branch}" + ("*" if dirty else "")
                 # CustomTkinter/Tkinter exige atualização na thread principal
-                self.ctx.window.after(0, lambda: self.ctx.status_bar.info_label.configure(
-                    text=f"{status_str} | {self.ctx.status_bar.info_label.cget('text').split('|')[-1].strip()}"
-                ))
+                self.ctx.window.after(0, lambda: self.ctx.status_bar.git_label.configure(text=status_str))
         
         threading.Thread(target=task, daemon=True).start()
 

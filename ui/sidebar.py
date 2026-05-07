@@ -17,11 +17,13 @@ class Sidebar(ctk.CTkFrame):
             **kwargs
         )
         self.grid_propagate(False)
+        theme = AppContext().theme.get("sidebar", {})
+        self.configure(fg_color=theme.get("bg", "#1a1a1c"))
         
-        self.label = ctk.CTkLabel(self, text="EXPLORER", font=("Segoe UI", 12, "bold"))
-        self.label.pack(pady=10, padx=10, fill="x")
+        self.label = ctk.CTkLabel(self, text="EXPLORER", font=("Segoe UI", 11, "bold"), text_color=theme.get("label", "gray"))
+        self.label.pack(pady=(15, 5), padx=10, anchor="w")
         
-        self.scrollable_frame = ctk.CTkScrollableFrame(self, corner_radius=0, fg_color="transparent")
+        self.scrollable_frame = ctk.CTkScrollableFrame(self, corner_radius=0, fg_color="transparent", scrollbar_button_color="#2a2a2a")
         self.scrollable_frame.pack(fill="both", expand=True)
         
         self.context_menu = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white", borderwidth=0)
@@ -54,13 +56,17 @@ class Sidebar(ctk.CTkFrame):
 
     def _add_item(self, name, path, is_dir):
         prefix = " " if is_dir else " "
+        theme = AppContext().theme.get("sidebar", {})
+        # Cores baseadas no tipo de item e estado
         btn = ctk.CTkButton(
             self.scrollable_frame, 
             text=f"{prefix}{name}",
             anchor="w",
             fg_color="transparent",
-            text_color=("gray10", "gray90"),
-            hover_color=("gray70", "gray30"),
+            text_color=theme.get("fg", "#cccccc"),
+            hover_color=theme.get("hover", "#2d2d2d"),
+            font=("Segoe UI", 12),
+            height=28,
             command=lambda: self._handle_click(path, is_dir)
         )
         btn.pack(fill="x", padx=5, pady=2)

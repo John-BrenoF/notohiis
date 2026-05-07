@@ -7,14 +7,6 @@ class PythonSyntaxPlugin:
     
     def __init__(self):
         self.ctx = AppContext()
-        self.colors = {
-            "keyword": "#C586C0",   # Roxo
-            "builtin": "#DCDCAA",   # Amarelo claro
-            "string": "#CE9178",    # Laranja/Marrom
-            "comment": "#6A9955",   # Verde
-            "number": "#B5CEA8",    # Verde claro
-            "definition": "#569CD6" # Azul
-        }
         self.rules = [
             (r'\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b', "keyword"),
             (r'\b(abs|all|any|ascii|bin|bool|breakpoint|bytearray|bytes|callable|chr|classmethod|compile|complex|delattr|dict|dir|divmod|enumerate|eval|exec|filter|float|format|frozenset|getattr|globals|hasattr|hash|help|hex|id|input|int|isinstance|issubclass|iter|len|list|locals|map|max|memoryview|min|next|object|oct|open|ord|pow|print|property|range|repr|reversed|round|set|setattr|slice|sorted|staticmethod|str|sum|super|tuple|type|vars|zip)\b', "builtin"),
@@ -27,7 +19,8 @@ class PythonSyntaxPlugin:
 
     def setup_tags(self, widget: tk.Text):
         """Configura as cores das tags no widget de texto."""
-        for tag, color in self.colors.items():
+        colors = self.ctx.theme.get("syntax", {})
+        for tag, color in colors.items():
             widget.tag_configure(tag, foreground=color)
 
     def highlight(self):
@@ -37,9 +30,10 @@ class PythonSyntaxPlugin:
 
         editor_widget = self.ctx.editor_container.textbox._textbox
         content = editor_widget.get("1.0", tk.END)
+        colors = self.ctx.theme.get("syntax", {})
         
         # Limpa tags existentes antes de re-aplicar
-        for tag in self.colors.keys():
+        for tag in colors.keys():
             editor_widget.tag_remove(tag, "1.0", tk.END)
 
         for pattern, tag in self.rules:

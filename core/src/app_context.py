@@ -21,6 +21,7 @@ class AppContext:
             cls._instance.git_plugin = None
             cls._instance.md_plugin = None
             cls._instance.py_plugin = None
+            cls._instance.theme = {}
         return cls._instance
 
     def set_window(self, window: Any):

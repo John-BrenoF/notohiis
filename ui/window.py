@@ -5,6 +5,8 @@ from ui.status_bar import StatusBar
 from ui.shortcuts import ShortcutManager
 from core.src.app_context import AppContext
 from core.src.session import SessionManager
+import json
+import os
 
 class MainWindow(ctk.CTk):
     """Janela principal do editor Notohiis."""
@@ -22,6 +24,7 @@ class MainWindow(ctk.CTk):
         # Inicialização do Contexto
         self.ctx = AppContext()
         self.ctx.set_window(self)
+        self.load_theme()
         self.ctx.project_root = SessionManager.load_session()
         self.ctx.current_file = "Novo Arquivo" # Default text for new buffer
 
@@ -48,3 +51,14 @@ class MainWindow(ctk.CTk):
         if self.ctx.project_root:
             self.sidebar.refresh_explorer()
             self.status_bar.update_status(1, 0, f"Projeto: {self.ctx.project_root}")
+
+    def load_theme(self):
+        """Carrega as definições de cores do arquivo JSON."""
+        theme_path = os.path.join(os.path.dirname(__file__), "estilo", "editor.json")
+        if os.path.exists(theme_path):
+            try:
+                with open(theme_path, "r") as f:
+                    self.ctx.theme = json.load(f)
+            except Exception as e:
+                print(f"Erro ao carregar tema: {e}")
+                self.ctx.theme = {}

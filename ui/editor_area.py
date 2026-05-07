@@ -11,12 +11,14 @@ class EditorArea(ctk.CTkFrame):
         self.grid_columnconfigure(2, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
+        theme = AppContext().theme.get("editor", {})
+
         # Coluna 0: Gutter (Números de linha)
-        self.line_numbers = tk.Canvas(self, width=45, bg='#1e1e1e', bd=0, highlightthickness=0)
+        self.line_numbers = tk.Canvas(self, width=45, bg=theme.get("gutter_bg", "#1e1e1e"), bd=0, highlightthickness=0)
         self.line_numbers.grid(row=0, column=0, sticky="ns")
 
         # Coluna 1: Git Margin (Indicadores de modificação)
-        self.git_margin = tk.Canvas(self, width=15, bg='#1e1e1e', bd=0, highlightthickness=0)
+        self.git_margin = tk.Canvas(self, width=15, bg=theme.get("gutter_bg", "#1e1e1e"), bd=0, highlightthickness=0)
         self.git_margin.grid(row=0, column=1, sticky="ns")
 
         # Coluna 2: Área de Texto Principal
@@ -25,9 +27,12 @@ class EditorArea(ctk.CTkFrame):
             undo=True, 
             font=("Consolas", 15), 
             corner_radius=0, 
-            border_width=0
+            border_width=0,
+            fg_color=theme.get("bg", "#1e1e1e"),
+            text_color=theme.get("fg", "#d4d4d4")
         )
         self.textbox.grid(row=0, column=2, sticky="nsew")
+        self.textbox._textbox.configure(insertbackground=theme.get("cursor", "white"), selectbackground=theme.get("selection_bg", "#264f78"))
 
         # Sincronização de Scroll
         self.textbox._textbox.config(yscrollcommand=self._on_text_scroll)
@@ -75,7 +80,8 @@ class EditorArea(ctk.CTkFrame):
             if dline is None: break
             y = dline[1]
             linenum = str(i).split(".")[0]
-            self.line_numbers.create_text(40, y, anchor="ne", text=linenum, fill="#858585", font=("Consolas", 11))
+            color = AppContext().theme.get("editor", {}).get("gutter_fg", "#858585")
+            self.line_numbers.create_text(40, y, anchor="ne", text=linenum, fill=color, font=("Consolas", 11))
             i = self.textbox.index(f"{i}+1line") # Move to the next line
 
     def get_text(self) -> str:

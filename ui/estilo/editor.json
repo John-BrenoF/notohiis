@@ -1,0 +1,29 @@
+{
+    "editor": {
+        "bg": "#282c34",
+        "fg": "#abb2bf",
+        "cursor": "#528bff",
+        "gutter_bg": "#282c34",
+        "gutter_fg": "#4b5263",
+        "selection_bg": "#3e4451"
+    },
+    "syntax": {
+        "keyword": "#c678dd",
+        "builtin": "#e5c07b",
+        "string": "#98c379",
+        "comment": "#5c6370",
+        "number": "#d19a66",
+        "definition": "#61afef"
+    },
+    "status_bar": {
+        "bg": "#21252b",
+        "fg": "#9da5b4"
+    },
+    "sidebar": {
+        "bg": "#21252b",
+        "fg": "#868d9a",
+        "hover": "#2c313a",
+        "label": "#5c6370",
+        "text_active": "#ffffff"
+    }
+}
