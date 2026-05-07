@@ -1,4 +1,5 @@
 ui/__pycache__
 core/src/__pycache__
-/home/john/projetos/notohiis/.venv
+notohiis/.venv
 core/core_plugin/__pycache__
+tui/__pycache__

@@ -8,4 +8,4 @@ source "$COMMAND_SCRIPT/.venv/bin/activate"
 
 # Executa a versão TUI
 export PYTHONPATH="${PYTHONPATH}:$COMMAND_SCRIPT"
-python3 -c "from tui.window import TuiWindow; TuiWindow().run()"
+python3 -c "from tui.window import TuiWindow; TuiWindow().run()" "$1"

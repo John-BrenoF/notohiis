@@ -8,6 +8,7 @@ from tui.shortcuts import ShortcutManager
 from core.src.app_context import AppContext
 from core.src.session import SessionManager
 import os
+import sys
 
 class TuiWindow(App):
     """Janela principal TUI."""
@@ -43,6 +44,22 @@ class TuiWindow(App):
 
     def on_mount(self) -> None:
         self.title = "Notohiis TUI"
+        
+        # Lógica para abrir arquivo via argumento (ntht file.txt)
+        if len(sys.argv) > 1 and sys.argv[1]:
+            file_path = os.path.abspath(sys.argv[1])
+            ctx = AppContext()
+            ctx.current_file = file_path
+            
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                from core.src.buffer import BufferManager
+                content = BufferManager.read_file(file_path)
+                editor = self.query_one(EditorArea)
+                editor.set_text(content)
+                
+            # Atualiza o status bar se disponível
+            if ctx.status_bar:
+                ctx.status_bar.update_status(1, 0, file_path)
 
 if __name__ == "__main__":
     app = TuiWindow()
