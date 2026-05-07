@@ -34,13 +34,35 @@ show_splash() {
     fi
 }
 
-# 0. Splash Screen e Lógica de Auto-Edição
+# 0. Configuração Inicial (Splash Screen e Alias)
 if [ "$FIRST_RUN" = true ]; then
     show_splash
     
-    # Sed técnico: Altera a flag no próprio arquivo ($0) para false 
-    # para evitar re-exibição na próxima inicialização.
-    sed -i "s/FIRST_RUN=false/FIRST_RUN=false/" "$0"
+    # Configuração do Alias 'nth'
+    COMMAND_SCRIPT="$(dirname "$(realpath "$0")")/command.sh"
+    chmod +x "$COMMAND_SCRIPT" # Garante permissão de execução
+
+    # Detecta arquivos de configuração do shell (Bash e Zsh para CachyOS/Arch)
+    HAS_UPDATED=false
+    for CONFIG in "$HOME/.bashrc" "$HOME/.zshrc"; do
+        if [ -f "$CONFIG" ]; then
+            if ! grep -q "alias nth=" "$CONFIG"; then
+                echo "" >> "$CONFIG"
+                echo "# Notohiis Alias" >> "$CONFIG"
+                echo "alias nth='bash $COMMAND_SCRIPT'" >> "$CONFIG"
+                echo "[INFO] Alias 'nth' adicionado ao $CONFIG."
+                HAS_UPDATED=true
+            fi
+        fi
+    done
+
+    if [ "$HAS_UPDATED" = true ]; then
+        echo "[DICA] O comando 'nth' foi instalado. Para usá-lo agora, execute:"
+        echo "       source ~/.bashrc (ou source ~/.zshrc caso use Zsh)"
+    fi
+
+    # Sed técnico: Altera a flag para false para evitar re-exibição
+    sed -i "s/^FIRST_RUN=true/FIRST_RUN=false/" "$0"
 fi
 
 # 1. Verificação de dependências do sistema
@@ -75,7 +97,7 @@ pip install customtkinter --upgrade --quiet
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
 echo "[SUCCESS] Notohiis iniciado com sucesso."
-python3 main.py
+python3 main.py "$1"
 
 # Finalização limpa
 deactivate

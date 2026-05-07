@@ -1,3 +1,5 @@
+import sys
+import os
 import customtkinter as ctk
 from ui.window import MainWindow
 from core.src.app_context import AppContext
@@ -31,4 +33,22 @@ if __name__ == "__main__":
     load_plugins()
     app = MainWindow()
     
+    # Lógica para abrir arquivo via argumento de linha de comando (nth file.txt)
+    if len(sys.argv) > 1 and sys.argv[1]:
+        file_path = os.path.abspath(sys.argv[1])
+        if os.path.isfile(file_path):
+            from core.src.buffer import BufferManager
+            ctx = AppContext()
+            
+            content = BufferManager.read_file(file_path)
+            ctx.editor_container.set_text(content)
+            ctx.current_file = file_path
+            ctx.is_dirty = False
+            
+            # Atualiza UI após carregar
+            if ctx.status_bar:
+                ctx.status_bar.update_status(1, 0, file_path)
+            if ctx.py_plugin:
+                ctx.py_plugin.highlight()
+
     app.mainloop()
