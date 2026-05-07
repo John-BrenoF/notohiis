@@ -7,12 +7,19 @@ class EditorArea(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, corner_radius=0, fg_color="transparent", **kwargs)
         
-        # Calha (gutter) expandida para acomodar indicadores sem sobreposição
-        # Largura aumentada de 40 para 60 para separar números de indicadores de Git/Status
-        self.gutter_width = 60
-        self.line_numbers = tk.Canvas(self, width=self.gutter_width, bg='#1e1e1e', bd=0, highlightthickness=0)
-        self.line_numbers.pack(side="left", fill="y")
+        # Configuração da Grade: Coluna 0 (Números), Coluna 1 (Git), Coluna 2 (Texto)
+        self.grid_columnconfigure(2, weight=1)
+        self.grid_rowconfigure(0, weight=1)
 
+        # Coluna 0: Gutter (Números de linha)
+        self.line_numbers = tk.Canvas(self, width=45, bg='#1e1e1e', bd=0, highlightthickness=0)
+        self.line_numbers.grid(row=0, column=0, sticky="ns")
+
+        # Coluna 1: Git Margin (Indicadores de modificação)
+        self.git_margin = tk.Canvas(self, width=15, bg='#1e1e1e', bd=0, highlightthickness=0)
+        self.git_margin.grid(row=0, column=1, sticky="ns")
+
+        # Coluna 2: Área de Texto Principal
         self.textbox = ctk.CTkTextbox(
             self, 
             undo=True, 
@@ -20,22 +27,20 @@ class EditorArea(ctk.CTkFrame):
             corner_radius=0, 
             border_width=0
         )
-        self.textbox.pack(side="right", fill="both", expand=True)
+        self.textbox.grid(row=0, column=2, sticky="nsew")
 
-        # Set the yscrollcommand of the internal Tkinter Text widget
-        # This will be called whenever the textbox is scrolled
+        # Sincronização de Scroll
         self.textbox._textbox.config(yscrollcommand=self._on_text_scroll)
 
+        # Bindings
         self.textbox.bind("<KeyRelease>", self._on_event)
         self.textbox.bind("<ButtonRelease-1>", self._on_event)
         self.textbox.bind("<MouseWheel>", self._on_event)
         self.textbox._textbox.bind("<Configure>", self._on_event)
         self.textbox._textbox.bind("<Key>", self._set_dirty)
 
-        # Bind mouse wheel on line numbers to scroll textbox
         self.line_numbers.bind("<MouseWheel>", self._on_canvas_mousewheel)
-        self.line_numbers.bind("<Button-4>", self._on_canvas_mousewheel) # Linux scroll up
-        self.line_numbers.bind("<Button-5>", self._on_canvas_mousewheel) # Linux scroll down
+        self.git_margin.bind("<MouseWheel>", self._on_canvas_mousewheel)
 
     def _set_dirty(self, event=None):
         AppContext().is_dirty = True
@@ -62,8 +67,7 @@ class EditorArea(ctk.CTkFrame):
             if dline is None: break
             y = dline[1]
             linenum = str(i).split(".")[0]
-            # Alinhamento dos números à direita (x=35) mantendo espaço à esquerda para Git Status
-            self.line_numbers.create_text(38, y, anchor="ne", text=linenum, fill="#858585", font=("Consolas", 12))
+            self.line_numbers.create_text(40, y, anchor="ne", text=linenum, fill="#858585", font=("Consolas", 11))
             i = self.textbox.index(f"{i}+1line") # Move to the next line
 
     def get_text(self) -> str:

@@ -1,9 +1,9 @@
-# Dependências Sugeridas: markdown, bleach (opcional para sanitização)
-# Este plugin usa tags nativas do Tkinter para manter a independência de bibliotecas externas.
+# Dependências: pip install tkinterweb markdown2
 
-import re
-import tkinter as tk
+import os
 import customtkinter as ctk
+import markdown2
+from tkinterweb import HtmlFrame
 from core.src.app_context import AppContext
 
 class MarkdownPlugin:
@@ -13,8 +13,8 @@ class MarkdownPlugin:
     """
     def __init__(self):
         self.ctx = AppContext()
-        self.view_states = {}  # Persistência de estado por arquivo
-        self._setup_tags()
+        self.view_states = {} 
+        self.html_view = None
         self._inject_status_button()
 
     def _inject_status_button(self):
@@ -30,65 +30,43 @@ class MarkdownPlugin:
             )
             self.btn_view.pack(side="right", padx=10)
 
-    def _setup_tags(self):
-        """Configura os estilos de renderização na área de texto."""
-        editor_textbox = self.ctx.editor_container.textbox
-        editor_textbox.tag_config("H1", foreground="#569CD6") # Removed font
-        editor_textbox.tag_config("BOLD") # Removed font, default bold might be applied by Tkinter if tag is present
-        editor_textbox.tag_config("CODE", background="#2D2D2D", foreground="#CE9178") # Removed font
-
     def toggle_preview(self, event=None):
         """Alterna o estado de visualização."""
         if not self.ctx.current_file or not self.ctx.current_file.endswith(".md"):
             return "break"
 
+        container = self.ctx.editor_container
         file_path = self.ctx.current_file
-        is_preview = self.view_states.get(file_path, False)
-        editor_widget = self.ctx.editor_container.textbox
+        is_preview_active = self.view_states.get(file_path, False)
+
+        if not self.html_view:
+            self.html_view = HtmlFrame(container)
         
-        if not is_preview:
-            self._apply_markdown_tags(editor_widget)
-            editor_widget.configure(state="disabled")
+        if not is_preview_active:
+            # Converter Markdown para HTML
+            text_content = container.get_text()
+            html_content = markdown2.markdown(text_content, extras=["fenced-code-blocks", "tables"])
+            
+            # Carregar no visualizador HTML
+            self.html_view.load_html(html_content)
+            
+            # Ocultar componentes do editor
+            container.textbox.grid_remove()
+            container.line_numbers.grid_remove()
+            container.git_margin.grid_remove()
+            
+            # Exibir HTML Frame ocupando toda a grade
+            self.html_view.grid(row=0, column=0, columnspan=3, sticky="nsew")
+            
             self.view_states[file_path] = True
             self.btn_view.configure(fg_color="#1f538d", text="Preview ON")
         else:
-            self._clear_tags(editor_widget)
-            editor_widget.configure(state="normal")
+            # Restaurar componentes do editor
+            self.html_view.grid_remove()
+            container.textbox.grid()
+            container.line_numbers.grid()
+            container.git_margin.grid()
+            
             self.view_states[file_path] = False
             self.btn_view.configure(fg_color=["#3B8ED0", "#1F6AA5"], text="View Mode")
         
-        return "break"
-
-    def _apply_markdown_tags(self, widget: tk.Text):
-        """Parser simples baseado em Regex para aplicar tags de estilo."""
-        content = widget.get("1.0", tk.END)
-        
-        # H1: # Título
-        for match in re.finditer(r"^#\s+(.*)$", content, re.MULTILINE):
-            start, end = f"{match.start()+1}.0", f"{match.end()+1}.0"
-            widget.tag_add("H1", start, end)
-
-        # Bold: **texto**
-        for match in re.finditer(r"\*\*(.*?)\*\*", content):
-            # Conversão de offset para index de linha.coluna do Tkinter
-            start_idx = self._offset_to_index(content, match.start())
-            end_idx = self._offset_to_index(content, match.end())
-            widget.tag_add("BOLD", start_idx, end_idx)
-
-        # Code: `code`
-        for match in re.finditer(r"`(.*?)`", content):
-            start_idx = self._offset_to_index(content, match.start())
-            end_idx = self._offset_to_index(content, match.end())
-            widget.tag_add("CODE", start_idx, end_idx)
-
-    def _clear_tags(self, widget: tk.Text):
-        """Remove toda a formatação para modo de edição."""
-        for tag in ["H1", "BOLD", "CODE"]:
-            widget.tag_remove(tag, "1.0", tk.END)
-
-    def _offset_to_index(self, content: str, offset: int) -> str:
-        """Converte offset de string para o formato 'linha.coluna' do Tkinter."""
-        lines = content[:offset].split('\n')
-        line = len(lines)
-        column = len(lines[-1])
-        return f"{line}.{column}"

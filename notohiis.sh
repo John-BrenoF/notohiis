@@ -3,7 +3,7 @@
 # Notohiis Editor Bootstrapper
 # Este script gerencia o ambiente virtual, dependências e inicialização do sistema.
 
-FIRST_RUN=false
+FIRST_RUN=True
 set -e # Aborta em caso de erro simples
 
 # Função para exibir a Splash Screen (Zenity ou Fallback Terminal)
