@@ -4,6 +4,7 @@ from ui.sidebar import Sidebar
 from ui.status_bar import StatusBar
 from ui.shortcuts import ShortcutManager
 from core.src.app_context import AppContext
+from core.src.session import SessionManager
 
 class MainWindow(ctk.CTk):
     """Janela principal do editor Notohiis."""
@@ -20,8 +21,9 @@ class MainWindow(ctk.CTk):
         # Inicialização do Contexto
         self.ctx = AppContext()
         self.ctx.set_window(self)
+        self.ctx.project_root = SessionManager.load_session()
 
-        # Sidebar (Inicia com largura 0 e corner_radius 0 conforme requisitos)
+        # Sidebar
         self.sidebar = Sidebar(self, width=0, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew", rowspan=2)
         self.ctx.set_sidebar(self.sidebar)
@@ -29,6 +31,7 @@ class MainWindow(ctk.CTk):
         # Editor Area
         self.editor = EditorArea(self)
         self.editor.grid(row=0, column=1, sticky="nsew")
+        # Registramos o container que contém o textbox e gutter
         self.ctx.set_editor(self.editor)
 
         # Status Bar

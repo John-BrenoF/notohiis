@@ -15,13 +15,15 @@ class AppContext:
             cls._instance.sidebar = None
             cls._instance.status_bar = None
             cls._instance.current_file: Optional[str] = None
+            cls._instance.project_root: Optional[str] = None
+            cls._instance.is_dirty: bool = False
         return cls._instance
 
     def set_window(self, window: Any):
         self.window = window
 
-    def set_editor(self, editor: Any):
-        self.editor = editor
+    def set_editor(self, editor_container: Any):
+        self.editor_container = editor_container
 
     def set_sidebar(self, sidebar: Any):
         self.sidebar = sidebar
