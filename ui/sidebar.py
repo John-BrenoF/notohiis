@@ -77,6 +77,10 @@ class Sidebar(ctk.CTkFrame):
             ctx.current_file = path
             ctx.is_dirty = False
             ctx.status_bar.update_status(1, 0, path)
+            
+            # Dispara realce de sintaxe imediatamente após carregar o arquivo
+            if ctx.py_plugin:
+                ctx.py_plugin.highlight()
 
     def _show_context_menu(self, event, target_path=None):
         self._menu_target = target_path or AppContext().project_root
