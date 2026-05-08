@@ -97,7 +97,7 @@ pip install customtkinter --upgrade --quiet
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
 echo "[SUCCESS] Notohiis iniciado com sucesso."
-python3 main.py "$1"
+python3 /home/john/projetos/notohiis/main.py "$1"
 
 # Finalização limpa
 deactivate

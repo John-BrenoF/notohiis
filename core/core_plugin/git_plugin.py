@@ -40,9 +40,10 @@ class GitPlugin:
         def task():
             branch, dirty = self.get_git_info()
             if self.ctx.status_bar and branch:
-                status_str = f" {branch}" + ("*" if dirty else "")
-                # CustomTkinter/Tkinter exige atualização na thread principal
-                self.ctx.window.after(0, lambda: self.ctx.status_bar.git_label.configure(text=status_str))
+                status_str = f" {branch}" + ("*" if dirty else "") if branch else ""
+                self.ctx.window.after(0, lambda: self.ctx.status_bar.git_button.configure(text=status_str))
+            elif self.ctx.status_bar and self.ctx.status_bar.git_button: # Se não há branch, limpa o texto do botão
+                self.ctx.window.after(0, lambda: self.ctx.status_bar.git_button.configure(text=""))
         
         threading.Thread(target=task, daemon=True).start()
 
