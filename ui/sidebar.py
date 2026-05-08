@@ -50,9 +50,19 @@ class Sidebar(ctk.CTkFrame):
         )
         self.new_file_btn.pack(side="right", padx=2)
         
-        self.scrollable_frame = ctk.CTkScrollableFrame(self, corner_radius=0, fg_color="transparent", scrollbar_button_color="#2a2a2a")
+        # Configuração minimalista da área de scroll
+        self.scrollable_frame = ctk.CTkScrollableFrame(
+            self, 
+            corner_radius=0, 
+            fg_color="transparent",
+            scrollbar_button_color=theme.get("hover", "#2c313a"),
+            scrollbar_button_hover_color=theme.get("label", "#5c6370")
+        )
         self.scrollable_frame.pack(fill="both", expand=True)
         
+        # Ajuste técnico para tornar a barra de scroll mais fina (minimalista)
+        self.scrollable_frame._scrollbar.configure(width=8)
+
         self.context_menu = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white", borderwidth=0)
         self.context_menu.add_command(label="Novo Arquivo", command=self._menu_new_file)
         self.context_menu.add_command(label="Nova Pasta", command=self._menu_new_folder)
@@ -120,6 +130,32 @@ class Sidebar(ctk.CTkFrame):
         btn.pack(fill="x", padx=5, pady=2)
         self.item_widgets[path] = btn
         btn.bind("<Button-3>", lambda e: self._show_context_menu(e, path))
+        
+        # Vincula o scroll em cada botão item
+        self._bind_scroll_to_widget(btn)
+
+    def _bind_scroll_to_widget(self, widget):
+        """Aplica os binds de scroll de forma universal ao widget."""
+        widget.bind("<MouseWheel>", self._on_mousewheel)
+        widget.bind("<Button-4>", self._on_mousewheel)
+        widget.bind("<Button-5>", self._on_mousewheel)
+
+    def _on_mousewheel(self, event):
+        """Motor de scroll manual e resiliente para suportar Linux/Win/Mac."""
+        # 1. Tenta usar o método interno do CustomTkinter (mais seguro)
+        if hasattr(self.scrollable_frame, "_on_mousewheel"):
+            self.scrollable_frame._on_mousewheel(event)
+            return "break"
+
+        # 2. Fallback manual acessando o canvas de scroll real (_parent_canvas)
+        # Evitamos winfo_children pois botões internos têm 'canvas' no nome do widget
+        canvas = getattr(self.scrollable_frame, "_parent_canvas", None)
+        if canvas and hasattr(canvas, "yview_scroll"):
+            # No Linux usa event.num, no Win/Mac usa event.delta
+            direction = -1 if (event.num == 4 or event.delta > 0) else 1
+            canvas.yview_scroll(direction, "units")
+            
+        return "break"
 
     def _handle_click(self, path, is_dir):
         ctx = AppContext()
@@ -157,7 +193,7 @@ class Sidebar(ctk.CTkFrame):
         icon = "󰉋 " if is_dir else "󰈔 "
         icon_label = ctk.CTkLabel(inline_frame, text=icon, font=("Segoe UI", 12))
         icon_label.pack(side="left", padx=(5, 10))
-
+        
         entry = ctk.CTkEntry(
             inline_frame, 
             height=24, 
@@ -167,6 +203,11 @@ class Sidebar(ctk.CTkFrame):
         )
         entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
         entry.focus_set()
+
+        # Garante que o scroll funcione mesmo com a caixa de texto aberta
+        self._bind_scroll_to_widget(inline_frame)
+        self._bind_scroll_to_widget(icon_label)
+        self._bind_scroll_to_widget(entry)
 
         def confirm(event=None):
             name = entry.get()
