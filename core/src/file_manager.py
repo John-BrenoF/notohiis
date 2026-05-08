@@ -40,6 +40,15 @@ class FileManager:
             return False
 
     @staticmethod
+    def rename_path(old_path: str, new_name: str) -> bool:
+        try:
+            new_path = os.path.join(os.path.dirname(old_path), new_name)
+            os.rename(old_path, new_path)
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
     def delete_path(path: str) -> bool:
         try:
             if os.path.isdir(path):
