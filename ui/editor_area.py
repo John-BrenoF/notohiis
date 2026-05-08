@@ -223,9 +223,7 @@ class EditorArea(ctk.CTkFrame):
             cursor_pos = self.textbox.index(tk.INSERT).split(".")
             line = cursor_pos[0]
             col = cursor_pos[1]
-            ctx.status_bar.update_status(line, col, ctx.current_file or "Novo Arquivo")
-            if ctx.is_dirty:
-                ctx.status_bar.file_label.configure(text=f"* {ctx.current_file or 'Novo Arquivo'}")
+            ctx.status_bar.update_status(line, col, ctx.current_file)
         
         # Atualizar visibilidade do botão Markdown
         if ctx.md_plugin:
