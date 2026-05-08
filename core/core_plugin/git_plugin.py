@@ -66,13 +66,21 @@ class GitPlugin:
         def execute_commit():
             msg = entry.get()
             if msg:
-                try:
-                    subprocess.run(["git", "add", "."], cwd=self.ctx.project_root, check=True)
-                    subprocess.run(["git", "commit", "-m", msg], cwd=self.ctx.project_root, check=True)
-                    self.async_update_status()
-                    dialog.destroy()
-                except subprocess.CalledProcessError as e:
-                    print(f"Erro no commit: {e}")
+                btn.configure(state="disabled", text="Commiting...")
+                def task():
+                    try:
+                        subprocess.run(["git", "add", "."], cwd=self.ctx.project_root, check=True)
+                        subprocess.run(["git", "commit", "-m", msg], cwd=self.ctx.project_root, check=True)
+                        
+                        # Atualiza UI na thread principal
+                        self.ctx.window.after(0, lambda: [
+                            self.async_update_status(),
+                            dialog.destroy()
+                        ])
+                    except subprocess.CalledProcessError as e:
+                        print(f"Erro no commit: {e}")
+                        self.ctx.window.after(0, lambda: btn.configure(state="normal", text="Commit"))
+                threading.Thread(target=task, daemon=True).start()
 
         btn = ctk.CTkButton(dialog, text="Commit", command=execute_commit)
         btn.pack(pady=20)

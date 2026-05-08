@@ -51,8 +51,11 @@ class PythonSyntaxPlugin:
 
     def _offset_to_index(self, content: str, offset: int) -> str:
         """Converte offset de caractere para o formato 'linha.coluna' do Tkinter."""
-        # Conta quantas quebras de linha existem até o offset
-        lines = content[:offset].split('\n')
-        line = len(lines)
-        column = len(lines[-1])
+        # Otimização: evita criar múltiplas substrings com split('\n')
+        line = content.count('\n', 0, offset) + 1
+        last_newline = content.rfind('\n', 0, offset)
+        if last_newline == -1:
+            column = offset
+        else:
+            column = offset - last_newline - 1
         return f"{line}.{column}"
