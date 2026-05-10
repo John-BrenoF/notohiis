@@ -19,6 +19,10 @@ class ShortcutManager:
         window.bind("<Control-n>", ShortcutManager.new_buffer)
         window.bind("<Control-n>", ShortcutManager.new_buffer)
         
+        # Painel de Controle (Configurações e Plugins)
+        window.bind("<Control-Alt-c>", ShortcutManager.open_control_panel)
+        window.bind("<Control-Alt-C>", ShortcutManager.open_control_panel)
+        
         # Atalhos de Plugins
         window.bind("<Control-m>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
         window.bind("<Control-M>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
@@ -146,3 +150,9 @@ class ShortcutManager:
             ctk.CTkLabel(row, text=desc, font=("Segoe UI", 12), anchor="w").pack(side="left")
 
         ctk.CTkButton(help_window, text="Entendido", command=help_window.destroy).pack(pady=20)
+
+    @staticmethod
+    def open_control_panel(event=None):
+        from ui.control_panel import ControlPanel
+        ctx = AppContext()
+        ControlPanel(ctx.window)
