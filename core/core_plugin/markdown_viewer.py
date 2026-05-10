@@ -1,6 +1,7 @@
 # Dependências: pip install tkinterweb markdown2
 
 import os
+from typing import Optional
 import customtkinter as ctk
 import markdown2
 from tkinterweb import HtmlFrame
@@ -18,7 +19,7 @@ def get_dynamic_style(theme):
            color: {syntax.get('string', '#ce9178')}; padding: 2px 5px; border-radius: 3px; }}
     pre {{ background-color: #21252b; padding: 15px; border-radius: 5px; border: 1px solid #3e4451; }}
     blockquote {{ border-left: 4px solid {syntax.get('keyword', '#c678dd')}; padding-left: 15px; color: #9da5b4; }}
-    table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+    table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
     th, td {{ border: 1px solid #3e4451; padding: 8px; }}
     th {{ background-color: #2c313a; color: {syntax.get('definition', '#569cd6')}; }}
 </style>
@@ -33,7 +34,6 @@ class MarkdownPlugin:
         self.view_states = {} 
         self.html_view = None
         self.last_rendered_content = {} # Cache para evitar re-renderização
-        self._inject_status_button()
 
     def _inject_status_button(self):
         """Injeta o botão de toggle na StatusBar do AppContext."""
@@ -50,7 +50,11 @@ class MarkdownPlugin:
 
     def update_button_visibility(self, file_path: Optional[str]):
         """Mostra ou oculta o botão dependendo da extensão do arquivo."""
-        if not hasattr(self, 'btn_view'): return
+        # Tenta injetar o botão caso a StatusBar tenha sido criada após a carga do plugin
+        if not hasattr(self, 'btn_view'):
+            self._inject_status_button()
+        
+        if not hasattr(self, 'btn_view'): return # StatusBar ainda não disponível
         
         if file_path and file_path.lower().endswith(".md"):
             self.btn_view.pack(side="right", padx=10)
@@ -89,14 +93,16 @@ class MarkdownPlugin:
             self.html_view.grid(row=0, column=0, columnspan=3, sticky="nsew")
             
             self.view_states[file_path] = True
-            self.btn_view.configure(fg_color="#1f538d", text="Preview ON")
+            if hasattr(self, 'btn_view'):
+                self.btn_view.configure(fg_color="#1f538d", text="Preview ON")
         else:
             # Restaurar componentes do editor
             self.html_view.grid_remove()
-            container.textbox.grid()
-            container.line_numbers.grid()
-            container.git_margin.grid()
+            container.textbox.grid(row=0, column=2, sticky="nsew")
+            container.line_numbers.grid(row=0, column=0, sticky="ns")
+            container.git_margin.grid(row=0, column=1, sticky="ns")
             
             self.view_states[file_path] = False
-            self.btn_view.configure(fg_color=["#3B8ED0", "#1F6AA5"], text="View Mode")
+            if hasattr(self, 'btn_view'):
+                self.btn_view.configure(fg_color=["#3B8ED0", "#1F6AA5"], text="View Mode")
         

@@ -90,8 +90,8 @@ source "$VENV_DIR/bin/activate"
 echo "[INFO] Sincronizando dependências..."
 pip install --upgrade pip --quiet
 
-# Garante a instalação do customtkinter silenciosamente
-pip install customtkinter --upgrade --quiet
+# Garante a instalação das dependências core e dos plugins (Markdown, etc)
+pip install customtkinter markdown2 tkinterweb --upgrade --quiet
 
 # 5. Configuração de ambiente e execução
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
