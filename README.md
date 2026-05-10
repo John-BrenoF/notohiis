@@ -56,7 +56,7 @@ Exemplo de como o Notohiis pode ser expandido:
 ```
 
 ---
-*Notohiis - Versão 0.1-alpha*  
-*"Batata Crua" Edition*
+*Notohiis - Versão 0.2-alpha*  
+*"frango  com batata doce" Edition*
 
 Desenvolvido com ❤️ e Python.
