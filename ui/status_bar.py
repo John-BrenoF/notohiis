@@ -10,26 +10,34 @@ class StatusBar(ctk.CTkFrame):
         theme = AppContext().theme.get("status_bar", {})
         self.configure(fg_color=theme.get("bg", "#21252b"))
         fg = theme.get("fg", "#9da5b4")
+        hover_color = theme.get("hover", "#2c313a")
         
         # Lado Esquerdo: Git e Arquivo
         self.git_button = ctk.CTkButton(
             self, 
             text="", 
             font=("Segoe UI", 11, "bold"), 
-            text_color="#61afef", # Cor azul para Git
+            text_color="#61afef",
             fg_color="transparent", 
-            hover_color=theme.get("hover", "#2c313a"), # Cor de hover da sidebar
+            hover_color=hover_color,
             command=self._on_git_click,
             width=0 # Largura automática
         )
-        self.git_button.pack(side="left", padx=(10, 5))
+        self.git_button.pack(side="left", padx=(5, 2))
         
-        self.file_label = ctk.CTkLabel(self, text="Novo Arquivo", font=("Segoe UI", 11), text_color=fg)
-        self.file_label.pack(side="left", padx=5)
+        # Separador visual
+        self.left_sep = ctk.CTkLabel(self, text="|", text_color="#3e4451", font=("Segoe UI", 12))
+        self.left_sep.pack(side="left", padx=5)
+
+        self.file_label = ctk.CTkLabel(self, text="Novo Arquivo", font=("Segoe UI", 11, "italic"), text_color=fg)
+        self.file_label.pack(side="left", padx=(2, 10))
 
         # Lado Direito: Posição, Linguagem, Encoding
-        self.pos_label = ctk.CTkLabel(self, text="Ln 1, Col 0", font=("Segoe UI", 11), text_color=fg)
-        self.pos_label.pack(side="right", padx=15)
+        self.encoding_label = ctk.CTkLabel(self, text="UTF-8", font=("Segoe UI", 11), text_color=fg)
+        self.encoding_label.pack(side="right", padx=(10, 15))
+
+        self.right_sep2 = ctk.CTkLabel(self, text="|", text_color="#3e4451", font=("Segoe UI", 12))
+        self.right_sep2.pack(side="right", padx=2)
 
         self.lang_button = ctk.CTkButton(
             self, 
@@ -37,22 +45,25 @@ class StatusBar(ctk.CTkFrame):
             font=("Segoe UI", 11), 
             text_color=fg,
             fg_color="transparent",
-            hover_color=theme.get("hover", "#2c313a"),
+            hover_color=hover_color,
             command=self._on_lang_click,
             width=0
         )
-        self.lang_button.pack(side="right", padx=10)
+        self.lang_button.pack(side="right", padx=5)
 
-        self.encoding_label = ctk.CTkLabel(self, text="UTF-8", font=("Segoe UI", 11), text_color=fg)
-        self.encoding_label.pack(side="right", padx=10)
+        self.right_sep1 = ctk.CTkLabel(self, text="|", text_color="#3e4451", font=("Segoe UI", 12))
+        self.right_sep1.pack(side="right", padx=2)
+
+        self.pos_label = ctk.CTkLabel(self, text="Ln 1, Col 0", font=("Segoe UI", 11), text_color=fg)
+        self.pos_label.pack(side="right", padx=(10, 5))
 
     def update_git_ui(self, status_text: str, is_dirty: bool):
         """Atualiza a aparência do botão Git com base no estado."""
         self.git_button.configure(text=status_text)
         if is_dirty:
-            self.git_button.configure(text_color="#e06c75") # Avermelhado se houver mudanças
+            self.git_button.configure(text_color="#e06c75")
         else:
-            self.git_button.configure(text_color="#61afef") # Azul padrão
+            self.git_button.configure(text_color="#61afef")
 
     def _on_git_click(self):
         ctx = AppContext()
@@ -65,13 +76,22 @@ class StatusBar(ctk.CTkFrame):
     def update_status(self, line: int, column: int, file_path: str = "Novo Arquivo"):
         ctx = AppContext()
         
-        # Atualiza Posição do Cursor
-        self.pos_label.configure(text=f"Ln {line}, Col {column}")
+        # Obter total de linhas para um feedback mais completo
+        total_lines = "1"
+        if ctx.editor_container and hasattr(ctx.editor_container, "textbox"):
+             total_lines = ctx.editor_container.textbox.index('end-1c').split('.')[0]
+
+        # Atualiza Posição do Cursor (Formato IDE: Linha, Coluna (Total))
+        self.pos_label.configure(text=f"Ln {line}, Col {column} (Total: {total_lines})")
         
         # Atualiza Nome do Arquivo e Indicador de Modificação (●)
-        name = os.path.basename(file_path) if file_path else "Novo Arquivo"
-        status_prefix = "● " if ctx.is_dirty else ""
-        self.file_label.configure(text=f"{status_prefix}{name}")
+        if file_path and os.path.isabs(file_path):
+            name = os.path.basename(file_path)
+        else:
+            name = file_path or "Novo Arquivo"
+            
+        dirty_indicator = " ●" if ctx.is_dirty else ""
+        self.file_label.configure(text=f"{name}{dirty_indicator}", font=("Segoe UI", 11, "normal" if not ctx.is_dirty else "bold"))
 
         # Detecção Simples de Linguagem
         ext = os.path.splitext(file_path)[1].lower() if file_path else ""
