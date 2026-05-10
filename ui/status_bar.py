@@ -46,6 +46,14 @@ class StatusBar(ctk.CTkFrame):
         self.encoding_label = ctk.CTkLabel(self, text="UTF-8", font=("Segoe UI", 11), text_color=fg)
         self.encoding_label.pack(side="right", padx=10)
 
+    def update_git_ui(self, status_text: str, is_dirty: bool):
+        """Atualiza a aparência do botão Git com base no estado."""
+        self.git_button.configure(text=status_text)
+        if is_dirty:
+            self.git_button.configure(text_color="#e06c75") # Avermelhado se houver mudanças
+        else:
+            self.git_button.configure(text_color="#61afef") # Azul padrão
+
     def _on_git_click(self):
         ctx = AppContext()
         if ctx.git_plugin:
