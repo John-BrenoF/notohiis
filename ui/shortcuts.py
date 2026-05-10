@@ -1,5 +1,6 @@
+import customtkinter as ctk
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
 from core.src.session import SessionManager
@@ -42,6 +43,14 @@ class ShortcutManager:
         return "break" # Stop event propagation
 
     @staticmethod
+    def _center_window(window, width, height):
+        window.update_idletasks()
+        master = AppContext().window
+        x = master.winfo_x() + (master.winfo_width() // 2) - (width // 2)
+        y = master.winfo_y() + (master.winfo_height() // 2) - (height // 2)
+        window.geometry(f"{width}x{height}+{x}+{y}")
+
+    @staticmethod
     def save_file(event=None):
         ctx = AppContext()
         if not ctx.current_file:
@@ -70,26 +79,59 @@ class ShortcutManager:
     @staticmethod
     def new_buffer(event=None):
         ctx = AppContext()
+
+        def proceed():
+            ctx.current_file = None
+            ctx.is_dirty = False
+            ctx.editor_container.set_text("")
+            if ctx.status_bar:
+                ctx.status_bar.update_status(1, 0, "Novo Arquivo")
+
         if ctx.is_dirty:
-            if not messagebox.askyesno("Descartar", "Alterações não salvas serão perdidas. Continuar?"):
-                return
-        ctx.current_file = None
-        ctx.is_dirty = False
-        ctx.editor_container.set_text("")
-        if ctx.status_bar:
-            ctx.status_bar.update_status(1, 0, "Novo Arquivo")
+            dialog = ctk.CTkToplevel(ctx.window)
+            dialog.title("Descartar Alterações")
+            dialog.attributes("-topmost", True)
+            ShortcutManager._center_window(dialog, 350, 150)
+            
+            ctk.CTkLabel(dialog, text="Alterações não salvas serão perdidas.\nContinuar?", pady=20).pack()
+            
+            btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+            btn_frame.pack(pady=10)
+            
+            ctk.CTkButton(btn_frame, text="Sim", width=100, command=lambda: [dialog.destroy(), proceed()]).pack(side="left", padx=10)
+            ctk.CTkButton(btn_frame, text="Não", width=100, fg_color="gray", command=dialog.destroy).pack(side="left", padx=10)
+            return "break"
+            
+        proceed()
         return "break"
 
     @staticmethod
     def show_help(event=None):
-        help_text = (
-            "Atalhos do Notohiis:\n\n"
-            "Ctrl+N: Novo Arquivo\n"
-            "Ctrl+S: Salvar\n"
-            "Ctrl+O: Abrir Pasta\n"
-            "Ctrl+B: Alternar Sidebar\n"
-            "Ctrl+M: Markdown Preview (.md)\n"
-            "Ctrl+G: Git Quick Commit\n"
-            "F1: Ajuda"
-        )
-        messagebox.showinfo("Ajuda - Notohiis", help_text)
+        ctx = AppContext()
+        help_window = ctk.CTkToplevel(ctx.window)
+        help_window.title("Ajuda - Notohiis")
+        help_window.attributes("-topmost", True)
+        ShortcutManager._center_window(help_window, 400, 350)
+
+        ctk.CTkLabel(help_window, text="Atalhos do Notohiis", font=("Segoe UI", 18, "bold"), pady=20).pack()
+
+        shortcuts_frame = ctk.CTkFrame(help_window, fg_color="transparent")
+        shortcuts_frame.pack(fill="both", expand=True, padx=40)
+
+        shortcuts = [
+            ("Ctrl+N", "Novo Arquivo"),
+            ("Ctrl+S", "Salvar"),
+            ("Ctrl+O", "Abrir Pasta"),
+            ("Ctrl+B", "Alternar Sidebar"),
+            ("Ctrl+M", "Markdown Preview"),
+            ("Ctrl+G", "Git Quick Commit"),
+            ("F1", "Ajuda")
+        ]
+
+        for key, desc in shortcuts:
+            row = ctk.CTkFrame(shortcuts_frame, fg_color="transparent")
+            row.pack(fill="x", pady=2)
+            ctk.CTkLabel(row, text=key, font=("Consolas", 12, "bold"), text_color="#61afef", width=100, anchor="w").pack(side="left")
+            ctk.CTkLabel(row, text=desc, font=("Segoe UI", 12), anchor="w").pack(side="left")
+
+        ctk.CTkButton(help_window, text="Entendido", command=help_window.destroy).pack(pady=20)

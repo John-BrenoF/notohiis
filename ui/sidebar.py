@@ -4,7 +4,6 @@ import os
 from core.src.file_manager import FileManager
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
-from tkinter import messagebox
 
 class Sidebar(ctk.CTkFrame):
     """Explorador de arquivos lateral."""
@@ -239,20 +238,67 @@ class Sidebar(ctk.CTkFrame):
         """Aciona a criação inline via menu de contexto."""
         self._show_inline_entry(is_dir=True, target_path=self._menu_target)
 
+    def _center_dialog(self, dialog, width, height):
+        dialog.update_idletasks()
+        master = AppContext().window
+        x = master.winfo_x() + (master.winfo_width() // 2) - (width // 2)
+        y = master.winfo_y() + (master.winfo_height() // 2) - (height // 2)
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+
     def _menu_rename(self):
-        from tkinter import simpledialog
         if not self._menu_target: return
         old_name = os.path.basename(self._menu_target)
-        new_name = simpledialog.askstring("Renomear", "Novo nome:", initialvalue=old_name)
-        if new_name and new_name != old_name:
-            if FileManager.rename_path(self._menu_target, new_name):
-                self.refresh_explorer()
-            else:
-                messagebox.showerror("Erro", "Não foi possível renomear o item.", parent=self)
+        
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Renomear")
+        dialog.attributes("-topmost", True)
+        self._center_dialog(dialog, 350, 160)
+        
+        ctk.CTkLabel(dialog, text=f"Novo nome para '{old_name}':", pady=10).pack()
+        entry = ctk.CTkEntry(dialog, width=280)
+        entry.insert(0, old_name)
+        entry.pack(pady=10)
+        entry.focus_set()
+        entry.selection_range(0, tk.END)
+
+        def confirm(event=None):
+            new_name = entry.get()
+            if new_name and new_name != old_name:
+                if FileManager.rename_path(self._menu_target, new_name):
+                    self.refresh_explorer()
+                else:
+                    self._show_error("Não foi possível renomear o item.")
+            dialog.destroy()
+
+        ctk.CTkButton(dialog, text="Renomear", command=confirm).pack(pady=10)
+        entry.bind("<Return>", confirm)
+        entry.bind("<Escape>", lambda e: dialog.destroy())
 
     def _menu_delete(self):
-        if self._menu_target and messagebox.askyesno("Excluir", f"Deseja excluir {os.path.basename(self._menu_target)}?"):
-            if FileManager.delete_path(self._menu_target):
-                self.refresh_explorer()
-            else:
-                messagebox.showerror("Erro", "Não foi possível excluir o item.", parent=self)
+        if not self._menu_target: return
+        name = os.path.basename(self._menu_target)
+        
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Excluir")
+        dialog.attributes("-topmost", True)
+        self._center_dialog(dialog, 350, 140)
+        
+        ctk.CTkLabel(dialog, text=f"Deseja excluir '{name}'?", pady=20).pack()
+        
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack()
+        
+        def do_delete():
+            if FileManager.delete_path(self._menu_target): self.refresh_explorer()
+            else: self._show_error("Não foi possível excluir o item.")
+            dialog.destroy()
+
+        ctk.CTkButton(btn_frame, text="Excluir", fg_color="#e06c75", hover_color="#be5046", command=do_delete).pack(side="left", padx=10)
+        ctk.CTkButton(btn_frame, text="Cancelar", fg_color="gray", command=dialog.destroy).pack(side="left", padx=10)
+
+    def _show_error(self, message):
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Erro")
+        self._center_dialog(dialog, 300, 120)
+        ctk.CTkLabel(dialog, text=message, pady=20).pack()
+        ctk.CTkButton(dialog, text="OK", command=dialog.destroy).pack()
