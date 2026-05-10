@@ -68,11 +68,11 @@ if __name__ == "__main__":
             from core.src.buffer import BufferManager
             ctx = AppContext()
             
+            ctx.current_file = file_path
+            ctx.is_dirty = False
             content = BufferManager.read_file(file_path)
             if ctx.editor:
                 ctx.editor.set_text(content)
-            ctx.current_file = file_path
-            ctx.is_dirty = False
             
             # Atualiza UI após carregar
             if ctx.status_bar:

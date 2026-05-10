@@ -19,10 +19,10 @@ class Sidebar(DirectoryTree):
     def on_directory_tree_file_selected(self, event):
         from core.src.buffer import BufferManager
         path = str(event.path)
+        self.ctx.current_file = path
+        self.ctx.is_dirty = False
         content = BufferManager.read_file(path)
         if self.ctx.editor:
             self.ctx.editor.set_text(content)
-        self.ctx.current_file = path
-        self.ctx.is_dirty = False
         if self.ctx.status_bar:
             self.ctx.status_bar.update_status(1, 0, path)

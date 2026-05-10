@@ -162,11 +162,11 @@ class Sidebar(ctk.CTkFrame):
             ctx.project_root = path
             self.refresh_explorer()
         else:
+            ctx.current_file = path
+            ctx.is_dirty = False
             content = BufferManager.read_file(path)
             if ctx.editor:
                 ctx.editor.set_text(content)
-            ctx.current_file = path
-            ctx.is_dirty = False
             if ctx.status_bar:
                 ctx.status_bar.update_status(1, 0, path)
             

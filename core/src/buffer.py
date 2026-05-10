@@ -9,9 +9,18 @@ class BufferManager:
         """Lê o conteúdo de um arquivo de texto."""
         if not os.path.exists(file_path):
             return ""
+
+        # Evita carregar extensões de imagem conhecidas como texto
+        image_exts = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.ico', '.tiff'}
+        if os.path.splitext(file_path)[1].lower() in image_exts:
+            return ""
+
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return f.read()
+        except UnicodeDecodeError:
+            # Arquivo binário detectado pelo conteúdo
+            return ""
         except Exception as e:
             print(f"Erro ao ler arquivo: {e}")
             return ""
