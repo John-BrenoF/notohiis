@@ -66,16 +66,18 @@ class MarkdownPlugin:
         if not self.ctx.current_file or not self.ctx.current_file.endswith(".md"):
             return "break"
 
-        editor = self.ctx.editor
+        # O editor implementa a interface TextEditor, mas aqui precisamos
+        # acessar as propriedades de widget (grid) para alternar a visualização.
+        editor = self.ctx.editor 
         file_path = self.ctx.current_file
         is_preview_active = self.view_states.get(file_path, False)
 
-        # Nota: Markdown Viewer (TkinterWeb) é inerentemente ligado à UI.
-        # Em uma refatoração futura, este plugin deve ser movido para ui/plugins/
+        if not self.html_view and editor:
+            self.html_view = HtmlFrame(editor)
         
         if not is_preview_active:
             # Converter Markdown para HTML
-            text_content = container.get_text()
+            text_content = editor.get_text()
             
             # Só atualiza o HTML se o conteúdo mudou desde a última vez
             if self.last_rendered_content.get(file_path) != text_content:
@@ -85,9 +87,9 @@ class MarkdownPlugin:
                 self.last_rendered_content[file_path] = text_content
             
             # Ocultar componentes do editor
-            container.textbox.grid_remove()
-            container.line_numbers.grid_remove()
-            container.git_margin.grid_remove()
+            editor.textbox.grid_remove()
+            editor.line_numbers.grid_remove()
+            editor.git_margin.grid_remove()
             
             # Exibir HTML Frame ocupando toda a grade
             self.html_view.grid(row=0, column=0, columnspan=3, sticky="nsew")
@@ -98,9 +100,9 @@ class MarkdownPlugin:
         else:
             # Restaurar componentes do editor
             self.html_view.grid_remove()
-            container.textbox.grid(row=0, column=2, sticky="nsew")
-            container.line_numbers.grid(row=0, column=0, sticky="ns")
-            container.git_margin.grid(row=0, column=1, sticky="ns")
+            editor.textbox.grid(row=0, column=2, sticky="nsew")
+            editor.line_numbers.grid(row=0, column=0, sticky="ns")
+            editor.git_margin.grid(row=0, column=1, sticky="ns")
             
             self.view_states[file_path] = False
             if hasattr(self, 'btn_view'):

@@ -21,11 +21,11 @@ class PythonSyntaxPlugin:
             (r'\bclass\s+([a-zA-Z_]\w*)', "definition"),
         ]
 
-    def setup_tags(self, widget: tk.Text):
-        """Configura as cores das tags no widget de texto."""
+    def setup_tags(self, editor: 'TextEditor'):
+        """Configura as cores das tags usando a abstração do editor."""
         colors = self.ctx.theme.get("syntax", {})
         for tag, color in colors.items():
-            widget.tag_configure(tag, foreground=color)
+            editor.configure_tag(tag, foreground=color)
 
     def highlight(self):
         """Aplica o realce de sintaxe se o arquivo for Python."""
@@ -59,5 +59,5 @@ class PythonSyntaxPlugin:
                     start = get_tk_index(match.start(target_group))
                     end = get_tk_index(match.end(target_group))
                     self.ctx.editor.apply_tag(tag, start, end)
-                except (IndexError, tk.TclError):
+                except (IndexError, Exception):
                     continue

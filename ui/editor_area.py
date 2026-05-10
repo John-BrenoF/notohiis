@@ -52,6 +52,10 @@ class EditorArea(ctk.CTkFrame, TextEditor):
 
         self.popup = None # Widget de sugestões
 
+        # Configura as tags de sintaxe inicialmente
+        if self.ctx.py_plugin:
+            self.ctx.py_plugin.setup_tags(self)
+
     # --- Implementação do Protocolo TextEditor ---
 
     def insert(self, text: str, index: str = "insert") -> None:
@@ -274,6 +278,10 @@ class EditorArea(ctk.CTkFrame, TextEditor):
 
     def _after_content_load(self, text: str):
         """Lógica interna de UI após carregar texto."""
+        # Re-configura tags caso o tema tenha mudado ou o editor resetado
+        if self.ctx.py_plugin:
+            self.ctx.py_plugin.setup_tags(self)
+            
         if self.ctx.autocomplete_engine and self.ctx.current_file:
             self.ctx.autocomplete_engine.notify_open(self.ctx.current_file, text)
         self.redraw_line_numbers()
