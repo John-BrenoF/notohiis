@@ -1,6 +1,7 @@
 import subprocess
 import threading
-from typing import Optional, Tuple
+import os
+from typing import Optional, Tuple, List
 import customtkinter as ctk
 from core.src.app_context import AppContext
 
@@ -45,27 +46,100 @@ class GitPlugin:
         except (subprocess.CalledProcessError, FileNotFoundError):
             return "", 0
 
-    def get_changed_files(self) -> str:
-        """Retorna a lista de arquivos modificados (status --short)."""
+    def get_status_data(self) -> List[Tuple[str, str]]:
+        """Retorna lista de (status_code, path) relativos do repositório."""
         root = self.ctx.project_root
-        if not root: return ""
+        if not root or not self.is_git_repo(root):
+            return []
         try:
-            return subprocess.check_output(
-                ["git", "status", "--short"], 
+            output = subprocess.check_output(
+                ["git", "status", "--porcelain"], 
                 cwd=root, stderr=subprocess.DEVNULL, text=True
             ).strip()
+            if not output: return []
+            
+            items = []
+            for line in output.splitlines():
+                if len(line) >= 4:
+                    code = line[:2] # Ex: 'M ', 'A ', '??'
+                    path = line[3:].strip().strip('"')
+                    items.append((code, path))
+            return items
         except Exception:
-            return ""
+            return []
+
+    def decorate_sidebar(self):
+        """Aplica cores aos itens da sidebar com base no status do Git sem acoplar a Sidebar."""
+        if not self.ctx.sidebar or not hasattr(self.ctx.sidebar, "item_widgets"):
+            return
+
+        root = self.ctx.project_root
+        status_data = self.get_status_data()
+        
+        # Cores padrão do tema Atom/OneDark
+        colors = {"mod": "#e5c07b", "add": "#98c379", "del": "#e06c75"}
+        theme_fg = self.ctx.theme.get("sidebar", {}).get("fg", "#cccccc")
+
+        # Mapeia caminho absoluto -> (caractere_status, cor)
+        status_map = {}
+        for code, rel_path in status_data:
+            abs_path = os.path.abspath(os.path.join(root, rel_path))
+            char = ""
+            color = theme_fg
+            if 'M' in code: char = "M"; color = colors["mod"]
+            elif 'A' in code or '?' in code: char = "A"; color = colors["add"]
+            elif 'D' in code: char = "D"; color = colors["del"]
+            elif 'R' in code: char = "R"; color = colors["mod"]
+            
+            if char:
+                status_map[abs_path] = (char, color)
+
+        def update_ui():
+            # Tiramos uma cópia dos itens para evitar erros de concorrência com a UI
+            items = list(self.ctx.sidebar.item_widgets.items())
+            for path, btn in items:
+                abs_path = os.path.abspath(path)
+                current_text = btn.cget("text")
+                
+                # Limpa prefixos de status anteriores para evitar acúmulo (ex: "[M] [M] arquivo.py")
+                # O padrão esperado é "[X] " onde X é o status
+                if current_text.startswith("[") and "] " in current_text:
+                    clean_text = current_text.split("] ", 1)[1]
+                else:
+                    clean_text = current_text
+
+                if abs_path in status_map:
+                    char, color = status_map[abs_path]
+                    # Adiciona o status como prefixo. O layout do botão cuida do espaçamento.
+                    btn.configure(text=f"[{char}] {clean_text}", text_color=color)
+                else:
+                    # Se não houver status (ou foi resolvido), volta ao texto original e cor do tema
+                    btn.configure(text=clean_text, text_color=theme_fg)
+
+                try:
+                    pass # A configuração já foi feita acima
+                except: pass
+        
+        self.ctx.window.after(0, update_ui)
 
     def async_update_status(self):
         """Atualiza a StatusBar sem travar a UI principal."""
         def task():
             branch, changes = self.get_git_info()
-            if self.ctx.status_bar and branch:
-                status_str = f"󰊢 {branch}" + (f" ({changes})" if changes > 0 else "")
-                self.ctx.window.after(0, lambda: self.ctx.status_bar.update_git_ui(status_str, changes > 0))
-            elif self.ctx.status_bar and self.ctx.status_bar.git_button: # Se não há branch, limpa o texto do botão
-                self.ctx.window.after(0, lambda: self.ctx.status_bar.git_button.configure(text=""))
+            is_repo = self.is_git_repo(self.ctx.project_root) if self.ctx.project_root else False
+
+            if self.ctx.status_bar:
+                if branch:
+                    status_str = f"󰊢 {branch}" + (f" ({changes})" if changes > 0 else "")
+                    self.ctx.window.after(0, lambda: self.ctx.status_bar.update_git_ui(status_str, changes > 0))
+                elif is_repo:
+                    self.ctx.window.after(0, lambda: self.ctx.status_bar.update_git_ui("󰊢 (git)", False))
+                else:
+                    self.ctx.window.after(0, lambda: self.ctx.status_bar.update_git_ui("", False))
+
+            if is_repo:
+                # Delay de 50ms para garantir que a Sidebar terminou de recriar os widgets no thread principal
+                self.ctx.window.after(50, self.decorate_sidebar)
         
         threading.Thread(target=task, daemon=True).start()
 
@@ -74,8 +148,8 @@ class GitPlugin:
         if not self.ctx.project_root or not self.is_git_repo(self.ctx.project_root):
             return
 
-        changed_files = self.get_changed_files()
-        if not changed_files:
+        status_data = self.get_status_data()
+        if not status_data:
             return # Nada para commitar
 
         dialog = ctk.CTkToplevel(self.ctx.window)
@@ -91,7 +165,21 @@ class GitPlugin:
         # Lista de arquivos (Visualização apenas)
         text_area = ctk.CTkTextbox(dialog, height=150, font=("Consolas", 11))
         text_area.pack(fill="x", padx=20, pady=5)
-        text_area.insert("1.0", changed_files)
+
+        # Configurar Tags de cores no widget interno (Tkinter Text)
+        text_area._textbox.tag_configure("mod", foreground="#e5c07b")
+        text_area._textbox.tag_configure("add", foreground="#98c379")
+        text_area._textbox.tag_configure("del", foreground="#e06c75")
+
+        for code, path in status_data:
+            tag = None
+            if 'M' in code or 'R' in code: tag = "mod"
+            elif 'A' in code or '?' in code: tag = "add"
+            elif 'D' in code: tag = "del"
+            
+            text_area._textbox.insert("end", f"{code} ", tag)
+            text_area._textbox.insert("end", f"{path}\n")
+
         text_area.configure(state="disabled")
 
         ctk.CTkLabel(dialog, text="Mensagem de Commit:").pack(pady=(10, 0), padx=20, anchor="w")

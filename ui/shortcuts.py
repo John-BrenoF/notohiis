@@ -72,8 +72,8 @@ class ShortcutManager:
         content = ctx.editor_container.get_text().rstrip('\n') # Remove trailing newline from Tkinter Text
         if BufferManager.save_file(ctx.current_file, content):
             ctx.is_dirty = False
-            ctx.editor_container._update_status_bar()
             if ctx.sidebar: ctx.sidebar.refresh_explorer()
+            ctx.editor_container._update_status_bar()
 
     @staticmethod
     def open_folder(event=None):
