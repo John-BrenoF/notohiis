@@ -43,7 +43,7 @@ Você decide o quão simples ou poderoso ele será.
 
 ## 📸 Screenshots
 <p align="center">
-  <img width="1920" height="1076" alt="image" src="https://github.com/user-attachments/assets/a8880db9-1a6b-49ec-9624-92dfa65a3f55" />
+  <img width="1720" height="1079" alt="image" src="https://github.com/user-attachments/assets/de38c5cb-29aa-44f6-ab69-e6452276b867" />
 
 </p>
 
