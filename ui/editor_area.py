@@ -72,6 +72,11 @@ class EditorArea(ctk.CTkFrame):
         if AppContext().py_plugin:
             AppContext().py_plugin.highlight()
             self._trigger_autocomplete(event)
+            
+        # Executa plugins externos de forma desacoplada
+        for plugin in getattr(AppContext(), 'external_plugins', []):
+            if hasattr(plugin, 'run'):
+                plugin.run()
 
     def _force_autocomplete(self, event=None):
         self._trigger_autocomplete(event, forced=True)
