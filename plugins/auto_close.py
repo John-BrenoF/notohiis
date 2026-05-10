@@ -3,8 +3,8 @@ from core.src.app_context import AppContext
 
 class AutoClosePlugin:
     """
-    Plugin que adiciona auto-fechamento para (), [], {}, "" e ''.
-    Também permite envolver um texto selecionado com esses caracteres.
+    Plugin aprimorado para auto-fechamento de caracteres (brackets e quotes).
+    Inclui suporte a backspace inteligente e detecção de contexto.
     """
     def __init__(self, ctx):
         self.ctx = ctx
@@ -15,6 +15,7 @@ class AutoClosePlugin:
             '"': '"',
             "'": "'"
         }
+        self.closers = set(self.pairs.values())
         self._bind_events()
 
     def _bind_events(self):
@@ -26,10 +27,27 @@ class AutoClosePlugin:
         # Vincula ao widget de texto interno (Tkinter puro)
         # O add="+" garante que não sobrescrevemos outros atalhos
         editor.textbox._textbox.bind("<KeyPress>", self.handle_keypress, add="+")
+        editor.textbox._textbox.bind("<BackSpace>", self.handle_backspace, add="+")
+
+    def handle_backspace(self, event):
+        """Se apagar o caractere de abertura e o de fechamento estiver logo à frente, apaga ambos."""
+        widget = event.widget
+        if widget.tag_ranges(tk.SEL):
+            return
+
+        cursor = widget.index(tk.INSERT)
+        # Verifica se o cursor está entre um par: (|)
+        char_before = widget.get(f"{cursor} - 1 chars", cursor)
+        char_after = widget.get(cursor, f"{cursor} + 1 chars")
+
+        if char_before in self.pairs and self.pairs[char_before] == char_after:
+            widget.delete(f"{cursor} - 1 chars", f"{cursor} + 1 chars")
+            return "break"
 
     def handle_keypress(self, event):
         char = event.char
         widget = event.widget
+        cursor = widget.index(tk.INSERT)
         
         if not char:
             return
@@ -49,18 +67,24 @@ class AutoClosePlugin:
                 widget.tag_add(tk.SEL, f"{start} + 1 chars", new_end)
                 return "break" # Impede que o caractere seja digitado novamente pelo sistema
 
-        # 2. Lógica de Auto-fechamento: Insere o par e volta o cursor
-        if char in self.pairs:
-            widget.insert(tk.INSERT, char + self.pairs[char])
-            widget.mark_set(tk.INSERT, "insert - 1 chars")
-            return "break"
-
-        # 3. Lógica de "Pular": Se digitar o fechamento e ele já estiver lá, apenas move o cursor
-        if char in [')', ']', '}', '"', "'"]:
-            next_char = widget.get(tk.INSERT, f"{tk.INSERT} + 1 chars")
+        # 2. Lógica de "Pular": Se digitar o fechamento e ele já estiver lá, apenas move o cursor
+        if char in self.closers:
+            next_char = widget.get(cursor, f"{cursor} + 1 chars")
             if next_char == char:
                 widget.mark_set(tk.INSERT, "insert + 1 chars")
                 return "break"
+
+        # 3. Lógica de Auto-fechamento Inteligente
+        if char in self.pairs:
+            # Evita auto-fechar se houver um caractere alfanumérico logo à frente
+            # Isso impede que o plugin atrapalhe quando estamos editando no meio de uma palavra
+            next_char = widget.get(cursor, f"{cursor} + 1 chars")
+            if next_char and next_char.isalnum():
+                return
+
+            widget.insert(tk.INSERT, char + self.pairs[char])
+            widget.mark_set(tk.INSERT, "insert - 1 chars")
+            return "break"
 
     def run(self):
         """Método necessário para compatibilidade com o despachante de plugins do EditorArea."""
