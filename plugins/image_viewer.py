@@ -40,7 +40,20 @@ class ImageViewerCanvas(tk.Canvas):
     def load_image(self, path: str):
         """Carrega e centraliza a imagem."""
         try:
-            self.image_raw = Image.open(path)
+            ext = os.path.splitext(path)[1].lower()
+            if ext == '.svg':
+                # Renderização de SVG para PIL Image
+                try:
+                    from svglib.svglib import svg2rlg
+                    from reportlab.graphics import renderPM
+                    drawing = svg2rlg(path)
+                    self.image_raw = renderPM.drawToPIL(drawing)
+                except ImportError:
+                    print("[IMAGE PLUGIN] Erro: dependências svglib/reportlab ausentes.")
+                    return
+            else:
+                self.image_raw = Image.open(path)
+            
             self.scale = 1.0
             self.offset_x = 0
             self.offset_y = 0
@@ -115,7 +128,7 @@ class ImageViewerCanvas(tk.Canvas):
 class ImagePlugin:
     """Plugin para visualização de arquivos de imagem."""
     
-    EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.ico', '.tiff'}
+    EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.ico', '.tiff', '.svg'}
 
     def __init__(self, ctx: AppContext):
         self.ctx = ctx

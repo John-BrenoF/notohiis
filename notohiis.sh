@@ -91,7 +91,7 @@ echo "[INFO] Sincronizando dependências..."
 pip install --upgrade pip --quiet
 
 # Garante a instalação das dependências core e dos plugins (Markdown, etc)
-pip install customtkinter markdown2 tkinterweb Pillow --upgrade --quiet
+pip install customtkinter markdown2 tkinterweb Pillow svglib reportlab --upgrade --quiet
 
 # 5. Configuração de ambiente e execução
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"

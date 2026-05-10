@@ -11,7 +11,7 @@ class BufferManager:
             return ""
 
         # Evita carregar extensões de imagem conhecidas como texto
-        image_exts = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.ico', '.tiff'}
+        image_exts = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.ico', '.tiff', '.svg'}
         if os.path.splitext(file_path)[1].lower() in image_exts:
             return ""
 
