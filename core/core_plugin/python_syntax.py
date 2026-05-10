@@ -1,5 +1,6 @@
 import re
 import tkinter as tk
+import bisect
 from core.src.app_context import AppContext
 
 class PythonSyntaxPlugin:
@@ -8,13 +9,16 @@ class PythonSyntaxPlugin:
     def __init__(self):
         self.ctx = AppContext()
         self.rules = [
+            (r'[frb]?\"\"\"[\s\S]*?\"\"\"|[frb]?\'\'\'[\s\S]*?\'\'\'', "string"), # Multiline/Docstrings
+            (r'[frb]?\".*?\"|[frb]?\'.*?\'', "string"),
             (r'\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b', "keyword"),
             (r'\b(abs|all|any|ascii|bin|bool|breakpoint|bytearray|bytes|callable|chr|classmethod|compile|complex|delattr|dict|dir|divmod|enumerate|eval|exec|filter|float|format|frozenset|getattr|globals|hasattr|hash|help|hex|id|input|int|isinstance|issubclass|iter|len|list|locals|map|max|memoryview|min|next|object|oct|open|ord|pow|print|property|range|repr|reversed|round|set|setattr|slice|sorted|staticmethod|str|sum|super|tuple|type|vars|zip)\b', "builtin"),
-            (r'(\".*?\"|\'.*?\')', "string"),
+            (r'\b(self|cls)\b', "definition"),
             (r'#.*', "comment"),
             (r'\b\d+\b', "number"),
-            (r'\bdef\s+(\w+)', "definition"),
-            (r'\bclass\s+(\w+)', "definition"),
+            (r'@[a-zA-Z_]\w*', "keyword"), # Decoradores
+            (r'\bdef\s+([a-zA-Z_]\w*)', "definition"),
+            (r'\bclass\s+([a-zA-Z_]\w*)', "definition"),
         ]
 
     def setup_tags(self, widget: tk.Text):
@@ -36,26 +40,24 @@ class PythonSyntaxPlugin:
         for tag in colors.keys():
             editor_widget.tag_remove(tag, "1.0", tk.END)
 
+        # Otimização: pré-calcula offsets de início de linha para busca binária
+        line_starts = [0]
+        for m in re.finditer(r'\n', content):
+            line_starts.append(m.end())
+
+        def get_tk_index(offset):
+            """Converte offset de caractere para 'linha.coluna' de forma eficiente."""
+            line_idx = bisect.bisect_right(line_starts, offset) - 1
+            col = offset - line_starts[line_idx]
+            return f"{line_idx + 1}.{col}"
+
         for pattern, tag in self.rules:
             for match in re.finditer(pattern, content):
-                start = self._offset_to_index(content, match.start())
-                end = self._offset_to_index(content, match.end())
-                
-                # Se for uma definição (def/class), colorimos apenas o nome capturado no grupo 1
-                if tag == "definition":
-                    # Ajusta para destacar apenas o nome da função/classe, não o 'def'
-                    group_start = self._offset_to_index(content, match.start(1))
-                    editor_widget.tag_add(tag, group_start, end)
-                else:
+                # Se a regra possui um grupo de captura (ex: em def/class), destacamos apenas ele
+                target_group = 1 if match.groups() else 0
+                try:
+                    start = get_tk_index(match.start(target_group))
+                    end = get_tk_index(match.end(target_group))
                     editor_widget.tag_add(tag, start, end)
-
-    def _offset_to_index(self, content: str, offset: int) -> str:
-        """Converte offset de caractere para o formato 'linha.coluna' do Tkinter."""
-        # Otimização: evita criar múltiplas substrings com split('\n')
-        line = content.count('\n', 0, offset) + 1
-        last_newline = content.rfind('\n', 0, offset)
-        if last_newline == -1:
-            column = offset
-        else:
-            column = offset - last_newline - 1
-        return f"{line}.{column}"
+                except (IndexError, tk.TclError):
+                    continue
