@@ -42,12 +42,9 @@ Você decide o quão simples ou poderoso ele será.
 | ⚡ **Performance**         | Leve e rápido, mesmo com vários plugins |
 
 ## 📸 Screenshots
-
-*(Adicione aqui 2 ou 3 imagens lado a lado)*
-
 <p align="center">
-  <img src="midia/screenshots/light.png" width="48%" alt="Tema Claro">
-  <img src="midia/screenshots/dark.png" width="48%" alt="Tema Escuro">
+  <img width="1920" height="1076" alt="image" src="https://github.com/user-attachments/assets/a8880db9-1a6b-49ec-9624-92dfa65a3f55" />
+
 </p>
 
 ---
