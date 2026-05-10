@@ -18,6 +18,8 @@ class ShortcutManager:
         window.bind("<F1>", ShortcutManager.show_help)
         window.bind("<Control-n>", ShortcutManager.new_buffer)
         window.bind("<Control-n>", ShortcutManager.new_buffer)
+        window.bind("<Control-r>", ShortcutManager.open_quick_access)
+        window.bind("<Control-R>", ShortcutManager.open_quick_access)
         
         # Painel de Controle (Configurações e Plugins)
         window.bind("<Control-Alt-c>", ShortcutManager.open_control_panel)
@@ -156,3 +158,8 @@ class ShortcutManager:
         from ui.control_panel import ControlPanel
         ctx = AppContext()
         ControlPanel(ctx.window)
+
+    @staticmethod
+    def open_quick_access(event=None):
+        from ui.quick_access import QuickAccess
+        QuickAccess(AppContext().window)

@@ -60,4 +60,4 @@ O projeto aplica o SRP rigorosamente para evitar "God Objects" (objetos que faze
 ```
 
 ---
-*Notohiis - Versão 0.1-alpha*
+*Notohiis - Versão 0.2-alpha*
