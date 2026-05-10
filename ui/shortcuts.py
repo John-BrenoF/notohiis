@@ -45,9 +45,20 @@ class ShortcutManager:
     @staticmethod
     def _center_window(window, width, height):
         window.update_idletasks()
+        
+        # Define como transiente e não redimensionável para que o compositor Wayland (Niri/Hyprland)
+        # entenda que é um diálogo e aplique as regras de flutuação e centralização.
         master = AppContext().window
-        x = master.winfo_x() + (master.winfo_width() // 2) - (width // 2)
-        y = master.winfo_y() + (master.winfo_height() // 2) - (height // 2)
+        if master:
+            window.transient(master)
+        window.resizable(False, False)
+
+        # Para centralizar no meio da tela em Wayland (KDE, Gnome, Niri, Hyprland)
+        # usamos as dimensões da tela (screen) em vez das coordenadas da janela mestre.
+        screen_width = window.winfo_screenwidth()
+        screen_height = window.winfo_screenheight()
+        x = max(0, (screen_width // 2) - (width // 2))
+        y = max(0, (screen_height // 2) - (height // 2))
         window.geometry(f"{width}x{height}+{x}+{y}")
 
     @staticmethod

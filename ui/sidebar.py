@@ -240,9 +240,17 @@ class Sidebar(ctk.CTkFrame):
 
     def _center_dialog(self, dialog, width, height):
         dialog.update_idletasks()
-        master = AppContext().window
-        x = master.winfo_x() + (master.winfo_width() // 2) - (width // 2)
-        y = master.winfo_y() + (master.winfo_height() // 2) - (height // 2)
+
+        # Define como transiente e não redimensionável para melhor comportamento em Wayland/Tiling WMs
+        master = self.winfo_toplevel()
+        dialog.transient(master)
+        dialog.resizable(False, False)
+
+        # Ajuste para centralização global na tela, ignorando limitações de coordenadas do Wayland
+        screen_width = dialog.winfo_screenwidth()
+        screen_height = dialog.winfo_screenheight()
+        x = max(0, (screen_width // 2) - (width // 2))
+        y = max(0, (screen_height // 2) - (height // 2))
         dialog.geometry(f"{width}x{height}+{x}+{y}")
 
     def _menu_rename(self):
