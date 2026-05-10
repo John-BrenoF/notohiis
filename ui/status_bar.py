@@ -77,9 +77,7 @@ class StatusBar(ctk.CTkFrame):
         ctx = AppContext()
         
         # Obter total de linhas para um feedback mais completo
-        total_lines = "1"
-        if ctx.editor_container and hasattr(ctx.editor_container, "textbox"):
-             total_lines = ctx.editor_container.textbox.index('end-1c').split('.')[0]
+        total_lines = str(ctx.editor.get_line_count()) if ctx.editor else "1"
 
         # Atualiza Posição do Cursor (Formato IDE: Linha, Coluna (Total))
         self.pos_label.configure(text=f"Ln {line}, Col {column} (Total: {total_lines})")

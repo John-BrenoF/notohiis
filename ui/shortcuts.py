@@ -74,12 +74,16 @@ class ShortcutManager:
             path = filedialog.asksaveasfilename(defaultextension=".txt")
             if not path: return
             ctx.current_file = path
-        
-        content = ctx.editor_container.get_text().rstrip('\n') # Remove trailing newline from Tkinter Text
-        if BufferManager.save_file(ctx.current_file, content):
-            ctx.is_dirty = False
-            if ctx.sidebar: ctx.sidebar.refresh_explorer()
-            ctx.editor_container._update_status_bar()
+
+        if ctx.editor:
+            content = ctx.editor.get_text()
+            if BufferManager.save_file(ctx.current_file, content):
+                ctx.is_dirty = False
+                if ctx.sidebar: ctx.sidebar.refresh_explorer()
+                # O próprio editor costuma atualizar o status via eventos de teclado, 
+                # mas forçamos aqui para garantir sincronia após o save.
+                if hasattr(ctx.editor, '_update_status_bar'):
+                    ctx.editor._update_status_bar()
 
     @staticmethod
     def open_folder(event=None):
@@ -100,7 +104,8 @@ class ShortcutManager:
         def proceed():
             ctx.current_file = None
             ctx.is_dirty = False
-            ctx.editor_container.set_text("")
+            if ctx.editor:
+                ctx.editor.set_text("")
             if ctx.status_bar:
                 ctx.status_bar.update_status(1, 0, "Novo Arquivo")
 

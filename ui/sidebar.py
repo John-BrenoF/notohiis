@@ -163,10 +163,12 @@ class Sidebar(ctk.CTkFrame):
             self.refresh_explorer()
         else:
             content = BufferManager.read_file(path)
-            ctx.editor_container.set_text(content)
+            if ctx.editor:
+                ctx.editor.set_text(content)
             ctx.current_file = path
             ctx.is_dirty = False
-            ctx.status_bar.update_status(1, 0, path)
+            if ctx.status_bar:
+                ctx.status_bar.update_status(1, 0, path)
             
             # Dispara realce de sintaxe imediatamente após carregar o arquivo
             if ctx.py_plugin:

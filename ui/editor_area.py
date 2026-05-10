@@ -1,12 +1,13 @@
 import customtkinter as ctk
 import tkinter as tk
 from core.src.app_context import AppContext
+from core.interfaces import TextEditor, EditorEvent
 
-class EditorArea(ctk.CTkFrame):
+class EditorArea(ctk.CTkFrame, TextEditor):
     """Widget principal de edição de texto com numeração de linhas."""
     def __init__(self, master, **kwargs):
         super().__init__(master, corner_radius=0, fg_color="transparent", **kwargs)
-        
+        self.ctx = AppContext()
         # Configuração da Grade: Coluna 0 (Números), Coluna 1 (Git), Coluna 2 (Texto)
         self.grid_columnconfigure(2, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -51,9 +52,71 @@ class EditorArea(ctk.CTkFrame):
 
         self.popup = None # Widget de sugestões
 
-        # Inicializa tags de sintaxe se o plugin estiver carregado
-        if AppContext().py_plugin:
-            AppContext().py_plugin.setup_tags(self.textbox._textbox)
+    # --- Implementação do Protocolo TextEditor ---
+
+    def insert(self, text: str, index: str = "insert") -> None:
+        self.textbox.insert(index, text)
+
+    def delete(self, start: str, end: Optional[str] = None) -> None:
+        self.textbox.delete(start, end or f"{start} + 1 chars")
+
+    def get_text(self, start: str = "1.0", end: str = "end") -> str:
+        content = self.textbox.get(start, end)
+        if end == "end" and content.endswith('\n'):
+            return content[:-1]
+        return content
+
+    def set_text(self, text: str) -> None:
+        self.textbox.delete("1.0", tk.END)
+        self.insert(text, "1.0")
+        self._after_content_load(text)
+
+    def get_cursor_index(self) -> str:
+        return self.textbox.index(tk.INSERT)
+
+    def set_cursor(self, index: str) -> None:
+        self.textbox.mark_set(tk.INSERT, index)
+
+    def get_selection_range(self) -> Optional[tuple[str, str]]:
+        try:
+            if self.textbox._textbox.tag_ranges(tk.SEL):
+                return (self.textbox.index(tk.SEL_FIRST), self.textbox.index(tk.SEL_LAST))
+        except tk.TclError:
+            pass
+        return None
+
+    def bind_key(self, key: str, callback: tk.Callable) -> None:
+        def wrapper(event):
+            editor_event = EditorEvent(char=event.char, keysym=event.keysym)
+            return callback(editor_event)
+        return self.textbox._textbox.bind(key, wrapper, add="+")
+
+    def index_offset(self, index: str, chars: int) -> str:
+        op = "+" if chars >= 0 else "-"
+        return self.textbox.index(f"{index} {op} {abs(chars)} chars")
+
+    def get_char_at(self, index: str) -> str:
+        return self.textbox.get(index, f"{index} + 1 chars")
+
+    def get_line_count(self) -> int:
+        return int(self.textbox.index('end-1c').split('.')[0])
+
+    def apply_tag(self, tag_name: str, start: str, end: str) -> None:
+        self.textbox._textbox.tag_add(tag_name, start, end)
+
+    def configure_tag(self, tag_name: str, **kwargs) -> None:
+        self.textbox._textbox.tag_configure(tag_name, **kwargs)
+
+    def get_tags(self) -> tuple[str, ...]:
+        return self.textbox._textbox.tag_names()
+
+    def delete_tag(self, tag_name: str) -> None:
+        self.textbox._textbox.tag_delete(tag_name)
+
+    def remove_tag(self, tag_name: str, start: str, end: str) -> None:
+        self.textbox._textbox.tag_remove(tag_name, start, end)
+
+    # --- Métodos de UI e Eventos ---
 
     def _set_dirty(self, event=None):
         AppContext().is_dirty = True
@@ -127,25 +190,6 @@ class EditorArea(ctk.CTkFrame):
             color = AppContext().theme.get("editor", {}).get("gutter_fg", "#858585")
             self.line_numbers.create_text(40, y, anchor="ne", text=linenum, fill=color, font=("Consolas", 11))
             i = self.textbox.index(f"{i}+1line") # Move to the next line
-
-    def get_text(self) -> str:
-        # Tkinter Text widget always adds a newline at the end, so remove it if it's the only content
-        content = self.textbox.get("1.0", tk.END)
-        if content.endswith('\n') and len(content) == 1:
-            return ""
-        return self.textbox.get("1.0", tk.END)
-
-    def set_text(self, text: str):
-        ctx = AppContext()
-        self.textbox.delete("1.0", tk.END)
-        self.textbox.insert("1.0", text)
-        
-        # Notifica o motor de autocomplete sobre o novo conteúdo
-        if ctx.autocomplete_engine and ctx.current_file:
-            ctx.autocomplete_engine.notify_open(ctx.current_file, text)
-            
-        self.redraw_line_numbers()
-        AppContext().is_dirty = False
 
     def _trigger_autocomplete(self, event=None, forced=False):
         """Consulta o core e decide se mostra o popup."""
@@ -223,13 +267,18 @@ class EditorArea(ctk.CTkFrame):
         return "break" # Prevent event propagation to parent widgets
 
     def _update_status_bar(self):
-        ctx = AppContext()
-        if ctx.status_bar:
-            cursor_pos = self.textbox.index(tk.INSERT).split(".")
-            line = cursor_pos[0]
-            col = cursor_pos[1]
-            ctx.status_bar.update_status(line, col, ctx.current_file)
+        if self.ctx.status_bar and self.ctx.editor:
+            index = self.ctx.editor.get_cursor_index()
+            line, col = index.split(".")
+            self.ctx.status_bar.update_status(int(line), int(col), self.ctx.current_file or "Novo Arquivo")
+
+    def _after_content_load(self, text: str):
+        """Lógica interna de UI após carregar texto."""
+        if self.ctx.autocomplete_engine and self.ctx.current_file:
+            self.ctx.autocomplete_engine.notify_open(self.ctx.current_file, text)
+        self.redraw_line_numbers()
+        self.ctx.is_dirty = False
         
         # Atualizar visibilidade do botão Markdown
-        if ctx.md_plugin:
-            ctx.md_plugin.update_button_visibility(ctx.current_file)
+        if self.ctx.md_plugin:
+            self.ctx.md_plugin.update_button_visibility(self.ctx.current_file)

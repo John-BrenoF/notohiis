@@ -80,7 +80,8 @@ class ControlPanel(ctk.CTkToplevel):
         if os.path.exists(path):
             content = BufferManager.read_file(path)
             # Garante que o buffer seja limpo para a nova sessão de edição
-            self.ctx.editor_container.set_text(content)
+            if self.ctx.editor:
+                self.ctx.editor.set_text(content)
             self.ctx.current_file = path
             self.ctx.is_dirty = False
             if self.ctx.status_bar:

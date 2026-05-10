@@ -66,12 +66,12 @@ class MarkdownPlugin:
         if not self.ctx.current_file or not self.ctx.current_file.endswith(".md"):
             return "break"
 
-        container = self.ctx.editor_container
+        editor = self.ctx.editor
         file_path = self.ctx.current_file
         is_preview_active = self.view_states.get(file_path, False)
 
-        if not self.html_view:
-            self.html_view = HtmlFrame(container)
+        # Nota: Markdown Viewer (TkinterWeb) é inerentemente ligado à UI.
+        # Em uma refatoração futura, este plugin deve ser movido para ui/plugins/
         
         if not is_preview_active:
             # Converter Markdown para HTML

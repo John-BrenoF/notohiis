@@ -55,9 +55,10 @@ if __name__ == "__main__":
     # Inicializa Engine de Autocomplete no Contexto Global
     AppContext().autocomplete_engine = AutocompleteEngine()
 
-    load_plugins()
+    # Inicializa a Janela (UI)
     app = MainWindow()
-    
+
+    load_plugins()
     load_external_plugins()
 
     # Lógica para abrir arquivo via argumento de linha de comando (nth file.txt)
@@ -68,7 +69,8 @@ if __name__ == "__main__":
             ctx = AppContext()
             
             content = BufferManager.read_file(file_path)
-            ctx.editor_container.set_text(content)
+            if ctx.editor:
+                ctx.editor.set_text(content)
             ctx.current_file = file_path
             ctx.is_dirty = False
             

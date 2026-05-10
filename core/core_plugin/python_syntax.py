@@ -1,5 +1,5 @@
 import re
-import tkinter as tk
+from typing import Dict
 import bisect
 from core.src.app_context import AppContext
 
@@ -32,13 +32,13 @@ class PythonSyntaxPlugin:
         if not self.ctx.current_file or not self.ctx.current_file.endswith(".py"):
             return
 
-        editor_widget = self.ctx.editor_container.textbox._textbox
-        content = editor_widget.get("1.0", tk.END)
+        if not self.ctx.editor: return
+        content = self.ctx.editor.get_text()
         colors = self.ctx.theme.get("syntax", {})
         
         # Limpa tags existentes antes de re-aplicar
         for tag in colors.keys():
-            editor_widget.tag_remove(tag, "1.0", tk.END)
+            self.ctx.editor.remove_tag(tag, "1.0", "end")
 
         # Otimização: pré-calcula offsets de início de linha para busca binária
         line_starts = [0]
@@ -58,6 +58,6 @@ class PythonSyntaxPlugin:
                 try:
                     start = get_tk_index(match.start(target_group))
                     end = get_tk_index(match.end(target_group))
-                    editor_widget.tag_add(tag, start, end)
+                    self.ctx.editor.apply_tag(tag, start, end)
                 except (IndexError, tk.TclError):
                     continue

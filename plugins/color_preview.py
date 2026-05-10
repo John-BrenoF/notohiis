@@ -1,5 +1,4 @@
 import re
-import tkinter as tk
 from core.src.app_context import AppContext
 
 class ColorPreviewPlugin:
@@ -21,26 +20,25 @@ class ColorPreviewPlugin:
         if not (ext.endswith(".json") or ext.endswith(".css") or ext.endswith(".py") or ext.endswith(".html")):
             return
 
-        editor = self.ctx.editor_container
-        if not editor or not hasattr(editor, "textbox"):
+        editor = self.ctx.editor
+        if not editor:
             return
 
-        txt = editor.textbox._textbox
-        content = txt.get("1.0", tk.END)
+        content = editor.get_text()
 
         # Limpa tags de cores antigas para re-renderizar
-        for tag in txt.tag_names():
+        for tag in editor.get_tags():
             if tag.startswith("hex_"):
-                txt.tag_delete(tag)
+                editor.delete_tag(tag)
 
         for match in self.pattern.finditer(content):
             color_code = match.group()
-            start = f"1.0 + {match.start()} chars"
-            end = f"1.0 + {match.end()} chars"
+            start = editor.index_offset("1.0", match.start())
+            end = editor.index_offset("1.0", match.end())
             
             # Tag única por ocorrência para evitar conflitos de estilo
             tag_name = f"hex_{color_code}_{match.start()}"
-            txt.tag_add(tag_name, start, end)
+            editor.apply_tag(tag_name, start, end)
             
             try:
                 # Lógica de contraste para garantir que o texto continue legível
@@ -50,7 +48,7 @@ class ColorPreviewPlugin:
                 luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
                 fg = "#000000" if luminance > 0.5 else "#ffffff"
                 
-                txt.tag_configure(tag_name, background=color_code, foreground=fg)
+                editor.configure_tag(tag_name, background=color_code, foreground=fg)
             except:
                 continue
 

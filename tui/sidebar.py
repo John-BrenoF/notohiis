@@ -20,7 +20,8 @@ class Sidebar(DirectoryTree):
         from core.src.buffer import BufferManager
         path = str(event.path)
         content = BufferManager.read_file(path)
-        self.ctx.editor_container.set_text(content)
+        if self.ctx.editor:
+            self.ctx.editor.set_text(content)
         self.ctx.current_file = path
         self.ctx.is_dirty = False
         if self.ctx.status_bar:
