@@ -1,62 +1,110 @@
+
 <p align="center">
-  <img src="midia/icon/nth.png" width="200" alt="Notohiis Logo">
+  <img src="midia/icon/nth.png" width="220" alt="Notohiis Logo">
 </p>
 
-# 🖊️ Notohiis Editor
+<h1 align="center">🖊️ Notohiis Editor</h1>
 
-**Simples por padrão. Personalizado quando necessário.**
+<p align="center">
+  <strong>Simples por padrão.<br>Extremamente poderoso quando você precisa.</strong>
+</p>
 
-O Notohiis é um editor de texto minimalista e modular desenvolvido em Python. Ele foi projetado para quem busca um ambiente de escrita e codificação limpo, mas não abre mão de "turbinar" suas ferramentas com funcionalidades avançadas através de um sistema de plugins flexível.
+<p align="center">
+  <a href="#"><img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" alt="Python"></a>
+  <a href="#"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License MIT"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Version-0.2--alpha-orange" alt="Version"></a>
+</p>
 
 ---
 
-## 🚀 A Filosofia
+**Notohiis** é um editor de texto minimalista, rápido e altamente modular, feito em Python. Projetado para quem valoriza foco, beleza e controle total sobre sua ferramenta de escrita e codificação.
 
-O Notohiis segue o princípio de que o editor deve sair do seu caminho para que você possa focar no que importa. 
+---
 
-- **Minimalismo:** Uma interface focada no conteúdo, sem distrações desnecessárias.
-- **Modularidade:** O núcleo (core) é separado da interface. Use no Desktop (GUI) ou no Terminal (TUI).
-- **Extensibilidade:** Se você precisa de uma função que não existe, basta criar um plugin em Python. O editor se adapta ao seu fluxo de trabalho, e não o contrário.
+## 🚀 Filosofia
 
-## ✨ Funcionalidades Core
+O editor deve desaparecer para que **você** brilhe.
 
-- 🎨 **Tematização Total:** Controle cores e estilos via arquivos JSON simples.
-- 🔌 **Arquitetura de Plugins:** Carregamento dinâmico de extensões (Git, Markdown, Auto-close, etc).
-- 🌐 **Híbrido:** Mesma lógica para interfaces gráficas (CustomTkinter) e terminal (Textual).
-- 🛠️ **Focado no Dev:** Integração Git nativa e suporte a múltiplas linguagens.
+- **Minimalismo intencional** — Interface limpa, sem distrações.
+- **Modularidade extrema** — Core separado da interface.
+- **Extensibilidade total** — Tudo que falta, você cria com plugins em Python.
 
-## 🛠️ Como Iniciar
+Você decide o quão simples ou poderoso ele será.
 
-O Notohiis vem com um automatizador que cuida de tudo para você. Basta clonar e executar:
+## ✨ Destaques
+
+| Recurso                    | Descrição |
+|---------------------------|---------|
+| 🎨 **Tematização Total**   | Temas completos via arquivos JSON simples |
+| 🔌 **Sistema de Plugins**  | Carregamento dinâmico e fácil de criar |
+| 🌐 **Híbrido (GUI + TUI)** | Mesma lógica no Desktop (CustomTkinter) e no Terminal (Textual) |
+| 🛠️ **Focado em Dev**      | Git nativo, suporte a múltiplas linguagens e syntax highlighting |
+| ⚡ **Performance**         | Leve e rápido, mesmo com vários plugins |
+
+## 📸 Screenshots
+
+*(Adicione aqui 2 ou 3 imagens lado a lado)*
+
+<p align="center">
+  <img src="midia/screenshots/light.png" width="48%" alt="Tema Claro">
+  <img src="midia/screenshots/dark.png" width="48%" alt="Tema Escuro">
+</p>
+
+---
+
+## 🛠️ Como Instalar e Usar
 
 ```bash
+# Clone o repositório
+git clone https://github.com/SEU_USUARIO/notohiis.git
+cd notohiis
+
+# Dê permissão e execute
 chmod +x notohiis.sh
 ./notohiis.sh
 ```
 
-*Dica: Na primeira execução, o script criará um alias `nth` para que você possa abrir o editor de qualquer lugar do terminal.*
+> **Dica:** Na primeira execução, o script cria automaticamente o alias `nth`, permitindo abrir o editor de qualquer lugar com:
+> ```bash
+> nth
+> ```
 
 ## 🧩 Turbinando com Plugins
 
-Personalizar o Notohiis é tão simples quanto escrever um script Python. Coloque seus plugins na pasta `/plugins` e eles serão carregados automaticamente.
+Personalizar o Notohiis é extremamente simples. Basta colocar seus arquivos Python na pasta `plugins/` que eles são carregados automaticamente.
 
-Exemplo de como o Notohiis pode ser expandido:
-- **Auto-close:** Fecha parênteses e aspas automaticamente.
-- **Color Preview:** Visualiza cores hexadecimais diretamente no código.
-- **Git Integration:** Acompanhe o status do seu repositório na barra de status e na barra lateral.
+**Exemplos de plugins disponíveis:**
+
+- **Auto-close** — Fecha parênteses, colchetes e aspas automaticamente
+- **Color Preview** — Visualiza cores hexadecimais em tempo real
+- **Git Status** — Integração completa com Git na sidebar e status bar
+- **Markdown Live Preview**
+- **Zen Mode** — Foco total
+
+---
 
 ## 📂 Estrutura do Projeto
 
 ```text
-├── core/           # O coração do editor (Lógica e SRP)
-├── ui/             # Interface Gráfica moderna
-├── tui/            # Interface de Terminal clássica
-├── plugins/        # Sua oficina de personalização
-└── notohiis.sh     # O ponto de entrada inteligente
+notohiis/
+├── core/          # Lógica principal e sistema de plugins
+├── ui/            # Interface Gráfica (CustomTkinter)
+├── tui/           # Interface Terminal (Textual)
+├── plugins/       # ← Seus plugins vão aqui
+├── midia/         # Logos e screenshots
+├── themes/        # Temas em JSON
+└── notohiis.sh    # Script de inicialização inteligente
 ```
 
 ---
-*Notohiis - Versão 0.2-alpha*  
-*"frango  com batata doce" Edition*
 
-Desenvolvido com ❤️ e Python.
+<p align="center">
+  <strong>Notohiis — Versão 0.2-alpha</strong><br>
+  <em>"Frango com batata doce" Edition</em>
+</p>
+
+<p align="center">
+  Feito com ❤️ e Python por <strong>você</strong>.
+</p>
+
+---
