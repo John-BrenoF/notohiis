@@ -34,6 +34,9 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         )
         self.textbox.grid(row=0, column=2, sticky="nsew")
         self.textbox._textbox.configure(insertbackground=theme.get("cursor", "white"), selectbackground=theme.get("selection_bg", "#264f78"))
+        
+        # Desabilita separadores automáticos para que o AppContext controle a granularidade
+        self.textbox._textbox.configure(autoseparators=False)
 
         # Sincronização de Scroll
         self.textbox._textbox.config(yscrollcommand=self._on_text_scroll)
@@ -120,10 +123,38 @@ class EditorArea(ctk.CTkFrame, TextEditor):
     def remove_tag(self, tag_name: str, start: str, end: str) -> None:
         self.textbox._textbox.tag_remove(tag_name, start, end)
 
+    def undo(self) -> None:
+        try: self.textbox._textbox.edit_undo()
+        except tk.TclError: pass
+
+    def redo(self) -> None:
+        try: self.textbox._textbox.edit_redo()
+        except tk.TclError: pass
+
+    def edit_separator(self) -> None:
+        try: self.textbox._textbox.edit_separator()
+        except tk.TclError: pass
+
+    def reset_undo_stack(self) -> None:
+        self.textbox._textbox.edit_reset()
+
+    def begin_undo_group(self) -> None:
+        """Inicia um bloco atômico desabilitando temporariamente a pilha."""
+        self.textbox._textbox.configure(autoseparators=False)
+
+    def end_undo_group(self) -> None:
+        """Fecha o bloco atômico e força um separador."""
+        self.edit_separator()
+
+    def is_in_transaction(self) -> bool:
+        return AppContext()._transaction_level > 0
+
     # --- Métodos de UI e Eventos ---
 
     def _set_dirty(self, event=None):
-        AppContext().is_dirty = True
+        # Delega ao core a decisão de como tratar essa entrada de texto
+        char = event.char if event else None
+        AppContext().handle_typing(char)
 
     def _on_text_scroll(self, *args):
         """Callback for the textbox's yscrollcommand."""
