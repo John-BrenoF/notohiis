@@ -1,28 +1,28 @@
 {
     "editor": {
-        "bg": "#282c34",
+        "bg": "#181a1f",
         "fg": "#abb2bf",
         "cursor": "#528bff",
-        "gutter_bg": "#282c34",
-        "gutter_fg": "#4b5263",
-        "selection_bg": "#3e4451"
+        "gutter_bg": "#181a1f",
+        "gutter_fg": "#3e4451",
+        "selection_bg": "#2c313a"
     },
     "syntax": {
-        "keyword": "#c678dd",
-        "builtin": "#e5c07b",
+        "keyword": "#d55fde",
+        "builtin": "#efcf93",
         "string": "#98c379",
-        "comment": "#5c6370",
+        "comment": "#676f7d",
         "number": "#d19a66",
         "definition": "#61afef"
     },
     "status_bar": {
-        "bg": "#21252b",
-        "fg": "#9da5b4"
+        "bg": "#181a1f",
+        "fg": "#868d9a"
     },
     "sidebar": {
-        "bg": "#21252b",
+        "bg": "#181a1f",
         "fg": "#868d9a",
-        "hover": "#2c313a",
+        "hover": "#21252b",
         "label": "#5c6370",
         "text_active": "#ffffff"
     }

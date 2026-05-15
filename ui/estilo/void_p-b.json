@@ -1,0 +1,29 @@
+{
+    "editor": {
+        "bg": "#000000",
+        "fg": "#ffffff",
+        "cursor": "#ffffff",
+        "gutter_bg": "#000000",
+        "gutter_fg": "#333333",
+        "selection_bg": "#222222"
+    },
+    "syntax": {
+        "keyword": "#ff3366",
+        "builtin": "#00f0ff",
+        "string": "#ffcc00",
+        "comment": "#555555",
+        "number": "#bd93f9",
+        "definition": "#ffffff"
+    },
+    "status_bar": {
+        "bg": "#080808",
+        "fg": "#ffffff"
+    },
+    "sidebar": {
+        "bg": "#080808",
+        "fg": "#666666",
+        "hover": "#111111",
+        "label": "#444444",
+        "text_active": "#ffffff"
+    }
+}
