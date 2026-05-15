@@ -88,10 +88,15 @@ source "$VENV_DIR/bin/activate"
 
 # 4. Atualização de ferramentas e dependências
 echo "[INFO] Sincronizando dependências..."
-pip install --upgrade pip --quiet
+
+# Permitimos que a atualização falhe (ex: rede instável) para que o editor 
+# possa abrir se as bibliotecas já estiverem presentes localmente.
+pip install --upgrade pip --quiet || echo "[AVISO] Não foi possível atualizar o pip."
 
 # Garante a instalação das dependências core e dos plugins (Markdown, etc)
-pip install customtkinter markdown2 tkinterweb Pillow svglib reportlab --upgrade --quiet
+pip install customtkinter markdown2 tkinterweb Pillow svglib reportlab opencv-python --upgrade --quiet || {
+    echo "[AVISO] Falha ao sincronizar dependências. Tentando iniciar com bibliotecas locais..."
+}
 
 # 5. Configuração de ambiente e execução
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"

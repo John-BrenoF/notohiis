@@ -10,9 +10,12 @@ class BufferManager:
         if not os.path.exists(file_path):
             return ""
 
-        # Evita carregar extensões de imagem conhecidas como texto
-        image_exts = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.ico', '.tiff', '.svg'}
-        if os.path.splitext(file_path)[1].lower() in image_exts:
+        # Evita carregar extensões binárias conhecidas (imagem/vídeo) como texto
+        binary_exts = {
+            '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.ico', '.tiff', '.svg',
+            '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv'
+        }
+        if os.path.splitext(file_path)[1].lower() in binary_exts:
             return ""
 
         try:
