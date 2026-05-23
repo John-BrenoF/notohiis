@@ -72,6 +72,24 @@ class Sidebar(ctk.CTkFrame):
         self.bind("<Button-3>", self._show_context_menu)
         self.refresh_explorer()
 
+    def apply_theme(self):
+        theme = AppContext().theme.get("sidebar", {})
+        self.configure(fg_color=theme.get("bg", "#1a1a1c"))
+        self.label.configure(text_color=theme.get("label", "gray"))
+        self.refresh_btn.configure(hover_color=theme.get("hover", "#2d2d2d"), text_color=theme.get("label", "gray"))
+        self.new_folder_btn.configure(hover_color=theme.get("hover", "#2d2d2d"), text_color=theme.get("label", "gray"))
+        self.new_file_btn.configure(hover_color=theme.get("hover", "#2d2d2d"), text_color=theme.get("label", "gray"))
+        self.scrollable_frame.configure(
+            scrollbar_button_color=theme.get("hover", "#2c313a"),
+            scrollbar_button_hover_color=theme.get("label", "#5c6370")
+        )
+
+        for btn in self.item_widgets.values():
+            btn.configure(
+                text_color=theme.get("fg", "#cccccc"),
+                hover_color=theme.get("hover", "#2d2d2d")
+            )
+
     def refresh_explorer(self):
         """Popula a lista de arquivos do diretório atual."""
         self.item_widgets.clear()

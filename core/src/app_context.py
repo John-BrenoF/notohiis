@@ -1,3 +1,4 @@
+import os
 from typing import Optional, Any
 from core.interfaces import TextEditor, StatusBar, Sidebar, AppWindow
 from core.events import EventBus
@@ -30,6 +31,7 @@ class AppContext:
             cls._instance.md_plugin = None
             cls._instance.py_plugin = None
             cls._instance.theme = {}
+            cls._instance.selected_theme = None
             cls._instance.external_plugins = []
             cls._instance.autocomplete_engine = None
         return cls._instance
@@ -45,6 +47,12 @@ class AppContext:
 
     def set_status_bar(self, status_bar: StatusBar):
         self.status_bar = status_bar
+
+    def set_theme(self, theme: dict, theme_name: Optional[str] = None):
+        """Atualiza o tema global e notifica listeners de mudança de tema."""
+        self.theme = theme or {}
+        self.selected_theme = os.path.splitext(os.path.basename(theme_name))[0] if theme_name else None
+        self.events.emit("theme_changed", self.theme)
 
     def notify_save(self):
         """

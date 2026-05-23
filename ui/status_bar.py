@@ -57,6 +57,21 @@ class StatusBar(ctk.CTkFrame):
         self.pos_label = ctk.CTkLabel(self, text="Ln 1, Col 0", font=("Segoe UI", 11), text_color=fg)
         self.pos_label.pack(side="right", padx=(10, 5))
 
+    def apply_theme(self):
+        theme = AppContext().theme.get("status_bar", {})
+        self.configure(fg_color=theme.get("bg", "#21252b"))
+        fg = theme.get("fg", "#9da5b4")
+        hover_color = theme.get("hover", "#2c313a")
+
+        self.file_label.configure(text_color=fg)
+        self.encoding_label.configure(text_color=fg)
+        self.pos_label.configure(text_color=fg)
+        self.lang_button.configure(text_color=fg, hover_color=hover_color)
+        self.git_button.configure(hover_color=hover_color)
+        self.left_sep.configure(text_color=theme.get("fg", "#3e4451"))
+        self.right_sep1.configure(text_color=theme.get("fg", "#3e4451"))
+        self.right_sep2.configure(text_color=theme.get("fg", "#3e4451"))
+
     def update_git_ui(self, status_text: str, is_dirty: bool):
         """Atualiza a aparência do botão Git com base no estado."""
         self.git_button.configure(text=status_text)

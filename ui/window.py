@@ -5,7 +5,10 @@ from ui.status_bar import StatusBar
 from ui.shortcuts import ShortcutManager
 from core.src.app_context import AppContext
 from core.src.session import SessionManager
-import json
+try:
+    from core.src.theme_manager import ThemeManager
+except (ImportError, AttributeError):
+    ThemeManager = None
 import os
 
 class MainWindow(ctk.CTk):
@@ -52,13 +55,31 @@ class MainWindow(ctk.CTk):
             self.sidebar.refresh_explorer()
             self.status_bar.update_status(1, 0, f"Projeto: {self.ctx.project_root}")
 
-    def load_theme(self):
-        """Carrega as definições de cores do arquivo JSON."""
-        theme_path = os.path.join(os.path.dirname(__file__), "estilo", "editor.json")
-        if os.path.exists(theme_path):
+    def load_theme(self, theme_name: str = None):
+        """Carrega e aplica o tema selecionado."""
+        if ThemeManager:
             try:
-                with open(theme_path, "r") as f:
-                    self.ctx.theme = json.load(f)
-            except Exception as e:
-                print(f"Erro ao carregar tema: {e}")
-                self.ctx.theme = {}
+                theme = ThemeManager.load_theme(theme_name)
+                name = theme_name or ThemeManager.get_theme_name(theme_name)
+            except Exception:
+                theme, name = {}, "default"
+        else:
+            theme, name = {}, "default"
+
+        self.ctx.set_theme(theme, name)
+        self.configure(fg_color=self.ctx.theme.get("editor", {}).get("bg", "#141417"))
+        self._apply_theme_to_children()
+
+    def apply_theme(self, theme_name: str):
+        """Aplica um novo tema em tempo de execução."""
+        self.load_theme(theme_name)
+        if self.status_bar:
+            self.status_bar.update_status(1, 0, self.ctx.current_file or "Novo Arquivo")
+
+    def _apply_theme_to_children(self):
+        if hasattr(self, "sidebar") and self.sidebar:
+            self.sidebar.apply_theme()
+        if hasattr(self, "editor") and self.editor:
+            self.editor.apply_theme()
+        if hasattr(self, "status_bar") and self.status_bar:
+            self.status_bar.apply_theme()

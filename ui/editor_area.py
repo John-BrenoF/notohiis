@@ -59,6 +59,20 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         if self.ctx.py_plugin:
             self.ctx.py_plugin.setup_tags(self)
 
+    def apply_theme(self):
+        theme = AppContext().theme.get("editor", {})
+        self.textbox.configure(
+            fg_color=theme.get("bg", "#1e1e1e"),
+            text_color=theme.get("fg", "#d4d4d4")
+        )
+        self.textbox._textbox.configure(
+            insertbackground=theme.get("cursor", "white"),
+            selectbackground=theme.get("selection_bg", "#264f78")
+        )
+        self.line_numbers.configure(bg=theme.get("gutter_bg", "#1e1e1e"))
+        self.git_margin.configure(bg=theme.get("gutter_bg", "#1e1e1e"))
+        self.redraw_line_numbers()
+
     # --- Implementação do Protocolo TextEditor ---
 
     def insert(self, text: str, index: str = "insert") -> None:
