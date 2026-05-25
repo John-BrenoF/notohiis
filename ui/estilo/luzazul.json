@@ -1,11 +1,11 @@
 {
     "editor": {
-        "bg": "#f0f4f8",
-        "fg": "#2d3436",
-        "cursor": "#0984e3",
-        "gutter_bg": "#f0f4f8",
+        "bg": "#d4def8",
+        "fg": "#2d340c",
+        "cursor": "#090000",
+        "gutter_bg": "#d4def8",
         "gutter_fg": "#b2bec3",
-        "selection_bg": "#d6eaf8"
+        "selection_bg": "#beb6f8"
     },
     "syntax": {
         "keyword": "#d63031",
@@ -16,13 +16,13 @@
         "definition": "#0984e3"
     },
     "status_bar": {
-        "bg": "#dfe6e9",
-        "fg": "#636e72"
+        "bg": "#d4def8",
+        "fg": "#000000"
     },
     "sidebar": {
-        "bg": "#f7f9fb",
+        "bg": "#d4def8",
         "fg": "#636e72",
-        "hover": "#e1e8ed",
+        "hover": "#d4f1f8",
         "label": "#b2bec3",
         "text_active": "#0984e3"
     }

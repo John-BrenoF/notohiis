@@ -58,6 +58,3 @@ O projeto aplica o SRP rigorosamente para evitar "God Objects" (objetos que faze
 ├── docs/               # Documentação e Guias
 └── plugins/            # Espaço para plugins da comunidade
 ```
-
----
-*Notohiis - Versão 0.2-alpha*

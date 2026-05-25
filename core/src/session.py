@@ -50,3 +50,33 @@ class SessionManager:
             with open(SessionManager.SESSION_FILE, 'r') as f:
                 return json.load(f).get("recent_projects", [])
         except Exception: return []
+
+    @staticmethod
+    def get_pref_path() -> str:
+        """Resolve o caminho para ui/preferencias/preferecia.json relativo ao root."""
+        base_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        return os.path.join(base_dir, "ui", "preferencias", "preferecia.json")
+
+    @staticmethod
+    def save_theme_pref(theme_name: str):
+        """Salva a preferência de tema do usuário no arquivo de configurações."""
+        path = SessionManager.get_pref_path()
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump({"selected_theme": theme_name}, f)
+        except Exception:
+            pass
+
+    @staticmethod
+    def load_theme_pref() -> str:
+        """Carrega a preferência de tema salva ou retorna o padrão 'editor'."""
+        path = SessionManager.get_pref_path()
+        if not os.path.exists(path):
+            return "editor"
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get("selected_theme", "editor")
+        except Exception:
+            return "editor"

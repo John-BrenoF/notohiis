@@ -27,7 +27,8 @@ class MainWindow(ctk.CTk):
         # Inicialização do Contexto
         self.ctx = AppContext()
         self.ctx.set_window(self)
-        self.load_theme()
+        # Carrega o tema salvo ou o padrão definido no SessionManager
+        self.load_theme(SessionManager.load_theme_pref())
         self.ctx.project_root = SessionManager.load_session()
         self.ctx.current_file = "Novo Arquivo" # Default text for new buffer
 
@@ -73,6 +74,8 @@ class MainWindow(ctk.CTk):
     def apply_theme(self, theme_name: str):
         """Aplica um novo tema em tempo de execução."""
         self.load_theme(theme_name)
+        # Persiste a escolha do usuário
+        SessionManager.save_theme_pref(theme_name)
         if self.status_bar:
             self.status_bar.update_status(1, 0, self.ctx.current_file or "Novo Arquivo")
 
