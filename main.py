@@ -27,6 +27,13 @@ def load_plugins():
     except ImportError:
         print("[CORE] Python Syntax Plugin não encontrado.")
 
+    try:
+        from core.core_plugin.tagpoints_plugin import TagPointsPlugin
+        ctx.tp_plugin = TagPointsPlugin()
+        ctx.tp_plugin.setup(ctx)
+    except ImportError:
+        print("[CORE] Tag Points Plugin não encontrado.")
+
 def load_external_plugins():
     """Carrega plugins dinamicamente da pasta plugins/."""
     ctx = AppContext()
