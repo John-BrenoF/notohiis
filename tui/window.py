@@ -17,6 +17,7 @@ class TuiWindow(App):
     #editor { width: 1fr; }
     """
     BINDINGS = [
+        ("ctrl+a", "select_all", "Selecionar Tudo"),
         ("ctrl+b", "toggle_sidebar", "Sidebar"),
         ("ctrl+s", "save", "Salvar"),
         ("ctrl+n", "new", "Novo"),
@@ -35,6 +36,12 @@ class TuiWindow(App):
 
     def action_toggle_sidebar(self) -> None:
         ShortcutManager.toggle_sidebar()
+
+    def action_select_all(self) -> None:
+        """Seleciona todo o texto no editor TUI."""
+        ctx = AppContext()
+        if ctx.editor and hasattr(ctx.editor, 'select_all'):
+            ctx.editor.select_all()
 
     def action_save(self) -> None:
         ShortcutManager.save_file()

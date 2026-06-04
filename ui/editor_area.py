@@ -46,6 +46,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox.bind("<ButtonRelease-1>", self._on_event)
         self.textbox.bind("<MouseWheel>", self._on_event)
         self.textbox._textbox.bind("<KeyPress>", self._on_key_press, add="+")
+        self.textbox._textbox.bind("<Control-a>", self._select_all)
         self.textbox._textbox.bind("<Control-Tab>", self._force_autocomplete)
         self.textbox._textbox.bind("<Configure>", self._on_event)
         self.textbox._textbox.bind("<Key>", self._set_dirty)
@@ -192,6 +193,13 @@ class EditorArea(ctk.CTkFrame, TextEditor):
 
     def _force_autocomplete(self, event=None):
         self._trigger_autocomplete(event, forced=True)
+        return "break"
+
+    def _select_all(self, event=None):
+        """Seleciona todo o texto do editor."""
+        self.textbox._textbox.tag_add(tk.SEL, "1.0", tk.END)
+        self.textbox._textbox.mark_set(tk.INSERT, tk.END)
+        self.textbox._textbox.see(tk.INSERT)
         return "break"
 
     def _on_key_press(self, event):

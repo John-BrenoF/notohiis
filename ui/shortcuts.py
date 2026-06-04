@@ -10,6 +10,8 @@ class ShortcutManager:
     
     @staticmethod
     def setup_shortcuts(window):
+        window.bind("<Control-a>", ShortcutManager.select_all)
+        window.bind("<Control-A>", ShortcutManager.select_all)
         window.bind("<Control-b>", ShortcutManager.toggle_sidebar)
         window.bind("<Control-B>", ShortcutManager.toggle_sidebar)
         window.bind("<Control-s>", ShortcutManager.save_file)
@@ -30,6 +32,16 @@ class ShortcutManager:
         window.bind("<Control-M>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
         window.bind("<Control-g>", lambda e: AppContext().git_plugin.quick_commit_ui() if AppContext().git_plugin else None)
         window.bind("<Control-G>", lambda e: AppContext().git_plugin.quick_commit_ui() if AppContext().git_plugin else None)
+
+    @staticmethod
+    def select_all(event=None):
+        """Seleciona todo o texto do editor."""
+        ctx = AppContext()
+        if ctx.editor and hasattr(ctx.editor, 'textbox'):
+            ctx.editor.textbox.tag_add(tk.SEL, "1.0", tk.END)
+            ctx.editor.textbox.mark_set(tk.INSERT, tk.END)
+            ctx.editor.textbox.see(tk.INSERT)
+        return "break"  # Previne o comportamento padrão
 
     @staticmethod
     def toggle_sidebar(event=None):
