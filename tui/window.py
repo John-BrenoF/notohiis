@@ -21,8 +21,15 @@ class TuiWindow(App):
         ("ctrl+b", "toggle_sidebar", "Sidebar"),
         ("ctrl+s", "save", "Salvar"),
         ("ctrl+n", "new", "Novo"),
+        ("alt+up", "navigate_up", "Navegar Cima"),
+        ("alt+down", "navigate_down", "Navegar Baixo"),
         ("q", "quit", "Sair"),
     ]
+
+    def __init__(self):
+        super().__init__()
+        self.navigation_mode = None  # "up" ou "down" para navegação rápida
+        self.navigation_timer_id = None
 
     def compose(self) -> ComposeResult:
         ctx = AppContext()
@@ -48,6 +55,47 @@ class TuiWindow(App):
 
     def action_new(self) -> None:
         ShortcutManager.new_buffer()
+
+    def action_navigate_up(self) -> None:
+        """Inicia modo de navegação para cima (aguardando número)."""
+        self.navigation_mode = "up"
+        self._schedule_navigation_timeout()
+
+    def action_navigate_down(self) -> None:
+        """Inicia modo de navegação para baixo (aguardando número)."""
+        self.navigation_mode = "down"
+        self._schedule_navigation_timeout()
+
+    def _schedule_navigation_timeout(self) -> None:
+        """Agenda timeout para cancelar navegação se não houver número."""
+        if self.navigation_timer_id:
+            self.remove_timer(self.navigation_timer_id)
+        self.navigation_timer_id = self.set_timer(self._cancel_navigation, delay=1.0)
+
+    def _cancel_navigation(self) -> None:
+        """Cancela modo de navegação."""
+        self.navigation_mode = None
+        self.navigation_timer_id = None
+
+    def _handle_quick_navigation(self, lines: int) -> None:
+        """Executa navegação rápida se em modo ativo."""
+        if self.navigation_mode:
+            ctx = AppContext()
+            if ctx.editor and hasattr(ctx.editor, 'move_cursor_by_lines'):
+                ctx.editor.move_cursor_by_lines(lines, self.navigation_mode)
+            self.navigation_mode = None
+            if self.navigation_timer_id:
+                self.remove_timer(self.navigation_timer_id)
+                self.navigation_timer_id = None
+
+    def on_key(self, event) -> None:
+        """Captura eventos de teclado para navegação rápida."""
+        # Verifica se estamos em modo de navegação e se é um número 1-9
+        if self.navigation_mode and event.character and event.character.isdigit():
+            lines = int(event.character)
+            if 1 <= lines <= 9:
+                self._handle_quick_navigation(lines)
+                event.prevent_default()
 
     def on_mount(self) -> None:
         self.title = "Notohiis TUI"

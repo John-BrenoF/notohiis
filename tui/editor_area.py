@@ -34,3 +34,24 @@ class EditorArea(TextArea):
     def load_text(self, text: str):
         super().load_text(text)
         self.ctx.is_dirty = False
+
+    def move_cursor_by_lines(self, lines: int, direction: str) -> None:
+        """
+        Move o cursor N linhas para cima ou para baixo.
+        
+        Args:
+            lines: Quantidade de linhas para mover (1-9)
+            direction: "up" ou "down"
+        """
+        try:
+            current_line, current_col = self.cursor_location
+            total_lines = len(self.text.splitlines())
+            
+            if direction == "up":
+                new_line = max(0, current_line - lines)
+            else:  # down
+                new_line = min(total_lines - 1, current_line + lines)
+            
+            self.cursor_location = (new_line, 0)
+        except (ValueError, AttributeError):
+            pass

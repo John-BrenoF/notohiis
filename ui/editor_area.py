@@ -50,11 +50,29 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.bind("<Control-Tab>", self._force_autocomplete)
         self.textbox._textbox.bind("<Configure>", self._on_event)
         self.textbox._textbox.bind("<Key>", self._set_dirty)
+        
+        # Navegação rápida: Alt + Seta + Número
+        self.textbox._textbox.bind("<Alt-Up>", self._start_navigation_up)
+        self.textbox._textbox.bind("<Alt-Down>", self._start_navigation_down)
+        self.textbox._textbox.bind("<KeyPress-1>", self._on_number_input)
+        self.textbox._textbox.bind("<KeyPress-2>", self._on_number_input)
+        self.textbox._textbox.bind("<KeyPress-3>", self._on_number_input)
+        self.textbox._textbox.bind("<KeyPress-4>", self._on_number_input)
+        self.textbox._textbox.bind("<KeyPress-5>", self._on_number_input)
+        self.textbox._textbox.bind("<KeyPress-6>", self._on_number_input)
+        self.textbox._textbox.bind("<KeyPress-7>", self._on_number_input)
+        self.textbox._textbox.bind("<KeyPress-8>", self._on_number_input)
+        self.textbox._textbox.bind("<KeyPress-9>", self._on_number_input)
+        self.textbox._textbox.bind("<Escape>", self._cancel_navigation)
 
         self.line_numbers.bind("<MouseWheel>", self._on_canvas_mousewheel)
         self.git_margin.bind("<MouseWheel>", self._on_canvas_mousewheel)
 
         self.popup = None # Widget de sugestões
+
+        # Estado para navegação rápida (Alt + Seta + Número)
+        self.navigation_mode = None  # "up" ou "down" ou None
+        self.navigation_timer = None
 
         # Configura as tags de sintaxe inicialmente
         if self.ctx.py_plugin:
@@ -201,6 +219,70 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.mark_set(tk.INSERT, tk.END)
         self.textbox._textbox.see(tk.INSERT)
         return "break"
+
+    # --- Navegação Rápida (Alt + Seta + Número) ---
+
+    def _start_navigation_up(self, event=None):
+        """Inicia modo de navegação para cima."""
+        self.navigation_mode = "up"
+        self._schedule_navigation_timeout()
+        return "break"
+
+    def _start_navigation_down(self, event=None):
+        """Inicia modo de navegação para baixo."""
+        self.navigation_mode = "down"
+        self._schedule_navigation_timeout()
+        return "break"
+
+    def _on_number_input(self, event=None):
+        """Processa entrada de número quando em modo navegação."""
+        if self.navigation_mode and event and event.char.isdigit():
+            lines_count = int(event.char)
+            self.move_cursor_by_lines(lines_count, self.navigation_mode)
+            self.navigation_mode = None
+            if self.navigation_timer:
+                self.after_cancel(self.navigation_timer)
+                self.navigation_timer = None
+            return "break"
+        return None
+
+    def _cancel_navigation(self, event=None):
+        """Cancela modo de navegação se ativo."""
+        if self.navigation_mode:
+            self.navigation_mode = None
+            if self.navigation_timer:
+                self.after_cancel(self.navigation_timer)
+                self.navigation_timer = None
+            return "break"
+
+    def _schedule_navigation_timeout(self):
+        """Agenda timeout para cancelar navegação se não houver número."""
+        if self.navigation_timer:
+            self.after_cancel(self.navigation_timer)
+        self.navigation_timer = self.after(1000, self._cancel_navigation)
+
+    def move_cursor_by_lines(self, lines: int, direction: str) -> None:
+        """
+        Move o cursor N linhas para cima ou para baixo.
+        
+        Args:
+            lines: Quantidade de linhas para mover (1-9)
+            direction: "up" ou "down"
+        """
+        try:
+            current_index = self.textbox.index(tk.INSERT)
+            current_line = int(current_index.split('.')[0])
+            
+            if direction == "up":
+                new_line = max(1, current_line - lines)
+            else:  # down
+                total_lines = self.get_line_count()
+                new_line = min(total_lines, current_line + lines)
+            
+            self.set_cursor(f"{new_line}.0")
+            self.textbox.see(tk.INSERT)
+        except (ValueError, tk.TclError):
+            pass
 
     def _on_key_press(self, event):
         """Intervém nas teclas de navegação quando o popup está ativo."""

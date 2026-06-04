@@ -10,6 +10,25 @@ class ShortcutManager:
     
     @staticmethod
     def setup_shortcuts(window):
+        """
+        Configura todos os atalhos de teclado da aplicação.
+        
+        Atalhos principais:
+        - Ctrl+A: Seleciona todo o texto
+        - Ctrl+B: Toggle Sidebar
+        - Ctrl+S: Salvar arquivo
+        - Ctrl+O: Abrir pasta
+        - Ctrl+N: Novo buffer
+        - Ctrl+R: Acesso rápido (projetos recentes)
+        - F1: Ajuda
+        - Ctrl+Alt+C: Painel de controle
+        - Ctrl+M: Toggle Markdown Preview
+        - Ctrl+G: Quick Git Commit
+        
+        Navegação rápida:
+        - Alt+↑/↓ + Número (1-9): Mover cursor N linhas para cima/baixo
+        - Ex: Alt+↑+5 move 5 linhas para cima
+        """
         window.bind("<Control-a>", ShortcutManager.select_all)
         window.bind("<Control-A>", ShortcutManager.select_all)
         window.bind("<Control-b>", ShortcutManager.toggle_sidebar)
@@ -141,35 +160,10 @@ class ShortcutManager:
 
     @staticmethod
     def show_help(event=None):
+        from ui.window_help import HelpWindow
+
         ctx = AppContext()
-        help_window = ctk.CTkToplevel(ctx.window)
-        help_window.title("Ajuda - Notohiis")
-        help_window.attributes("-topmost", True)
-        ShortcutManager._center_window(help_window, 400, 350)
-
-        ctk.CTkLabel(help_window, text="Atalhos do Notohiis", font=("Segoe UI", 18, "bold"), pady=20).pack()
-
-        shortcuts_frame = ctk.CTkFrame(help_window, fg_color="transparent")
-        shortcuts_frame.pack(fill="both", expand=True, padx=40)
-
-        shortcuts = [
-            ("Ctrl+N", "Novo Arquivo"),
-            ("Ctrl+S", "Salvar"),
-            ("Ctrl+O", "Abrir Pasta"),
-            ("Ctrl+B", "Alternar Sidebar"),
-            ("Ctrl+M", "Markdown Preview"),
-            ("Ctrl+G", "Git Quick Commit"),
-            ("F1", "Ajuda")
-        ]
-
-        for key, desc in shortcuts:
-            row = ctk.CTkFrame(shortcuts_frame, fg_color="transparent")
-            row.pack(fill="x", pady=2)
-            ctk.CTkLabel(row, text=key, font=("Consolas", 12, "bold"), text_color="#61afef", width=100, anchor="w").pack(side="left")
-            ctk.CTkLabel(row, text=desc, font=("Segoe UI", 12), anchor="w").pack(side="left")
-
-        ctk.CTkButton(help_window, text="Entendido", command=help_window.destroy).pack(pady=20)
-
+        HelpWindow(ctx.window)
     @staticmethod
     def open_control_panel(event=None):
         from ui.control_panel import ControlPanel
