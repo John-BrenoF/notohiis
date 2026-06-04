@@ -96,7 +96,7 @@ notohiis/
 ---
 
 <p align="center">
-  <strong>Notohiis — Versão 0.3-alpha</strong><br>
+  <strong>Notohiis — Versão 0.2-alpha</strong><br>
   <em>"Frango com batata doce" Edition</em>
 </p>
 
