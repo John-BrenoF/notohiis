@@ -3,6 +3,9 @@
 # Notohiis Editor Bootstrapper
 # Este script gerencia o ambiente virtual, dependências e inicialização do sistema.
 
+# Calcula o diretório do projeto dinamicamente
+SCRIPT_DIR="$(cd "$(dirname "$(realpath "$0")")" && pwd)"
+
 FIRST_RUN=false
 set -e # Aborta em caso de erro simples
 
@@ -73,12 +76,13 @@ pip install customtkinter markdown2 tkinterweb Pillow svglib reportlab opencv-py
 }
 
 # 5. Configuração de ambiente e execução
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+cd "$SCRIPT_DIR"
+export PYTHONPATH="${PYTHONPATH}:$SCRIPT_DIR"
 
 echo "[SUCCESS] Notohiis iniciado com sucesso."
-python3 /home/john/projetos/notohiis/ui/welcome_dev!.py "$1"
+python3 "$SCRIPT_DIR/ui/welcome_dev!.py" "$1"
 
-python3 /home/john/projetos/notohiis/main.py "$1"
+python3 "$SCRIPT_DIR/main.py" "$1"
 
 # Finalização limpa
 deactivate
