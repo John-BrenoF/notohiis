@@ -53,7 +53,7 @@ Você decide o quão simples ou poderoso ele será.
 
 ```bash
 # Clone o repositório
-git clone https://github.com/SEU_USUARIO/notohiis.git
+git clone https://github.com/John-BrenoF/notohiis.git
 cd notohiis
 
 # Dê permissão e execute
