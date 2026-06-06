@@ -29,26 +29,49 @@ class TabBridge:
         self.open_new_tab()
 
     def _init_ui(self):
-        self.frame = ctk.CTkFrame(self.master, fg_color=self.ctx.theme.get("sidebar", {}).get("bg", "#21252b"), corner_radius=0)
+        self.frame = ctk.CTkFrame(
+            self.master,
+            fg_color=self.ctx.theme.get("sidebar", {}).get("bg", "#21252b"),
+            corner_radius=0
+        )
         self.frame.grid(row=0, column=1, sticky="ew")
 
         self.master.grid_rowconfigure(0, weight=0)
         self.master.grid_rowconfigure(1, weight=1)
 
-        self.scroll_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
+        self.scroll_frame = ctk.CTkFrame(self.frame, fg_color=self.ctx.theme.get("sidebar", {}).get("bg", "#21252b"))
         self.scroll_frame.pack(fill="x", side="left", padx=(8, 0), pady=4)
 
         self.new_tab_button = ctk.CTkButton(
             self.frame,
             text="+",
-            width=32,
-            height=30,
-            fg_color=self.ctx.theme.get("sidebar", {}).get("button_bg", "#3b3f46"),
-            hover_color=self.ctx.theme.get("sidebar", {}).get("hover", "#4b5260"),
-            text_color=self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"),
+            width=24,
+            height=24,
+            fg_color=self.ctx.theme.get("sidebar", {}).get("bg", "#21252b"),
+            hover_color=self._lighten_color(self.ctx.theme.get("sidebar", {}).get("bg", "#21252b"), 0.07),
+            text_color=self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.2),
+            border_width=0,
+            corner_radius=8,
             command=self.open_new_tab
         )
         self.new_tab_button.pack(side="right", padx=8, pady=4)
+
+    def _lighten_color(self, hex_color: str, amount: float = 0.2) -> str:
+        """Retorna uma versão mais clara de uma cor hexadecimal."""
+        hex_color = hex_color.strip().lstrip("#")
+        if len(hex_color) != 6:
+            return hex_color
+        try:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+        except ValueError:
+            return f"#{hex_color}"
+
+        r = min(255, int(r + (255 - r) * amount))
+        g = min(255, int(g + (255 - g) * amount))
+        b = min(255, int(b + (255 - b) * amount))
+        return f"#{r:02x}{g:02x}{b:02x}"
 
     def open_new_tab(self, path: str = None):
         if path:
@@ -126,15 +149,24 @@ class TabBridge:
             tab_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
             tab_frame.pack(side="left", padx=(0, 4), pady=2)
 
+            tab_bg = self.ctx.theme.get("sidebar", {}).get("bg", "#21252b")
+            active_fg = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.35)
+            inactive_fg = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.15)
+            button_bg = self._lighten_color(tab_bg, 0.03)
+            hover_bg = self._lighten_color(tab_bg, 0.07)
+            close_color = self._lighten_color(tab_bg, 0.25)
+
             button = ctk.CTkButton(
                 tab_frame,
                 text=tab.display_name,
-                width=140,
-                height=30,
+                width=120,
+                height=24,
                 corner_radius=8,
-                fg_color="#2b2f33" if active else "#1f2124",
-                hover_color="#3c4148",
-                text_color="#ffffff",
+                fg_color=button_bg,
+                hover_color=hover_bg,
+                text_color=active_fg if active else inactive_fg,
+                border_width=0,
+                anchor="w",
                 command=lambda value=tab.id: self.select_tab(value)
             )
             button.pack(side="left")
@@ -142,11 +174,13 @@ class TabBridge:
             close_button = ctk.CTkButton(
                 tab_frame,
                 text="✕",
-                width=30,
-                height=30,
-                fg_color="#2b2f33" if active else "#1f2124",
-                hover_color="#e06c75",
-                text_color="#ffffff",
+                width=20,
+                height=24,
+                corner_radius=8,
+                fg_color=button_bg,
+                hover_color=hover_bg,
+                text_color=close_color,
+                border_width=0,
                 command=lambda value=tab.id: self.close_tab(value)
             )
             close_button.pack(side="left", padx=(2, 0))
