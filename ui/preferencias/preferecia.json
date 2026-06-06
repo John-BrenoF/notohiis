@@ -1,1 +1,6 @@
-{"selected_theme": "void_r"}
+{
+  "selected_theme": "void_p-b",
+  "ui": {
+    "smart_tab_hiding": true
+  }
+}

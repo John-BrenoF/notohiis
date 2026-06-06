@@ -3,6 +3,7 @@ import os
 import tkinter as tk
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
+from core.src.session import SessionManager
 try:
     from core.src.theme_manager import ThemeManager
 except (ImportError, AttributeError):
@@ -130,7 +131,7 @@ class ControlPanel(ctk.CTkToplevel):
     def _build_appearance_page(self):
         page = ctk.CTkFrame(self.content_area, fg_color="transparent")
         page.grid_columnconfigure(0, weight=1)
-        page.grid_rowconfigure(3, weight=1)   # preview se expande
+        page.grid_rowconfigure(4, weight=1)   # preview se expande
         self._pages["appearance"] = page
 
         # Título
@@ -171,12 +172,37 @@ class ControlPanel(ctk.CTkToplevel):
         self.theme_menu.grid(row=0, column=1, sticky="ew")
         self.theme_menu.set(self.selected_theme)
 
+        self.smart_hide_var = tk.BooleanVar(value=SessionManager.get_ui_setting("smart_tab_hiding", True))
+        settings_row = ctk.CTkFrame(page, fg_color="transparent")
+        settings_row.grid(row=3, column=0, sticky="ew", pady=(0, 16))
+        settings_row.grid_columnconfigure(0, weight=1)
+
+        self.smart_hide_checkbox = ctk.CTkCheckBox(
+            settings_row,
+            text="Ocultamento inteligente de abas",
+            variable=self.smart_hide_var,
+            onvalue=True,
+            offvalue=False,
+            text_color="#d3d5df",
+            fg_color="#1e1f28",
+            hover_color="#2a2d36",
+            corner_radius=8,
+            command=self._on_smart_hide_changed,
+        )
+        self.smart_hide_checkbox.grid(row=0, column=0, sticky="w", padx=(0, 12), pady=(0, 8))
+        ctk.CTkLabel(
+            settings_row,
+            text="Mostrar a barra de abas apenas ao passar o mouse.",
+            font=("Segoe UI", 11),
+            text_color="#6b6f87",
+        ).grid(row=1, column=0, sticky="w")
+
         # Preview expansível
         preview_card = ctk.CTkFrame(
             page, fg_color="#18181d",
             corner_radius=14, border_width=1, border_color="#2b2b35"
         )
-        preview_card.grid(row=3, column=0, sticky="nsew", pady=(0, 16))
+        preview_card.grid(row=4, column=0, sticky="nsew", pady=(0, 16))
         preview_card.grid_columnconfigure(0, weight=1)
         preview_card.grid_rowconfigure(1, weight=1)
 
@@ -368,6 +394,13 @@ class ControlPanel(ctk.CTkToplevel):
         if self.ctx.window:
             self.ctx.window.apply_theme(self.selected_theme)
             self._render_theme_preview(self.selected_theme)
+
+    def _on_smart_hide_changed(self):
+        enabled = self.smart_hide_var.get()
+        SessionManager.set_ui_setting("smart_tab_hiding", enabled)
+        self.ctx.smart_tab_hiding = enabled
+        if hasattr(self.ctx, "tab_bridge") and self.ctx.tab_bridge:
+            self.ctx.tab_bridge.set_smart_hide(enabled)
 
     def _open_current_theme(self):
         self._open_config(self._get_theme_path(self.selected_theme))

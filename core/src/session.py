@@ -60,23 +60,54 @@ class SessionManager:
     @staticmethod
     def save_theme_pref(theme_name: str):
         """Salva a preferência de tema do usuário no arquivo de configurações."""
-        path = SessionManager.get_pref_path()
-        try:
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, 'w', encoding='utf-8') as f:
-                json.dump({"selected_theme": theme_name}, f)
-        except Exception:
-            pass
+        prefs = SessionManager.load_preferences()
+        prefs["selected_theme"] = theme_name
+        SessionManager.save_preferences(prefs)
 
     @staticmethod
     def load_theme_pref() -> str:
         """Carrega a preferência de tema salva ou retorna o padrão 'editor'."""
+        prefs = SessionManager.load_preferences()
+        return prefs.get("selected_theme", "editor")
+
+    @staticmethod
+    def load_preferences() -> dict:
+        """Carrega as preferências do usuário do arquivo de configuração."""
         path = SessionManager.get_pref_path()
         if not os.path.exists(path):
-            return "editor"
+            return {}
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return data.get("selected_theme", "editor")
+                return data if isinstance(data, dict) else {}
         except Exception:
-            return "editor"
+            return {}
+
+    @staticmethod
+    def save_preferences(data: dict):
+        """Persiste as preferências do usuário no arquivo de configuração."""
+        path = SessionManager.get_pref_path()
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2)
+        except Exception:
+            pass
+
+    @staticmethod
+    def get_ui_setting(key: str, default=None):
+        prefs = SessionManager.load_preferences()
+        ui = prefs.get("ui", {})
+        return ui.get(key, default)
+
+    @staticmethod
+    def set_ui_setting(key: str, value):
+        prefs = SessionManager.load_preferences()
+        if not isinstance(prefs, dict):
+            prefs = {}
+        ui = prefs.get("ui", {})
+        if not isinstance(ui, dict):
+            ui = {}
+        ui[key] = value
+        prefs["ui"] = ui
+        SessionManager.save_preferences(prefs)

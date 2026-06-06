@@ -25,7 +25,10 @@ class TabBridge:
 
         self.ctx.tab_manager = TabManager()
         self.ctx.tab_bridge = self
+        self.smart_hide_enabled = getattr(self.ctx, "smart_tab_hiding", True)
+        self.hide_after_id = None
         self._init_ui()
+        self._update_tab_visibility()
         self.open_new_tab()
 
     def _init_ui(self):
@@ -39,12 +42,21 @@ class TabBridge:
         self.master.grid_rowconfigure(0, weight=0)
         self.master.grid_rowconfigure(1, weight=1)
 
-        self.scroll_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
+        self.hover_anchor = ctk.CTkFrame(self.frame, fg_color="transparent", height=6)
+        self.hover_anchor.pack(fill="x", side="top")
+        self.hover_anchor.bind("<Enter>", lambda e: self._on_enter())
+
+        self.tab_row = ctk.CTkFrame(self.frame, fg_color="transparent")
+        self.tab_row.pack(fill="x", side="top")
+        self.tab_row.bind("<Enter>", lambda e: self._on_enter())
+        self.tab_row.bind("<Leave>", self._on_leave)
+
+        self.scroll_frame = ctk.CTkFrame(self.tab_row, fg_color="transparent")
         self.scroll_frame.pack(fill="x", side="left", padx=(6, 0), pady=2)
 
         tab_bg = self.ctx.theme.get("sidebar", {}).get("bg", "#21252b")
         self.new_tab_button = ctk.CTkButton(
-            self.frame,
+            self.tab_row,
             text="+",
             width=22,
             height=22,
@@ -56,6 +68,7 @@ class TabBridge:
             command=self.open_new_tab
         )
         self.new_tab_button.pack(side="right", padx=6, pady=2)
+        self.new_tab_button.bind("<Enter>", lambda e: self._on_enter())
 
     def _lighten_color(self, hex_color: str, amount: float = 0.2) -> str:
         """Retorna uma versão mais clara de uma cor hexadecimal."""
@@ -73,6 +86,44 @@ class TabBridge:
         g = min(255, int(g + (255 - g) * amount))
         b = min(255, int(b + (255 - b) * amount))
         return f"#{r:02x}{g:02x}{b:02x}"
+
+    def _on_enter(self, event=None):
+        if not self.smart_hide_enabled:
+            return
+        if self.hide_after_id:
+            self.frame.after_cancel(self.hide_after_id)
+            self.hide_after_id = None
+        self._show_tab_contents()
+
+    def _on_leave(self, event=None):
+        if not self.smart_hide_enabled:
+            return
+        if self.hide_after_id:
+            self.frame.after_cancel(self.hide_after_id)
+        self.hide_after_id = self.frame.after(250, self._hide_tab_contents)
+
+    def _show_tab_contents(self):
+        if not self.tab_row.winfo_ismapped():
+            self.tab_row.pack(fill="x", side="top")
+        if self.hover_anchor.winfo_ismapped():
+            self.hover_anchor.pack_forget()
+
+    def _hide_tab_contents(self):
+        if self.tab_row.winfo_ismapped():
+            self.tab_row.pack_forget()
+        if not self.hover_anchor.winfo_ismapped():
+            self.hover_anchor.pack(fill="x", side="top")
+
+    def _update_tab_visibility(self):
+        if self.smart_hide_enabled:
+            self._hide_tab_contents()
+        else:
+            self._show_tab_contents()
+
+    def set_smart_hide(self, enabled: bool):
+        self.smart_hide_enabled = enabled
+        self.ctx.smart_tab_hiding = enabled
+        self._update_tab_visibility()
 
     def open_new_tab(self, path: str = None):
         if path:
@@ -169,6 +220,7 @@ class TabBridge:
                 command=lambda value=tab.id: self.select_tab(value)
             )
             button.pack(side="left")
+            button.bind("<Enter>", lambda e: self._on_enter())
 
             close_button = ctk.CTkButton(
                 tab_frame,
@@ -183,4 +235,5 @@ class TabBridge:
                 command=lambda value=tab.id: self.close_tab(value)
             )
             close_button.pack(side="left", padx=(1, 0))
+            close_button.bind("<Enter>", lambda e: self._on_enter())
             self.tab_buttons[tab.id] = (button, close_button)

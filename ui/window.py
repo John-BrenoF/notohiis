@@ -36,6 +36,7 @@ class MainWindow(ctk.CTk):
         # Carrega o tema salvo ou o padrão definido no SessionManager
         self.load_theme(SessionManager.load_theme_pref())
         self.ctx.project_root = SessionManager.load_session()
+        self.ctx.smart_tab_hiding = SessionManager.get_ui_setting("smart_tab_hiding", True)
         self.ctx.current_file = "Novo Arquivo" # Default text for new buffer
 
         # Sidebar (Initially hidden, so not gridded)
