@@ -101,9 +101,36 @@ class ShortcutManager:
     @staticmethod
     def save_file(event=None):
         ctx = AppContext()
+        if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge and ctx.tab_manager:
+            active = ctx.tab_manager.get_active_tab()
+            if active:
+                if active.path:
+                    if ctx.editor:
+                        active.content = ctx.editor.get_text()
+                    if BufferManager.save_file(active.path, active.content):
+                        ctx.tab_manager.mark_active_saved()
+                        ctx.is_dirty = False
+                        if ctx.sidebar: ctx.sidebar.refresh_explorer()
+                        if ctx.status_bar: ctx.status_bar.update_status(1, 0, active.path)
+                    return "break"
+
+                path = filedialog.asksaveasfilename(defaultextension=".txt")
+                if not path:
+                    return
+                if ctx.editor:
+                    active.content = ctx.editor.get_text()
+                if BufferManager.save_file(path, active.content):
+                    ctx.tab_manager.update_tab_path(active.id, path)
+                    ctx.current_file = path
+                    ctx.is_dirty = False
+                    if ctx.sidebar: ctx.sidebar.refresh_explorer()
+                    if ctx.status_bar: ctx.status_bar.update_status(1, 0, path)
+                return "break"
+
         if not ctx.current_file:
             path = filedialog.asksaveasfilename(defaultextension=".txt")
-            if not path: return
+            if not path:
+                return
             ctx.current_file = path
 
         if ctx.editor:
@@ -133,6 +160,9 @@ class ShortcutManager:
         ctx = AppContext()
 
         def proceed():
+            if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge and ctx.tab_manager:
+                ctx.tab_bridge.open_new_tab()
+                return
             ctx.current_file = None
             ctx.is_dirty = False
             if ctx.editor:

@@ -6,6 +6,10 @@ from ui.shortcuts import ShortcutManager
 from core.src.app_context import AppContext
 from core.src.session import SessionManager
 try:
+    from ui.tab_bridge import TabBridge
+except ImportError:
+    TabBridge = None
+try:
     from core.src.theme_manager import ThemeManager
 except (ImportError, AttributeError):
     ThemeManager = None
@@ -19,10 +23,12 @@ class MainWindow(ctk.CTk):
         self.title("Notohiis")
         self.geometry("1100x700")
         
-        # Configuração de Grid: Sidebar (0), Editor (1)
+        # Configuração de Grid: Tab Bar (0), Editor (1), Status Bar (2)
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=0) # Sidebar column, initially no weight
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=0)
 
         # Inicialização do Contexto
         self.ctx = AppContext()
@@ -39,14 +45,17 @@ class MainWindow(ctk.CTk):
 
         # Editor Area
         self.editor = EditorArea(self)
-        self.editor.grid(row=0, column=1, sticky="nsew")
+        self.editor.grid(row=1, column=1, sticky="nsew")
         # Registramos o container que contém o textbox e gutter
         self.ctx.set_editor(self.editor)
 
         # Status Bar
         self.status_bar = StatusBar(self)
-        self.status_bar.grid(row=1, column=1, sticky="ew")
+        self.status_bar.grid(row=2, column=1, sticky="ew")
         self.ctx.set_status_bar(self.status_bar)
+
+        # Tab Bridge (opcional)
+        self.tab_bridge = TabBridge(self.ctx, self) if TabBridge else None
 
         # Atalhos
         ShortcutManager.setup_shortcuts(self)

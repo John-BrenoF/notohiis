@@ -180,17 +180,20 @@ class Sidebar(ctk.CTkFrame):
             ctx.project_root = path
             self.refresh_explorer()
         else:
-            ctx.current_file = path
-            ctx.is_dirty = False
-            content = BufferManager.read_file(path)
-            if ctx.editor:
-                ctx.editor.set_text(content)
-            if ctx.status_bar:
-                ctx.status_bar.update_status(1, 0, path)
-            
-            # Dispara realce de sintaxe imediatamente após carregar o arquivo
-            if ctx.py_plugin:
-                ctx.py_plugin.highlight()
+            if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge:
+                ctx.tab_bridge.open_file(path)
+            else:
+                ctx.current_file = path
+                ctx.is_dirty = False
+                content = BufferManager.read_file(path)
+                if ctx.editor:
+                    ctx.editor.set_text(content)
+                if ctx.status_bar:
+                    ctx.status_bar.update_status(1, 0, path)
+                
+                # Dispara realce de sintaxe imediatamente após carregar o arquivo
+                if ctx.py_plugin:
+                    ctx.py_plugin.highlight()
 
     def _show_inline_entry(self, is_dir=False, target_path=None):
         """Cria um campo de texto temporário na lista para nomear novo item."""

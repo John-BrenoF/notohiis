@@ -34,6 +34,8 @@ class AppContext:
             cls._instance.selected_theme = None
             cls._instance.external_plugins = []
             cls._instance.autocomplete_engine = None
+            cls._instance.tab_manager = None
+            cls._instance.tab_bridge = None
         return cls._instance
 
     def set_window(self, window: AppWindow):

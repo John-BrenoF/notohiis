@@ -209,6 +209,10 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             if hasattr(plugin, 'run'):
                 plugin.run()
 
+        # Se houver um gerenciador de abas ativo, sincroniza o conteúdo atual
+        if getattr(AppContext(), 'tab_bridge', None):
+            AppContext().tab_bridge.update_active_tab_content(self.get_text())
+
     def _force_autocomplete(self, event=None):
         self._trigger_autocomplete(event, forced=True)
         return "break"
