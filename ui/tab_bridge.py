@@ -39,22 +39,23 @@ class TabBridge:
         self.master.grid_rowconfigure(0, weight=0)
         self.master.grid_rowconfigure(1, weight=1)
 
-        self.scroll_frame = ctk.CTkFrame(self.frame, fg_color=self.ctx.theme.get("sidebar", {}).get("bg", "#21252b"))
-        self.scroll_frame.pack(fill="x", side="left", padx=(8, 0), pady=4)
+        self.scroll_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
+        self.scroll_frame.pack(fill="x", side="left", padx=(6, 0), pady=2)
 
+        tab_bg = self.ctx.theme.get("sidebar", {}).get("bg", "#21252b")
         self.new_tab_button = ctk.CTkButton(
             self.frame,
             text="+",
-            width=24,
-            height=24,
-            fg_color=self.ctx.theme.get("sidebar", {}).get("bg", "#21252b"),
-            hover_color=self._lighten_color(self.ctx.theme.get("sidebar", {}).get("bg", "#21252b"), 0.07),
-            text_color=self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.2),
+            width=22,
+            height=22,
+            fg_color=tab_bg,
+            hover_color=tab_bg,
+            text_color=self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.15),
             border_width=0,
-            corner_radius=8,
+            corner_radius=0,
             command=self.open_new_tab
         )
-        self.new_tab_button.pack(side="right", padx=8, pady=4)
+        self.new_tab_button.pack(side="right", padx=6, pady=2)
 
     def _lighten_color(self, hex_color: str, amount: float = 0.2) -> str:
         """Retorna uma versão mais clara de uma cor hexadecimal."""
@@ -150,20 +151,18 @@ class TabBridge:
             tab_frame.pack(side="left", padx=(0, 4), pady=2)
 
             tab_bg = self.ctx.theme.get("sidebar", {}).get("bg", "#21252b")
-            active_fg = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.35)
-            inactive_fg = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.15)
-            button_bg = self._lighten_color(tab_bg, 0.03)
-            hover_bg = self._lighten_color(tab_bg, 0.07)
-            close_color = self._lighten_color(tab_bg, 0.25)
+            active_fg = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.4)
+            inactive_fg = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.1)
+            close_color = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.15)
 
             button = ctk.CTkButton(
                 tab_frame,
                 text=tab.display_name,
-                width=120,
-                height=24,
-                corner_radius=8,
-                fg_color=button_bg,
-                hover_color=hover_bg,
+                width=110,
+                height=22,
+                corner_radius=0,
+                fg_color=tab_bg,
+                hover_color=tab_bg,
                 text_color=active_fg if active else inactive_fg,
                 border_width=0,
                 anchor="w",
@@ -174,14 +173,14 @@ class TabBridge:
             close_button = ctk.CTkButton(
                 tab_frame,
                 text="✕",
-                width=20,
-                height=24,
-                corner_radius=8,
-                fg_color=button_bg,
-                hover_color=hover_bg,
+                width=18,
+                height=22,
+                corner_radius=0,
+                fg_color=tab_bg,
+                hover_color=tab_bg,
                 text_color=close_color,
                 border_width=0,
                 command=lambda value=tab.id: self.close_tab(value)
             )
-            close_button.pack(side="left", padx=(2, 0))
+            close_button.pack(side="left", padx=(1, 0))
             self.tab_buttons[tab.id] = (button, close_button)
