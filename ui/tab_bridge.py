@@ -10,13 +10,12 @@ except ImportError:
     TabManager = None
 
 class TabBridge:
-    """Ponte entre a UI e o TabManager opcional do core."""
 
     def __init__(self, ctx: AppContext, master):
         self.ctx = ctx
         self.master = master
         self.enabled = TabManager is not None
-        self.tab_buttons = {}
+        self.tab_buttons = {} 
         self.frame = None
         self.scroll_frame = None
 
@@ -192,48 +191,62 @@ class TabBridge:
             self.ctx.status_bar.update_status(1, 0, self.ctx.current_file)
 
     def _render_tabs(self):
-        for child in self.scroll_frame.winfo_children():
-            child.destroy()
-        self.tab_buttons.clear()
+        current_tabs = self.ctx.tab_manager.get_tabs()
+        current_ids = {tab.id for tab in current_tabs}
 
-        for tab in self.ctx.tab_manager.get_tabs():
+        for tab_id in list(self.tab_buttons.keys()):
+            if tab_id not in current_ids:
+                tab_frame, _, _ = self.tab_buttons[tab_id]
+                tab_frame.destroy()
+                del self.tab_buttons[tab_id]
+
+        tab_bg = self.ctx.theme.get("sidebar", {}).get("bg", "#21252b")
+        active_fg = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.4)
+        inactive_fg = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.1)
+        close_color = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.15)
+
+        for tab in current_tabs:
             active = self.ctx.tab_manager.active_tab_id == tab.id
-            tab_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-            tab_frame.pack(side="left", padx=(0, 4), pady=2)
 
-            tab_bg = self.ctx.theme.get("sidebar", {}).get("bg", "#21252b")
-            active_fg = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.4)
-            inactive_fg = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.1)
-            close_color = self._lighten_color(self.ctx.theme.get("sidebar", {}).get("fg", "#d4d4d4"), 0.15)
+            if tab.id in self.tab_buttons:
+                tab_frame, button, close_button = self.tab_buttons[tab.id]
+                
+                tab_frame.pack(side="left", padx=(0, 4), pady=2)
+                
+                button.configure(text=tab.display_name, text_color=active_fg if active else inactive_fg)
+            else:
+                tab_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
+                tab_frame.pack(side="left", padx=(0, 4), pady=2)
 
-            button = ctk.CTkButton(
-                tab_frame,
-                text=tab.display_name,
-                width=110,
-                height=22,
-                corner_radius=0,
-                fg_color=tab_bg,
-                hover_color=tab_bg,
-                text_color=active_fg if active else inactive_fg,
-                border_width=0,
-                anchor="w",
-                command=lambda value=tab.id: self.select_tab(value)
-            )
-            button.pack(side="left")
-            button.bind("<Enter>", lambda e: self._on_enter())
+                button = ctk.CTkButton(
+                    tab_frame,
+                    text=tab.display_name,
+                    width=110,
+                    height=22,
+                    corner_radius=0,
+                    fg_color=tab_bg,
+                    hover_color=tab_bg,
+                    text_color=active_fg if active else inactive_fg,
+                    border_width=0,
+                    anchor="w",
+                    command=lambda value=tab.id: self.select_tab(value)
+                )
+                button.pack(side="left")
+                button.bind("<Enter>", lambda e: self._on_enter())
 
-            close_button = ctk.CTkButton(
-                tab_frame,
-                text="✕",
-                width=18,
-                height=22,
-                corner_radius=0,
-                fg_color=tab_bg,
-                hover_color=tab_bg,
-                text_color=close_color,
-                border_width=0,
-                command=lambda value=tab.id: self.close_tab(value)
-            )
-            close_button.pack(side="left", padx=(1, 0))
-            close_button.bind("<Enter>", lambda e: self._on_enter())
-            self.tab_buttons[tab.id] = (button, close_button)
+                close_button = ctk.CTkButton(
+                    tab_frame,
+                    text="✕",
+                    width=18,
+                    height=22,
+                    corner_radius=0,
+                    fg_color=tab_bg,
+                    hover_color=tab_bg,
+                    text_color=close_color,
+                    border_width=0,
+                    command=lambda value=tab.id: self.close_tab(value)
+                )
+                close_button.pack(side="left", padx=(1, 0))
+                close_button.bind("<Enter>", lambda e: self._on_enter())
+
+                self.tab_buttons[tab.id] = (tab_frame, button, close_button)
