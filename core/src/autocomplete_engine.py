@@ -15,7 +15,7 @@ class AutocompleteEngine:
             "dict", "set", "tuple", "enumerate", "zip", "open", "self", "cls",
             "append", "extend", "split", "join"
         ])))
-        self.lsp = LSPClient(["pyright-langserver", "--stdio"])
+        self.lsp = LSPClient(["jedi-language-server"])
         self.lsp.start()
         self.initialized = False
 

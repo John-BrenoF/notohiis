@@ -11,3 +11,4 @@ core/src/__pycache__
 core/core_plugin/__pycache__
 core/cacheuser/tags.json
 __pycache__
+.idea

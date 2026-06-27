@@ -143,6 +143,57 @@ class GitPlugin:
         
         threading.Thread(target=task, daemon=True).start()
 
+    def get_diff(self, path: str = None) -> str:
+        """Retorna o diff do arquivo ou de todo o repo."""
+        root = self.ctx.project_root
+        if not root or not self.is_git_repo(root):
+            return ""
+        try:
+            cmd = ["git", "diff"]
+            if path:
+                cmd.append(path)
+            return subprocess.check_output(cmd, cwd=root, stderr=subprocess.STDOUT, text=True)
+        except Exception as e:
+            return str(e)
+
+    def stage_file(self, path: str):
+        root = self.ctx.project_root
+        if root:
+            subprocess.run(["git", "add", path], cwd=root)
+            self.async_update_status()
+
+    def unstage_file(self, path: str):
+        root = self.ctx.project_root
+        if root:
+            subprocess.run(["git", "reset", "HEAD", path], cwd=root)
+            self.async_update_status()
+
+    def get_branches(self) -> List[str]:
+        root = self.ctx.project_root
+        if not root or not self.is_git_repo(root):
+            return []
+        try:
+            output = subprocess.check_output(["git", "branch"], cwd=root, text=True)
+            return [line.strip().replace("* ", "") for line in output.splitlines()]
+        except Exception:
+            return []
+
+    def switch_branch(self, branch_name: str):
+        root = self.ctx.project_root
+        if root:
+            subprocess.run(["git", "checkout", branch_name], cwd=root)
+            self.async_update_status()
+
+    def git_push(self):
+        root = self.ctx.project_root
+        if root:
+            threading.Thread(target=lambda: subprocess.run(["git", "push"], cwd=root), daemon=True).start()
+
+    def git_pull(self):
+        root = self.ctx.project_root
+        if root:
+            threading.Thread(target=lambda: [subprocess.run(["git", "pull"], cwd=root), self.async_update_status()], daemon=True).start()
+
     def quick_commit_ui(self):
         """Abre uma janela flutuante para commit rápido."""
         if not self.ctx.project_root or not self.is_git_repo(self.ctx.project_root):

@@ -69,6 +69,14 @@ class Sidebar(ctk.CTkFrame):
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Excluir", command=self._menu_delete)
 
+        self.context_menu.add_separator()
+        # Seção Git
+        self.git_menu = tk.Menu(self.context_menu, tearoff=0, bg="#2b2b2b", fg="white", borderwidth=0)
+        self.context_menu.add_cascade(label="Git", menu=self.git_menu)
+        self.git_menu.add_command(label="Add (Stage)", command=self._git_add)
+        self.git_menu.add_command(label="Reset (Unstage)", command=self._git_reset)
+        self.git_menu.add_command(label="Ver Diff", command=self._git_diff)
+        
         self.bind("<Button-3>", self._show_context_menu)
         self.refresh_explorer()
 
@@ -326,6 +334,48 @@ class Sidebar(ctk.CTkFrame):
 
         ctk.CTkButton(btn_frame, text="Excluir", fg_color="#e06c75", hover_color="#be5046", command=do_delete).pack(side="left", padx=10)
         ctk.CTkButton(btn_frame, text="Cancelar", fg_color="gray", command=dialog.destroy).pack(side="left", padx=10)
+
+    def _git_add(self):
+        ctx = AppContext()
+        if ctx.git_plugin and self._menu_target:
+            ctx.git_plugin.stage_file(self._menu_target)
+
+    def _git_reset(self):
+        ctx = AppContext()
+        if ctx.git_plugin and self._menu_target:
+            ctx.git_plugin.unstage_file(self._menu_target)
+
+    def _git_diff(self):
+        ctx = AppContext()
+        if ctx.git_plugin and self._menu_target:
+            diff_text = ctx.git_plugin.get_diff(self._menu_target)
+            if not diff_text:
+                diff_text = "Nenhuma alteração detectada ou arquivo não rastreado."
+            
+            # Criar uma janela simples para mostrar o Diff
+            dialog = ctk.CTkToplevel(self)
+            dialog.title(f"Git Diff - {os.path.basename(self._menu_target)}")
+            dialog.geometry("700x500")
+            
+            txt = ctk.CTkTextbox(dialog, font=("Consolas", 11))
+            txt.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            # Colorir o Diff
+            txt._textbox.tag_configure("add", foreground="#98c379")
+            txt._textbox.tag_configure("del", foreground="#e06c75")
+            txt._textbox.tag_configure("header", foreground="#61afef")
+
+            for line in diff_text.splitlines():
+                if line.startswith("+") and not line.startswith("+++"):
+                    txt._textbox.insert("end", line + "\n", "add")
+                elif line.startswith("-") and not line.startswith("---"):
+                    txt._textbox.insert("end", line + "\n", "del")
+                elif line.startswith("@@") or line.startswith("diff"):
+                    txt._textbox.insert("end", line + "\n", "header")
+                else:
+                    txt._textbox.insert("end", line + "\n")
+            
+            txt.configure(state="disabled")
 
     def _show_error(self, message):
         dialog = ctk.CTkToplevel(self)

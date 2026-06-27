@@ -27,6 +27,8 @@ class LSPClient:
             # Inicia thread de leitura para capturar respostas do servidor
             threading.Thread(target=self._read_loop, daemon=True).start()
             print(f"[LSP] Servidor iniciado: {' '.join(self.server_command)}")
+        except FileNotFoundError:
+            print(f"[LSP] Servidor '{self.server_command[0]}' não encontrado. Autocompletar inteligente desativado.")
         except Exception as e:
             print(f"[LSP] Erro ao iniciar servidor: {e}")
 
