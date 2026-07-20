@@ -1,5 +1,5 @@
-        LUMEJ: ETHICAL AND FAIR USE LICENSE FOR FREE CODE 
-           Version 1.0 — Copyright (c) 2026 John-BrenoF
+      LUMEJ: ETHICAL AND FAIR USE LICENSE FOR FREE CODE
+Version 1.0 — Copyright (c) 2016 John-BrenoF
 
 Please read this license agreement carefully before using, modifying, or 
 distributing this software. By using this software, you agree to all the 
@@ -11,7 +11,7 @@ corporation to use, study, modify, alter, and sell this software or derivative
 works thereof, provided that all conditions of this license are strictly respected.
 
 2. ATTRIBUTION OF CREDITS AND COPYRIGHT
-The original author, [Copyright Holder's Name], retains all copyright to the software. 
+The original author, John-BrenoF, retains all copyright to the software. 
 The name of the original creator, as well as the copyright notices contained 
 in the original source files, MUST be kept intact and explicitly displayed in 
 all copies, distributions, sublicenses, or derivative works of this software.
@@ -26,23 +26,21 @@ b) Code injected via plugins, extensions, or independent modules that communicat
    without modifying the core of the original code, are NOT considered derivative 
    works. Therefore, they are not required to open their source code or adopt this license.
 
-4. PRIVACY, TRANSPARENCY, AND ANTI-MALWARE POLICY
-This software prioritizes user experience and privacy. The distribution of 
-derivative or modified works of this software that include the following 
-practices is expressively PROHIBITED:
-
-a) Unnecessary Telemetry: The software cannot collect or transmit usage data, 
-   personal information, or device details beyond what is strictly necessary for 
-   the basic technical operation of the system. Any essential collection MUST occur 
-   in a transparent manner and be clearly disclosed to the user. Hidden or excessive 
-   telemetry infringes this license.
-b) Invasive Advertisements (Adware): If the modified or derivative software utilizes 
-   advertising, it must not negatively affect usability. 
-   - PROHIBITED: Full-screen ads (aggressive pop-ups or interstitials), ads that 
-     forcibly interrupt the user flow, or any abusive advertising.
-
-Non-compliance with any item in this section immediately revokes the right to use, 
-modify, and distribute the software.
+4. PRIVACY, TELEMETRY, AND ADVERTISING RESTRICTIONS
+4.1. Prohibited Telemetry: The software or any derivative work SHALL NOT collect, 
+transmit, or store any personal data, device identifiers, usage metrics, or behavioral 
+analytics unless explicitly requested and manually approved by the end-user (Opt-In). 
+Automated, silent, or background transmission of user data is strictly forbidden.
+4.2. Necessary Exceptions: Technical data strictly required for the operational 
+stability of the software—limited to crash logs, error reports, and critical security 
+updates—is permitted, provided that:
+  a) It contains zero personally identifiable information (PII).
+  b) It is transmitted in plaintext or clearly auditable formats.
+  c) The user retains the ability to disable this collection entirely at any time.
+4.3. Prohibited Advertising (Adware): The integration of third-party advertising 
+networks, dynamic ad-serving components, tracking pixels, or intrusive monetization 
+mechanisms that disrupt the core user experience (such as unclosable pop-ups or 
+full-screen overlays) is strictly prohibited. Non-compliance immediately revokes rights.
 
 5. PRIVACY POLICIES AND INTERNAL APP RULES
 Derivative works and modifications of the software may establish their own privacy 
@@ -62,4 +60,11 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER "AS IS", WITHOUT ANY EXPRESS
 OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
 MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL THE AUTHOR 
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-DAMAGES ARISING in ANY WAY OUT OF THE USE OF THIS SOFTWARE.
+DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE.
+
+8. GOVERNING LAW AND JURISDICTION
+This License shall be governed by and construed in accordance with the laws of Brazil. 
+Any legal disputes arising from this License shall be settled exclusively in the courts 
+of Brazil. If any provision of this License is found to be invalid or unenforceable 
+under local law in any country, such provision shall be modified to the minimum extent 
+necessary to make it valid, and the remaining provisions shall remain in full force and effect.
