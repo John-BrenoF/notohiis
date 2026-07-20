@@ -1,84 +1,65 @@
-           LUME: MODIFIABLE, ETHICAL, AND COOPERATIVE USE LICENSE
-            Version 1.0 — Copyright (c) 2026 John-BrenoF
+        LUMEJ: ETHICAL AND FAIR USE LICENSE FOR FREE CODE 
+           Version 1.0 — Copyright (c) 2026 John-BrenoF
 
 Please read this license agreement carefully before using, modifying, or 
 distributing this software. By using this software, you agree to all the 
 terms described below.
 
-1. ATTRIBUTION OF CREDITS AND COPYRIGHT
-The original author, [Your Full Name], retains all copyright to the software. 
+1. FREEDOM OF USE, STUDY, AND COMMERCIALIZATION
+This software is free. Permission is granted to any individual, startup, or 
+corporation to use, study, modify, alter, and sell this software or derivative 
+works thereof, provided that all conditions of this license are strictly respected.
+
+2. ATTRIBUTION OF CREDITS AND COPYRIGHT
+The original author, [Copyright Holder's Name], retains all copyright to the software. 
 The name of the original creator, as well as the copyright notices contained 
 in the original source files, MUST be kept intact and explicitly displayed in 
-all copies, distributions, sublicenses, or derivative works of this software, 
-in any instance of execution or public distribution.
+all copies, distributions, sublicenses, or derivative works of this software.
 
-2. CODE RECIPROCITY (WEAK COPYLEFT)
-Permission is granted to modify the source code of this software and integrate 
-it into other projects, subject to the following conditions:
+3. CODE RECIPROCITY (WEAK COPYLEFT)
+Modification and integration of this code are permitted under the following rules:
 a) Any modification, bug fix, optimization, or direct addition made to the 
-   original source code files of this software MUST be made publicly available 
-   under the same terms of this license.
-b) Extensions, independent modules, or plugins that communicate with this 
-   software through programming interfaces (APIs) or dynamic linking, without 
-   modifying the core of the original code, are not considered derivative 
-   works and may be kept under closed source or other licenses, at the 
-   discretion of their respective authors.
+   original source code files of this software MUST be open-sourced and made 
+   publicly available under the same terms of this license.
+b) Code injected via plugins, extensions, or independent modules that communicate 
+   with this software through programming interfaces (APIs) or dynamic linking, 
+   without modifying the core of the original code, are NOT considered derivative 
+   works. Therefore, they are not required to open their source code or adopt this license.
 
-3. RECIPROCITY FOR COMMERCIAL USE AND PROFIT
-If you, your company, startup, or entity uses this software to generate any type 
-of profit, revenue, direct or indirect financial benefit, or integrates it into 
-paid commercial services, you are OBLIGATED to choose and fulfill one of the 
-following forms of reciprocity to maintain the right to use the software:
+4. PRIVACY, TRANSPARENCY, AND ANTI-MALWARE POLICY
+This software prioritizes user experience and privacy. The distribution of 
+derivative or modified works of this software that include the following 
+practices is expressively PROHIBITED:
 
-- Option A (Technical Contribution): Actively contribute to the development of 
-  the main project by submitting Pull Requests or Commits containing real 
-  improvements (bug fixes, optimizations, or new features) that are effectively 
-  ACCEPTED AND APPROVED by the original maintainer, maintaining a minimum 
-  frequency of at least 1 (one) approved contribution every 6 (six) months.
-- Option B (Financial Sponsorship): If you do not contribute with code accepted 
-  by the maintainer, the entity or individual is required to pay a fixed monthly 
-  sponsorship fee of $50 USD (fifty United States dollars, or the equivalent 
-  converted into local currency) through the official funding channels indicated 
-  in the project repository (e.g., GitHub Sponsors, Open Collective).
+a) Unnecessary Telemetry: The software cannot collect or transmit usage data, 
+   personal information, or device details beyond what is strictly necessary for 
+   the basic technical operation of the system. Any essential collection MUST occur 
+   in a transparent manner and be clearly disclosed to the user. Hidden or excessive 
+   telemetry infringes this license.
+b) Invasive Advertisements (Adware): If the modified or derivative software utilizes 
+   advertising, it must not negatively affect usability. 
+   - PROHIBITED: Full-screen ads (aggressive pop-ups or interstitials), ads that 
+     forcibly interrupt the user flow, or any abusive advertising.
 
-Only students, researchers, hobbyists, and individuals using the software for 
-strictly personal, educational, or non-profit projects are EXEMPT from this 
-obligation.
+Non-compliance with any item in this section immediately revokes the right to use, 
+modify, and distribute the software.
 
-Failure to comply with either option (A or B) by any entity or individual profiting 
-from the software automatically revokes the right to use, copy, modify, or 
-distribute it.
+5. PRIVACY POLICIES AND INTERNAL APP RULES
+Derivative works and modifications of the software may establish their own privacy 
+policies, terms of service, and internal application rules (defining how the system 
+operates, usability flows, and app behavior), provided that these rules and policies 
+do not contradict any of the privacy and ethical clauses established in this license.
 
-4. FAIR USE, PRIVACY, AND ANTI-MALWARE POLICY
-This software was created with a focus on user experience and respect for privacy. 
-The distribution of derivative or modified works of this software that include 
-the following practices is expressively PROHIBITED:
+6. INTERNAL DEVELOPMENT RULES (ORIGINAL REPOSITORY GOVERNANCE)
+Contribution guidelines, code standards, workflows, and internal development rules 
+established by the original code owner in their main repository must be strictly 
+respected by contributors to that project, provided they do not contradict the terms 
+of this license. This clause and its development obligations are restricted to the 
+original repository and DO NOT apply to other independent works derived from the code.
 
-a) Abusive Telemetry and Data Collection: The software cannot collect, track, or 
-   transmit personal data, usage telemetry, or device information beyond what is 
-   strictly necessary for the basic technical operation of the system. The sale, 
-   sharing, or assignment of any user data to advertising companies or third 
-   parties is strictly prohibited.
-b) Invasive Advertisements (Adware): If the developer uses ads to monetize the 
-   derivative software, these must respect the user experience. 
-   - PROHIBITED: Full-screen ads (aggressive pop-ups/intersticals), ads that 
-     forcibly interrupt the user flow, or excessive display of advertising.
-   - PERMITTED ONLY: Discreet banners positioned within the interface (desktop 
-     or mobile), reward-based ads (where the user chooses to watch to obtain a 
-     benefit), or ads displayed at reasonable time intervals that do not degrade 
-     usability.
-
-Non-compliance with any sub-clause of this section classifies the derivative 
-software as "Code Malware/Adware" and immediately revokes the right of use and 
-distribution under this license.
-
-5. DISCLAIMER OF LIABILITY (WARRANTY)
+7. DISCLAIMER OF LIABILITY (WARRANTY)
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER "AS IS", WITHOUT ANY EXPRESS 
 OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
 MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL THE AUTHOR 
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; 
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING 
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN 
-IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+DAMAGES ARISING in ANY WAY OUT OF THE USE OF THIS SOFTWARE.
