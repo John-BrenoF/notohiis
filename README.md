@@ -1,108 +1,128 @@
-
 <p align="center">
-  <img src="midia/icon/nth.png" width="220" alt="Notohiis Logo">
+  <img src="midia/icon/nth.png" width="120" alt="Notohiis">
 </p>
 
-<h1 align="center">🖊️ Notohiis Editor</h1>
+<h1 align="center">Notohiis</h1>
 
 <p align="center">
-  <strong>Simples por padrão.<br>Extremamente poderoso quando você precisa.</strong>
+  Simples por padrão. Poderoso quando você precisa.
 </p>
 
 <p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" alt="Python"></a>
-  <a href="#"><img src="https://img.shields.io/badge/License-lumej-blue.svg" alt="License"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Version-0.2--alpha-orange" alt="Version"></a>
+  <sub>Python · Textual + CustomTkinter · v0.4-alpha</sub>
 </p>
 
----
-
-**Notohiis** é um editor de texto minimalista, rápido e altamente modular, feito em Python. Projetado para quem valoriza foco, beleza e controle total sobre sua ferramenta de escrita e codificação.
-
----
-
-## 🚀 Filosofia
-
-O editor deve desaparecer para que **você** brilhe.
-
-- **Minimalismo intencional** — Interface limpa, sem distrações.
-- **Modularidade extrema** — Core separado da interface.
-- **Extensibilidade total** — Tudo que falta, você cria com plugins em Python.
-
-Você decide o quão simples ou poderoso ele será.
-
-## ✨ Destaques
-
-| Recurso                    | Descrição |
-|---------------------------|---------|
-| 🎨 **Tematização Total**   | Temas completos via arquivos JSON simples |
-| 🔌 **Sistema de Plugins**  | Carregamento dinâmico e fácil de criar |
-| 🌐 **Híbrido (GUI + TUI)** | Mesma lógica no Desktop (CustomTkinter) e no Terminal (Textual) |
-| 🛠️ **Focado em Dev**      | Git nativo, suporte a múltiplas linguagens e syntax highlighting |
-| ⚡ **Performance**         | Leve e rápido, mesmo com vários plugins |
-
-## 📸 Screenshots
 <p align="center">
-  <img width="1720" height="1079" alt="image" src="https://github.com/user-attachments/assets/de38c5cb-29aa-44f6-ab69-e6452276b867" />
-
+  <a href="#instalação">Instalação</a> ·
+  <a href="#plugins">Plugins</a> ·
+  <a href="#estrutura">Estrutura</a> ·
+  <a href="#documentação">Documentação</a>
 </p>
 
----
+<br>
 
-## 🛠️ Como Instalar e Usar
+Notohiis é um editor de texto minimalista, rápido e modular, feito em Python — para quem valoriza foco e controle total sobre a própria ferramenta.
+
+<br>
+
+## Filosofia
+
+O editor deve desaparecer para que você brilhe.
+
+- **Minimalismo intencional** — interface limpa, sem ruído visual.
+- **Modularidade** — core separado da interface.
+- **Extensibilidade** — o que faltar, você cria com plugins em Python.
+
+Você decide o quanto de poder quer expor.
+
+<br>
+
+## Recursos
+
+- Temas completos via JSON
+- Sistema de plugins com carregamento dinâmico
+- GUI (CustomTkinter) e TUI (Textual), mesma lógica de base
+- Git nativo, syntax highlighting, múltiplas linguagens
+- Leve mesmo com vários plugins carregados
+
+<br>
+
+## Capturas de tela
+
+<p align="center">
+  <img width="800" alt="Notohiis — tela principal" src="https://github.com/user-attachments/assets/f4703e9f-9ae9-48d8-8d65-69cbc4df4f5d">
+  <br><sub>Interface principal</sub>
+</p>
+
+<p align="center">
+  <img width="29" height="23" alt="image" src="https://github.com/user-attachments/assets/24f19047-bb76-4314-8a07-56d45aaf3db0" />
+
+  <br><sub>Modo terminal (TUI)</sub>
+</p>
+
+<p align="center">
+  <img width="800" alt="Notohiis — plugins e temas" src="https://github.com/user-attachments/assets/5e48e067-04a1-4217-8210-568c60aea895">
+  <br><sub>Plugins</sub>
+</p>
+
+<br>
+
+## Instalação
 
 ```bash
-# Clone o repositório
 git clone https://github.com/John-BrenoF/notohiis.git
 cd notohiis
-
-# Dê permissão e execute
 chmod +x notohiis.sh
 ./notohiis.sh
 ```
 
-> **Dica:** Na primeira execução, o script cria automaticamente o alias `nth`, permitindo abrir o editor de qualquer lugar com:
-> ```bash
-> nth
-> ```
+Na primeira execução, o script cria o alias `nth`, para abrir o editor de qualquer lugar:
 
-## 🧩 Turbinando com Plugins
+```bash
+nth
+```
 
-Personalizar o Notohiis é extremamente simples. Basta colocar seus arquivos Python na pasta `plugins/` que eles são carregados automaticamente.
+<br>
 
-**Exemplos de plugins disponíveis:**
+## Plugins
 
-- **Auto-close** — Fecha parênteses, colchetes e aspas automaticamente
-- **Color Preview** — Visualiza cores hexadecimais em tempo real
-- **Git Status** — Integração completa com Git na sidebar e status bar
-- **Markdown Live Preview**
-- **Zen Mode** — Foco total
+Coloque um arquivo Python em `plugins/` e ele é carregado automaticamente. Nada de configuração extra.
 
----
+Alguns exemplos:
 
-## 📂 Estrutura do Projeto
+- **Auto-close** — fecha parênteses, colchetes e aspas
+- **Color Preview** — visualiza cores hexadecimais em tempo real
+- **Git Status** — status do Git na sidebar
+- **Markdown Live Preview** — pré-visualização em tempo real
+- **Zen Mode** — remove tudo que não é o texto
+
+<br>
+
+## Estrutura
 
 ```text
 notohiis/
-├── core/          # Lógica principal e sistema de plugins
-├── ui/            # Interface Gráfica (CustomTkinter)
-├── tui/           # Interface Terminal (Textual)
-├── plugins/       # ← Seus plugins vão aqui
-├── midia/         # Logos e screenshots
-├── themes/        # Temas em JSON
-└── notohiis.sh    # Script de inicialização inteligente
+├── core/      lógica principal e sistema de plugins
+├── ui/        interface gráfica (CustomTkinter)
+├── tui/       interface de terminal (Textual)
+├── plugins/   seus plugins entram aqui
+├── themes/    temas em JSON
+├── midia/     logos e imagens
+├── docs/      documentação
+└── notohiis.sh
 ```
 
----
+<br>
+
+## Documentação
+
+- [docs/README.md](docs/README.md) — visão geral e ponto de partida
+- [docs/arquitetura.md](docs/arquitetura.md) — como core, UI, TUI e plugins se conectam
+- [docs/GUIA_COMPLETO.md](docs/GUIA_COMPLETO.md) — guia detalhado de uso, temas e plugins
+
+<br>
 
 <p align="center">
-  <strong>Notohiis — Versão 0.3-alpha</strong><br>
-  <em>"Frango com batata doce" Edition</em>
+  <sub>Notohiis v0.4-alpha — "Frango com batata doce" Edition</sub><br>
+  <sub>Feito com Python+café por você.</sub>
 </p>
-
-<p align="center">
-  Feito com ❤️ e Python por <strong>você</strong>.
-</p>
-
----
-
