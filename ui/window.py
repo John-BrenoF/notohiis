@@ -1,8 +1,18 @@
+#______________[português]____________________
+# Copyright (c) 2026 John-BrenoF
+# Este programa é um software livre: você pode redistribuí-lo e/ou modificá-lo
+# sob os termos da licença LUMEJ v1.0. Veja o arquivo LICENSE no repositório.
+#_____________[english]____________________
+# Copyright (c) 2016-2026 John-BrenoF
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the LUMEJ v1.0 license. See the LICENSE file in the repository.
+
 import customtkinter as ctk
 from ui.editor_area import EditorArea
 from ui.sidebar import Sidebar
 from ui.status_bar import StatusBar
 from ui.shortcuts import ShortcutManager
+from ui.search_bar import SearchBar 
 from core.src.app_context import AppContext
 from core.src.session import SessionManager
 try:
@@ -23,31 +33,29 @@ class MainWindow(ctk.CTk):
         self.title("Notohiis")
         self.geometry("1100x700")
         
-        # Configuração de Grid: Tab Bar (0), Editor (1), Status Bar (2)
+        # Configuração de Grid: Tab Bar (0), Editor (1), Status Bar (2), Search Bar (3)
         self.grid_columnconfigure(1, weight=1)
-        self.grid_columnconfigure(0, weight=0) # Sidebar column, initially no weight
+        self.grid_columnconfigure(0, weight=0)
         self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure(2, weight=0)
+        self.grid_rowconfigure(3, weight=0)
 
         # Inicialização do Contexto
         self.ctx = AppContext()
         self.ctx.set_window(self)
-        # Carrega o tema salvo ou o padrão definido no SessionManager
         self.load_theme(SessionManager.load_theme_pref())
         self.ctx.project_root = SessionManager.load_session()
         self.ctx.smart_tab_hiding = SessionManager.get_ui_setting("smart_tab_hiding", True)
-        self.ctx.current_file = "Novo Arquivo" # Default text for new buffer
+        self.ctx.current_file = "Novo Arquivo" 
 
-        # Sidebar (Initially hidden, so not gridded)
-        self.sidebar = Sidebar(self, width=200, corner_radius=0) # Give it a default width when visible
-        # self.sidebar.grid(row=0, column=0, sticky="nsew", rowspan=2) # Do NOT grid it initially
+        # Sidebar 
+        self.sidebar = Sidebar(self, width=200, corner_radius=0) 
         self.ctx.set_sidebar(self.sidebar)
 
         # Editor Area
         self.editor = EditorArea(self)
         self.editor.grid(row=1, column=1, sticky="nsew")
-        # Registramos o container que contém o textbox e gutter
         self.ctx.set_editor(self.editor)
 
         # Status Bar
@@ -55,19 +63,21 @@ class MainWindow(ctk.CTk):
         self.status_bar.grid(row=2, column=1, sticky="ew")
         self.ctx.set_status_bar(self.status_bar)
 
+        # Search Bar (Instanciada, salva no contexto, oculta por padrão)
+        self.search_bar = SearchBar(self)
+        self.ctx.search_bar = self.search_bar
+
         # Tab Bridge (opcional)
         self.tab_bridge = TabBridge(self.ctx, self) if TabBridge else None
 
         # Atalhos
         ShortcutManager.setup_shortcuts(self)
 
-        # If a project root is loaded, refresh the sidebar
         if self.ctx.project_root:
             self.sidebar.refresh_explorer()
             self.status_bar.update_status(1, 0, f"Projeto: {self.ctx.project_root}")
 
     def load_theme(self, theme_name: str = None):
-        """Carrega e aplica o tema selecionado."""
         if ThemeManager:
             try:
                 theme = ThemeManager.load_theme(theme_name)
@@ -82,9 +92,7 @@ class MainWindow(ctk.CTk):
         self._apply_theme_to_children()
 
     def apply_theme(self, theme_name: str):
-        """Aplica um novo tema em tempo de execução."""
         self.load_theme(theme_name)
-        # Persiste a escolha do usuário
         SessionManager.save_theme_pref(theme_name)
         if self.status_bar:
             self.status_bar.update_status(1, 0, self.ctx.current_file or "Novo Arquivo")
@@ -96,3 +104,14 @@ class MainWindow(ctk.CTk):
             self.editor.apply_theme()
         if hasattr(self, "status_bar") and self.status_bar:
             self.status_bar.apply_theme()
+
+    def _apply_theme_to_children(self):
+        if hasattr(self, "sidebar") and self.sidebar:
+            self.sidebar.apply_theme()
+        if hasattr(self, "editor") and self.editor:
+            self.editor.apply_theme()
+        if hasattr(self, "status_bar") and self.status_bar:
+            self.status_bar.apply_theme()
+        # [Melhoria] Garante que a barra de pesquisa atualize a cor se o usuário mudar de tema em tempo real
+        if hasattr(self, "search_bar") and self.search_bar:
+            self.search_bar.apply_theme()
