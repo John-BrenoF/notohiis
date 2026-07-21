@@ -1,5 +1,15 @@
+#______________[português]____________________
+# Copyright (c) 2026 John-BrenoF
+# Este programa é um software livre: você pode redistribuí-lo e/ou modificá-lo
+# sob os termos da licença LUMEJ v1.0. Veja o arquivo LICENSE no repositório.
+#_____________[english]____________________
+# Copyright (c) 2016-2026 John-BrenoF
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the LUMEJ v1.0 license. See the LICENSE file in the repository.
+
 import customtkinter as ctk
 import tkinter as tk
+from typing import Optional
 from core.src.app_context import AppContext
 from core.interfaces import TextEditor, EditorEvent
 
@@ -48,6 +58,8 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.bind("<KeyPress>", self._on_key_press, add="+")
         self.textbox._textbox.bind("<Control-a>", self._select_all)
         self.textbox._textbox.bind("<Control-Tab>", self._force_autocomplete)
+        self.textbox._textbox.bind("<Control-f>", self._toggle_search)
+        self.textbox._textbox.bind("<Control-F>", self._toggle_search)
         self.textbox._textbox.bind("<Configure>", self._on_event)
         self.textbox._textbox.bind("<Key>", self._set_dirty)
         
@@ -74,9 +86,19 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.navigation_mode = None  # "up" ou "down" ou None
         self.navigation_timer = None
 
+        # Estado da busca
+        self.search_matches = []
+        self.current_match_index = -1
+        self._config_search_tags()
+
         # Configura as tags de sintaxe inicialmente
         if self.ctx.py_plugin:
             self.ctx.py_plugin.setup_tags(self)
+
+    def _config_search_tags(self):
+        """Configura as cores das tags de highlight de busca."""
+        self.textbox._textbox.tag_configure("search_match", background="#4a4a4a", foreground="#ffffff")
+        self.textbox._textbox.tag_configure("search_active", background="#d7ba7d", foreground="#000000")
 
     def apply_theme(self):
         theme = AppContext().theme.get("editor", {})
@@ -91,6 +113,61 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.line_numbers.configure(bg=theme.get("gutter_bg", "#1e1e1e"))
         self.git_margin.configure(bg=theme.get("gutter_bg", "#1e1e1e"))
         self.redraw_line_numbers()
+        self._config_search_tags()
+
+    # --- Implementação da Busca (Ctrl+F) ---
+
+    def _toggle_search(self, event=None):
+        if hasattr(self.ctx, 'search_bar') and self.ctx.search_bar:
+            if self.ctx.search_bar.winfo_ismapped():
+                self.ctx.search_bar.hide()
+            else:
+                self.ctx.search_bar.show()
+        return "break"
+
+    def clear_search_highlight(self):
+        """Limpa as marcações de busca do editor."""
+        self.textbox._textbox.tag_remove("search_match", "1.0", tk.END)
+        self.textbox._textbox.tag_remove("search_active", "1.0", tk.END)
+        self.search_matches = []
+        self.current_match_index = -1
+
+    def highlight_search(self, term: str, match_case: bool = False) -> int:
+        """Busca o termo, aplica highlight e retorna a quantidade de ocorrências."""
+        self.clear_search_highlight()
+        if not term:
+            return 0
+
+        start_pos = "1.0"
+        nocase = not match_case
+        
+        while True:
+            start_pos = self.textbox._textbox.search(term, start_pos, stopindex=tk.END, nocase=nocase)
+            if not start_pos:
+                break
+            
+            end_pos = f"{start_pos}+{len(term)}c"
+            self.textbox._textbox.tag_add("search_match", start_pos, end_pos)
+            self.search_matches.append((start_pos, end_pos))
+            start_pos = end_pos
+        
+        if self.search_matches:
+            self.goto_next_match(0) # Foca na primeira ocorrência sem pular
+            
+        return len(self.search_matches)
+
+    def goto_next_match(self, step=1):
+        """Navega entre os resultados da busca (step=1 para próximo, -1 para anterior)."""
+        if not self.search_matches:
+            return
+        
+        self.textbox._textbox.tag_remove("search_active", "1.0", tk.END)
+        self.current_match_index = (self.current_match_index + step) % len(self.search_matches)
+        
+        start_pos, end_pos = self.search_matches[self.current_match_index]
+        self.textbox._textbox.tag_add("search_active", start_pos, end_pos)
+        self.textbox._textbox.see(start_pos)
+        self.set_cursor(start_pos)
 
     # --- Implementação do Protocolo TextEditor ---
 
@@ -191,7 +268,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
 
     def _on_text_scroll(self, *args):
         """Callback for the textbox's yscrollcommand."""
-        # The *args are typically (fraction_start, fraction_end) for an external scrollbar.
         self.redraw_line_numbers()
         self._update_status_bar()
 
@@ -268,10 +344,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
     def move_cursor_by_lines(self, lines: int, direction: str) -> None:
         """
         Move o cursor N linhas para cima ou para baixo.
-        
-        Args:
-            lines: Quantidade de linhas para mover (1-9)
-            direction: "up" ou "down"
         """
         try:
             current_index = self.textbox.index(tk.INSERT)
@@ -320,11 +392,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
 
     def redraw_line_numbers(self):
         self.line_numbers.delete("all")
-
-        # Get the first and last visible line numbers
-        # Use dlineinfo to get the y-coordinate of the line
-        # Iterate from the top of the textbox to the bottom
-        i = self.textbox.index("@0,0") # Start from the top-left visible character
+        i = self.textbox.index("@0,0") 
         while True:
             dline = self.textbox._textbox.dlineinfo(i)
             if dline is None: break
@@ -332,7 +400,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             linenum = str(i).split(".")[0]
             color = AppContext().theme.get("editor", {}).get("gutter_fg", "#858585")
             self.line_numbers.create_text(40, y, anchor="ne", text=linenum, fill=color, font=("Consolas", 11))
-            i = self.textbox.index(f"{i}+1line") # Move to the next line
+            i = self.textbox.index(f"{i}+1line") 
 
     def _trigger_autocomplete(self, event=None, forced=False):
         """Consulta o core e decide se mostra o popup."""
@@ -348,7 +416,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         line, col = map(int, index.split("."))
         
         def on_data_ready(suggestions):
-            # Volta para a thread principal do Tkinter para desenhar a UI
             self.textbox.after(0, lambda: self._update_popup_safe(suggestions))
 
         ctx.autocomplete_engine.request_completion(line, col, on_data_ready)
@@ -362,7 +429,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
     def _show_autocomplete_popup(self, suggestions):
         self._hide_autocomplete()
         
-        # Localiza as coordenadas X,Y do cursor de texto na tela
         pos = self.textbox._textbox.bbox(tk.INSERT)
         if not pos: return
         
@@ -379,9 +445,8 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             borderwidth=1, highlightthickness=0
         )
         for s in suggestions: self.popup.insert(tk.END, s)
-        self.popup.selection_set(0) # Pré-seleciona a primeira opção
+        self.popup.selection_set(0) 
         
-        # Posiciona o popup logo abaixo do cursor
         self.popup.place(x=root_x - self.winfo_rootx(), y=root_y - self.winfo_rooty())
         self.popup.bind("<Button-1>", self._on_suggestion_select)
 
@@ -395,19 +460,16 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         sel = self.popup.curselection()
         if not sel: return
         selection = self.popup.get(sel[0])
-        # Substitui o prefixo pela palavra completa
         self.textbox._textbox.delete("insert wordstart", tk.INSERT)
         self.textbox.insert(tk.INSERT, selection)
         self._hide_autocomplete()
 
     def _on_canvas_mousewheel(self, event):
-        """Scroll the textbox when mouse wheel is used on the line numbers canvas."""
-        if event.num == 4 or event.delta > 0: # Scroll up
+        if event.num == 4 or event.delta > 0: 
             self.textbox._textbox.yview_scroll(-1, "units")
-        elif event.num == 5 or event.delta < 0: # Scroll down
+        elif event.num == 5 or event.delta < 0: 
             self.textbox._textbox.yview_scroll(1, "units")
-        # The textbox's yscrollcommand will trigger _on_text_scroll, which redraws line numbers and updates status.
-        return "break" # Prevent event propagation to parent widgets
+        return "break" 
 
     def _update_status_bar(self):
         if self.ctx.status_bar and self.ctx.editor:
@@ -416,8 +478,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             self.ctx.status_bar.update_status(int(line), int(col), self.ctx.current_file or "Novo Arquivo")
 
     def _after_content_load(self, text: str):
-        """Lógica interna de UI após carregar texto."""
-        # Re-configura tags caso o tema tenha mudado ou o editor resetado
         if self.ctx.py_plugin:
             self.ctx.py_plugin.setup_tags(self)
             
@@ -426,6 +486,5 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.redraw_line_numbers()
         self.ctx.is_dirty = False
         
-        # Atualizar visibilidade do botão Markdown
         if self.ctx.md_plugin:
             self.ctx.md_plugin.update_button_visibility(self.ctx.current_file)
