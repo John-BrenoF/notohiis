@@ -325,7 +325,7 @@ class ControlPanel(ctk.CTkToplevel):
 
         rows = [
             ("Versão",    "0.4-alpha (Batata estilosa) 🥔😎"),
-            ("Licença",   "GPL-3.0"),
+            ("Licença",   "LUMEJ"),
             ("feito por",    "John BrenoF"),
             ("UI Lib",    "CustomTkinter"),
         ]

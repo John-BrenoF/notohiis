@@ -1,7 +1,7 @@
 # Notohiis Editor - Guia Completo
 
 ![Versão](https://img.shields.io/badge/versão-0.4--alpha-blue)
-![Licença](https://img.shields.io/badge/licença-GPL--3.0-green)
+![Licença](https://img.shields.io/badge/licença-LUMEJ--3.0-green)
 ![Python](https://img.shields.io/badge/python-3.8+-yellow)
 
 **Notohiis** é um editor de texto moderno, extensível e leve, desenvolvido em Python com suporte para interface gráfica (GUI) e terminal (TUI). Projetado para desenvolvedores que buscam simplicidade sem abrir mão de recursos avançados.
@@ -397,7 +397,7 @@ rm -rf core/cacheuser/
 
 ## 📝 Licença
 
-GPL-3.0
+LUMEJ
 
 ## 👨‍💻 Autor
 
