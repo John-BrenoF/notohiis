@@ -104,3 +104,14 @@ class MainWindow(ctk.CTk):
             self.editor.apply_theme()
         if hasattr(self, "status_bar") and self.status_bar:
             self.status_bar.apply_theme()
+
+    def _apply_theme_to_children(self):
+        if hasattr(self, "sidebar") and self.sidebar:
+            self.sidebar.apply_theme()
+        if hasattr(self, "editor") and self.editor:
+            self.editor.apply_theme()
+        if hasattr(self, "status_bar") and self.status_bar:
+            self.status_bar.apply_theme()
+        # [Melhoria] Garante que a barra de pesquisa atualize a cor se o usuário mudar de tema em tempo real
+        if hasattr(self, "search_bar") and self.search_bar:
+            self.search_bar.apply_theme()
