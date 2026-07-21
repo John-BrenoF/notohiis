@@ -132,11 +132,11 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.search_matches = []
         self.current_match_index = -1
 
-    def highlight_search(self, term: str, match_case: bool = False) -> int:
-        """Busca o termo, aplica highlight e retorna a quantidade de ocorrências."""
+    def highlight_search(self, term: str, match_case: bool = False):
+        """Busca o termo, aplica highlight e retorna a tupla (atual, total)."""
         self.clear_search_highlight()
         if not term:
-            return 0
+            return 0, 0
 
         start_pos = "1.0"
         nocase = not match_case
@@ -152,14 +152,14 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             start_pos = end_pos
         
         if self.search_matches:
-            self.goto_next_match(0) # Foca na primeira ocorrência sem pular
+            return self.goto_next_match(0) # Foca na primeira ocorrência sem pular
             
-        return len(self.search_matches)
+        return 0, 0
 
     def goto_next_match(self, step=1):
-        """Navega entre os resultados da busca (step=1 para próximo, -1 para anterior)."""
+        """Navega entre os resultados da busca e retorna a tupla (atual, total)."""
         if not self.search_matches:
-            return
+            return 0, 0
         
         self.textbox._textbox.tag_remove("search_active", "1.0", tk.END)
         self.current_match_index = (self.current_match_index + step) % len(self.search_matches)
@@ -168,6 +168,8 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.tag_add("search_active", start_pos, end_pos)
         self.textbox._textbox.see(start_pos)
         self.set_cursor(start_pos)
+        
+        return self.current_match_index + 1, len(self.search_matches)
 
     # --- Implementação do Protocolo TextEditor ---
 
