@@ -1,3 +1,12 @@
+#______________[português]____________________
+# Copyright (c) 2026 John-BrenoF
+# Este programa é um software livre: você pode redistribuí-lo e/ou modificá-lo
+# sob os termos da licença LUMEJ v1.0. Veja o arquivo LICENSE no repositório.
+#_____________[english]____________________
+# Copyright (c) 2016-2026 John-BrenoF
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the LUMEJ v1.0 license. See the LICENSE file in the repository.
+
 import customtkinter as ctk
 import os
 from core.src.app_context import AppContext
