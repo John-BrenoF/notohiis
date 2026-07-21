@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="#"><img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" alt="Python"></a>
-  <a href="#"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License MIT"></a>
+  <a href="#"><img src="https://img.shields.io/badge/License-lumej-blue.svg" alt="License"></a>
   <a href="#"><img src="https://img.shields.io/badge/Version-0.2--alpha-orange" alt="Version"></a>
 </p>
 
