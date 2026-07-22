@@ -6,6 +6,7 @@ import customtkinter as ctk
 from core.src.app_context import AppContext
 
 
+# Paleta de cores (tema Atom/OneDark) usada em todo o painel visual
 COLORS = {
     "bg": "#1e2127",
     "panel": "#282c34",
@@ -32,6 +33,9 @@ class GitPlugin:
     def __init__(self):
         self.ctx = AppContext()
 
+    # ------------------------------------------------------------------ #
+    # Consultas ao git
+    # ------------------------------------------------------------------ #
     def is_git_repo(self, path: str) -> bool:
         """Verifica se o caminho é um repositório git válido."""
         try:
@@ -169,6 +173,33 @@ class GitPlugin:
         except Exception as e:
             return str(e)
 
+    def get_commit_log(self, limit: int = 60) -> List[dict]:
+        """Retorna o histórico de commits (hash curto, autor, data, mensagem)."""
+        root = self.ctx.project_root
+        if not root or not self.is_git_repo(root):
+            return []
+        try:
+            fmt = "%h\x1f%an\x1f%ad\x1f%s\x1e"
+            output = subprocess.check_output(
+                ["git", "log", f"-n{limit}", f"--pretty=format:{fmt}", "--date=short"],
+                cwd=root, stderr=subprocess.DEVNULL, text=True
+            )
+            commits = []
+            for entry in output.split("\x1e"):
+                entry = entry.strip()
+                if not entry:
+                    continue
+                parts = entry.split("\x1f")
+                if len(parts) == 4:
+                    h, author, date, msg = parts
+                    commits.append({"hash": h, "author": author, "date": date, "message": msg})
+            return commits
+        except Exception:
+            return []
+
+    # ------------------------------------------------------------------ #
+    # Ações sobre arquivos / staging
+    # ------------------------------------------------------------------ #
     def stage_file(self, path: str):
         root = self.ctx.project_root
         if root:
@@ -181,6 +212,9 @@ class GitPlugin:
             subprocess.run(["git", "reset", "HEAD", path], cwd=root)
             self.async_update_status()
 
+    # ------------------------------------------------------------------ #
+    # Branches
+    # ------------------------------------------------------------------ #
     def get_branches(self) -> List[str]:
         root = self.ctx.project_root
         if not root or not self.is_git_repo(root):
@@ -210,6 +244,9 @@ class GitPlugin:
         except subprocess.CalledProcessError as e:
             return False, e.stderr.strip() if e.stderr else str(e)
 
+    # ------------------------------------------------------------------ #
+    # Push / Pull / Sync
+    # ------------------------------------------------------------------ #
     def git_push(self, on_done=None):
         root = self.ctx.project_root
         if not root:
@@ -263,7 +300,9 @@ class GitPlugin:
 
         threading.Thread(target=task, daemon=True).start()
 
-
+    # ------------------------------------------------------------------ #
+    # Painel visual (Quick Commit + ações rápidas)
+    # ------------------------------------------------------------------ #
     def quick_commit_ui(self):
         """Abre um painel flutuante com status, commit rápido e ações de branch/pull/push/sync."""
         if not self.ctx.project_root or not self.is_git_repo(self.ctx.project_root):
@@ -279,6 +318,9 @@ class GitPlugin:
         dialog.configure(fg_color=COLORS["bg"])
         dialog.focus_set()
 
+        # ---------------------------------------------------------- #
+        # Cabeçalho: branch atual + seletor de branch + refresh
+        # ---------------------------------------------------------- #
         header = ctk.CTkFrame(dialog, fg_color=COLORS["panel"], corner_radius=10)
         header.pack(fill="x", padx=16, pady=(16, 8))
 
@@ -299,6 +341,9 @@ class GitPlugin:
         )
         refresh_btn.pack(side="right", padx=8, pady=8)
 
+        # ---------------------------------------------------------- #
+        # Barra de ações rápidas: Nova Branch / Trocar Branch / Pull / Push / Sync
+        # ---------------------------------------------------------- #
         toolbar = ctk.CTkFrame(dialog, fg_color="transparent")
         toolbar.pack(fill="x", padx=16, pady=(0, 8))
         toolbar.grid_columnconfigure((0, 1, 2, 3), weight=1)
@@ -341,6 +386,13 @@ class GitPlugin:
         )
         pull_btn.grid(row=0, column=2, padx=4, sticky="ew")
 
+        history_btn = ctk.CTkButton(
+            toolbar, text="󰋚  Histórico", height=32, font=("Segoe UI", 11),
+            fg_color=COLORS["panel"], hover_color=COLORS["panel_alt"], text_color=COLORS["text"],
+            command=lambda: self._open_commit_log_dialog(dialog)
+        )
+        history_btn.grid(row=0, column=3, padx=4, sticky="ew")
+
         push_btn = ctk.CTkButton(
             toolbar, text="󰊤  Push", height=32, font=("Segoe UI", 11),
             fg_color=COLORS["panel"], hover_color=COLORS["panel_alt"], text_color=COLORS["text"],
@@ -358,6 +410,9 @@ class GitPlugin:
         feedback_label = ctk.CTkLabel(dialog, text="", font=("Segoe UI", 10), text_color=COLORS["text_dim"])
         feedback_label.pack(fill="x", padx=20, pady=(0, 4))
 
+        # ---------------------------------------------------------- #
+        # Lista de arquivos alterados
+        # ---------------------------------------------------------- #
         ctk.CTkLabel(
             dialog, text="Arquivos Alterados", font=("Segoe UI", 12, "bold"), text_color=COLORS["text"]
         ).pack(pady=(6, 0), padx=20, anchor="w")
@@ -391,7 +446,9 @@ class GitPlugin:
 
         reload_file_list()
 
-
+        # ---------------------------------------------------------- #
+        # Commit rápido
+        # ---------------------------------------------------------- #
         ctk.CTkLabel(
             dialog, text="Mensagem de Commit", font=("Segoe UI", 12, "bold"), text_color=COLORS["text"]
         ).pack(pady=(10, 0), padx=20, anchor="w")
@@ -438,6 +495,9 @@ class GitPlugin:
         dialog.bind("<Return>", lambda e: execute_commit())
         dialog.bind("<Escape>", lambda e: dialog.destroy())
 
+    # ------------------------------------------------------------------ #
+    # Diálogos auxiliares (branch)
+    # ------------------------------------------------------------------ #
     def _open_create_branch_dialog(self, parent, on_created=None):
         """Pequeno diálogo para criar (e trocar para) uma nova branch."""
         popup = ctk.CTkToplevel(parent)
@@ -482,6 +542,85 @@ class GitPlugin:
         btn.pack(pady=16, padx=20, fill="x")
 
         popup.bind("<Return>", lambda e: confirm())
+        popup.bind("<Escape>", lambda e: popup.destroy())
+
+    def _open_commit_log_dialog(self, parent):
+        """Painel padrão de histórico de commits (hash, mensagem, autor e data)."""
+        popup = ctk.CTkToplevel(parent)
+        popup.title("󰋚 Histórico de Commits")
+        popup.geometry("520x560")
+        popup.minsize(440, 380)
+        popup.attributes("-topmost", True)
+        popup.configure(fg_color=COLORS["bg"])
+        popup.focus_set()
+
+        header = ctk.CTkFrame(popup, fg_color=COLORS["panel"], corner_radius=10)
+        header.pack(fill="x", padx=16, pady=(16, 8))
+
+        branch, _ = self.get_git_info()
+        ctk.CTkLabel(
+            header, text=f"󰘬  {branch or '(sem branch)'}",
+            font=("Segoe UI", 13, "bold"), text_color=COLORS["accent"]
+        ).pack(side="left", padx=12, pady=8)
+
+        refresh_btn = ctk.CTkButton(
+            header, text="󰑐", width=32, height=28, font=("Segoe UI", 13),
+            fg_color="transparent", hover_color=COLORS["panel_alt"], text_color=COLORS["text"],
+            command=lambda: reload_log()
+        )
+        refresh_btn.pack(side="right", padx=8, pady=8)
+
+        scroll = ctk.CTkScrollableFrame(popup, fg_color=COLORS["panel_alt"], corner_radius=10)
+        scroll.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+        scroll.grid_columnconfigure(0, weight=1)
+
+        empty_label = ctk.CTkLabel(
+            popup, text="", font=("Segoe UI", 10), text_color=COLORS["text_dim"]
+        )
+        empty_label.pack(padx=20, pady=(0, 12))
+
+        def reload_log():
+            for w in scroll.winfo_children():
+                w.destroy()
+
+            commits = self.get_commit_log()
+            if not commits:
+                empty_label.configure(text="Nenhum commit encontrado neste repositório.")
+                return
+            empty_label.configure(text="")
+
+            for i, c in enumerate(commits):
+                row = ctk.CTkFrame(scroll, fg_color=COLORS["panel"], corner_radius=8)
+                row.pack(fill="x", padx=6, pady=4)
+                row.grid_columnconfigure(1, weight=1)
+
+                hash_label = ctk.CTkLabel(
+                    row, text=c["hash"], font=("Consolas", 11, "bold"),
+                    text_color=COLORS["accent"], width=64, anchor="w"
+                )
+                hash_label.grid(row=0, column=0, padx=(10, 4), pady=(8, 0), sticky="w")
+
+                msg_label = ctk.CTkLabel(
+                    row, text=c["message"], font=("Segoe UI", 12),
+                    text_color=COLORS["text"], anchor="w", justify="left", wraplength=340
+                )
+                msg_label.grid(row=0, column=1, padx=4, pady=(8, 0), sticky="w")
+
+                meta_label = ctk.CTkLabel(
+                    row, text=f"󰀄 {c['author']}   󰃭 {c['date']}",
+                    font=("Segoe UI", 10), text_color=COLORS["text_dim"], anchor="w"
+                )
+                meta_label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0, 8), sticky="w")
+
+        reload_log()
+
+        close_btn = ctk.CTkButton(
+            popup, text="Fechar", height=32,
+            fg_color=COLORS["panel"], hover_color=COLORS["panel_alt"], text_color=COLORS["text"],
+            command=popup.destroy
+        )
+        close_btn.pack(pady=(0, 16), padx=20, fill="x")
+
         popup.bind("<Escape>", lambda e: popup.destroy())
 
     def _open_switch_branch_dialog(self, parent, on_switched=None):
