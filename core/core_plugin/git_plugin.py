@@ -1,6 +1,8 @@
 import subprocess
 import threading
 import os
+import tkinter as tk
+import tkinter.font as tkfont
 from typing import Optional, Tuple, List
 import customtkinter as ctk
 from core.src.app_context import AppContext
@@ -22,6 +24,9 @@ COLORS = {
     "danger": "#e06c75",
     "danger_hover": "#c65f68",
 }
+
+# Cores das "raias" (lanes) do grafo de commits, cicladas por coluna/branch
+GRAPH_COLORS = ["#e06c75", "#61afef", "#56b6c2", "#c678dd", "#e5c07b", "#98c379", "#d19a66"]
 
 
 class GitPlugin:
@@ -172,6 +177,110 @@ class GitPlugin:
             return subprocess.check_output(cmd, cwd=root, stderr=subprocess.STDOUT, text=True)
         except Exception as e:
             return str(e)
+
+    def get_commit_graph(self, limit: int = 80) -> List[dict]:
+        """
+        Retorna o histórico de commits já com a coluna (lane) real de cada um,
+        calculada a partir dos hashes-pai de cada commit (mesma ideia usada por
+        ferramentas como o Git Graph do VS Code) — não é mais um "chute" a partir
+        do texto do `git log --graph`, é um layout de verdade.
+        """
+        root = self.ctx.project_root
+        if not root or not self.is_git_repo(root):
+            return []
+        try:
+            sep, rec = "\x1f", "\x1e"
+            fmt = f"%H{sep}%h{sep}%an{sep}%ad{sep}%s{sep}%P{rec}"
+            output = subprocess.check_output(
+                ["git", "log", "--topo-order", f"-n{limit}",
+                 f"--pretty=format:{fmt}", "--date=short"],
+                cwd=root, stderr=subprocess.DEVNULL, text=True
+            )
+            raw = []
+            for entry in output.split(rec):
+                entry = entry.strip("\n")
+                if not entry.strip():
+                    continue
+                parts = entry.split(sep)
+                if len(parts) != 6:
+                    continue
+                full_hash, short_hash, author, date, msg, parents_str = parts
+                parents = parents_str.split() if parents_str.strip() else []
+                raw.append({
+                    "full": full_hash, "hash": short_hash, "author": author,
+                    "date": date, "message": msg, "parents": parents
+                })
+        except Exception:
+            return []
+
+        head_branch, _ = self.get_git_info()
+        return self._layout_commit_graph(raw, head_branch)
+
+    def _layout_commit_graph(self, raw_commits: List[dict], head_branch: str) -> List[dict]:
+        """
+        Layout clássico de grafo de commits: mantém uma lista de 'raias' (lanes),
+        cada uma esperando pelo próximo hash que deve aparecer nela. Quando um
+        commit aparece, ele ocupa a raia (ou raias, em caso de merge) que esperava
+        por ele, libera o que não usa mais, e abre novas raias para pais extras
+        (merge). Isso permite desenhar linhas retas/diagonais reais entre as linhas.
+        """
+        lanes: List[Optional[str]] = []
+        result = []
+
+        for c in raw_commits:
+            h = c["full"]
+            lanes_before = list(lanes)
+
+            incoming_cols = [i for i, target in enumerate(lanes) if target == h]
+            if incoming_cols:
+                col = min(incoming_cols)
+            else:
+                col = next((i for i, t in enumerate(lanes) if t is None), None)
+                if col is None:
+                    col = len(lanes)
+                    lanes.append(None)
+
+            for i in incoming_cols:
+                if i != col:
+                    lanes[i] = None
+
+            parents = c["parents"]
+            outgoing_cols = []
+            if parents:
+                lanes[col] = parents[0]
+                outgoing_cols.append(col)
+                for p in parents[1:]:
+                    existing = next((i for i, t in enumerate(lanes) if t == p), None)
+                    if existing is not None:
+                        outgoing_cols.append(existing)
+                        continue
+                    new_col = next((i for i, t in enumerate(lanes) if t is None), None)
+                    if new_col is None:
+                        new_col = len(lanes)
+                        lanes.append(None)
+                    lanes[new_col] = p
+                    outgoing_cols.append(new_col)
+            else:
+                lanes[col] = None
+            passthrough = [
+                i for i, t in enumerate(lanes_before)
+                if t is not None and i not in incoming_cols
+            ]
+
+            is_merge = len(parents) > 1
+            result.append({
+                "hash": c["hash"], "author": c["author"], "date": c["date"],
+                "message": c["message"], "col": col,
+                "incoming": [i for i in incoming_cols if i != col],
+                "same_col_in": col in incoming_cols,
+                "outgoing": [i for i in outgoing_cols if i != col],
+                "same_col_out": col in outgoing_cols,
+                "passthrough": passthrough,
+                "is_merge": is_merge,
+                "is_head": len(result) == 0,
+            })
+
+        return result
 
     def get_commit_log(self, limit: int = 60) -> List[dict]:
         """Retorna o histórico de commits (hash curto, autor, data, mensagem)."""
@@ -545,11 +654,18 @@ class GitPlugin:
         popup.bind("<Escape>", lambda e: popup.destroy())
 
     def _open_commit_log_dialog(self, parent):
-        """Painel padrão de histórico de commits (hash, mensagem, autor e data)."""
+        """Painel de histórico de commits com grafo real (colunas calculadas a partir
+        dos hashes-pai), desenhado em um único Canvas — estilo compacto parecido com
+        a extensão Git Graph do VS Code: raia + ponto, uma linha por commit, HEAD
+        destacado com badge da branch."""
+        ROW_H = 26
+        GRAPH_PAD = 14
+        MIN_TEXT_W = 380
+
         popup = ctk.CTkToplevel(parent)
         popup.title("󰋚 Histórico de Commits")
-        popup.geometry("520x560")
-        popup.minsize(440, 380)
+        popup.geometry("620x600")
+        popup.minsize(460, 380)
         popup.attributes("-topmost", True)
         popup.configure(fg_color=COLORS["bg"])
         popup.focus_set()
@@ -570,49 +686,180 @@ class GitPlugin:
         )
         refresh_btn.pack(side="right", padx=8, pady=8)
 
-        scroll = ctk.CTkScrollableFrame(popup, fg_color=COLORS["panel_alt"], corner_radius=10)
-        scroll.pack(fill="both", expand=True, padx=16, pady=(0, 8))
-        scroll.grid_columnconfigure(0, weight=1)
+        # ------------------------------------------------------------ #
+        # Área do grafo: um único Canvas (garante linhas contínuas e
+        # alinhamento perfeito entre linhas, sem gaps de frames separados)
+        # ------------------------------------------------------------ #
+        canvas_frame = ctk.CTkFrame(popup, fg_color=COLORS["panel_alt"], corner_radius=10)
+        canvas_frame.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+        canvas_frame.grid_rowconfigure(0, weight=1)
+        canvas_frame.grid_columnconfigure(0, weight=1)
 
-        empty_label = ctk.CTkLabel(
-            popup, text="", font=("Segoe UI", 10), text_color=COLORS["text_dim"]
-        )
-        empty_label.pack(padx=20, pady=(0, 12))
+        graph_canvas = tk.Canvas(canvas_frame, bg=COLORS["panel_alt"], highlightthickness=0)
+        graph_canvas.grid(row=0, column=0, sticky="nsew", padx=(2, 0), pady=2)
 
-        def reload_log():
-            for w in scroll.winfo_children():
-                w.destroy()
+        vscroll = ctk.CTkScrollbar(canvas_frame, orientation="vertical", command=graph_canvas.yview)
+        vscroll.grid(row=0, column=1, sticky="ns", pady=2, padx=(0, 2))
+        graph_canvas.configure(yscrollcommand=vscroll.set)
 
-            commits = self.get_commit_log()
+        hscroll = ctk.CTkScrollbar(canvas_frame, orientation="horizontal", command=graph_canvas.xview)
+        hscroll.grid(row=1, column=0, sticky="ew", padx=(2, 0))
+        graph_canvas.configure(xscrollcommand=hscroll.set)
+
+        def _on_mousewheel(event):
+            graph_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        def _on_shift_mousewheel(event):
+            graph_canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        def _bind_wheel(_e):
+            graph_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            graph_canvas.bind_all("<Shift-MouseWheel>", _on_shift_mousewheel)
+
+        def _unbind_wheel(_e):
+            graph_canvas.unbind_all("<MouseWheel>")
+            graph_canvas.unbind_all("<Shift-MouseWheel>")
+
+        graph_canvas.bind("<Enter>", _bind_wheel)
+        graph_canvas.bind("<Leave>", _unbind_wheel)
+
+        state = {"commits": None}
+        msg_font = tkfont.Font(family="Segoe UI", size=11)
+        dim_font = tkfont.Font(family="Segoe UI", size=9)
+
+        def lane_color(col: int) -> str:
+            return GRAPH_COLORS[col % len(GRAPH_COLORS)]
+
+        def draw(commits):
+            graph_canvas.delete("all")
+            visible_w = max(graph_canvas.winfo_width(), 420)
+
             if not commits:
-                empty_label.configure(text="Nenhum commit encontrado neste repositório.")
+                graph_canvas.create_text(
+                    20, 24, anchor="w", text="Nenhum commit encontrado neste repositório.",
+                    fill=COLORS["text_dim"], font=("Segoe UI", 11)
+                )
+                graph_canvas.configure(scrollregion=(0, 0, visible_w, 60))
                 return
-            empty_label.configure(text="")
+
+            max_col = max(
+                max([c["col"]] + c["incoming"] + c["outgoing"] + c["passthrough"], default=0)
+                for c in commits
+            )
+
+            # colunas mais estreitas quando há muitas branches, pra caber mais raias
+            # visíveis antes de precisar rolar horizontalmente
+            if max_col <= 6:
+                col_w = 16
+            elif max_col <= 12:
+                col_w = 12
+            else:
+                col_w = 9
+
+            graph_w = GRAPH_PAD + max_col * col_w + 22
+            tx = graph_w
+            content_w = max(visible_w, graph_w + MIN_TEXT_W)
+            total_h = len(commits) * ROW_H
+
+            def lane_x(col: int) -> float:
+                return GRAPH_PAD + col * col_w
 
             for i, c in enumerate(commits):
-                row = ctk.CTkFrame(scroll, fg_color=COLORS["panel"], corner_radius=8)
-                row.pack(fill="x", padx=6, pady=4)
-                row.grid_columnconfigure(1, weight=1)
+                y0, y1 = i * ROW_H, (i + 1) * ROW_H
+                yc = y0 + ROW_H / 2
+                col_x = lane_x(c["col"])
+                color = lane_color(c["col"])
 
-                hash_label = ctk.CTkLabel(
-                    row, text=c["hash"], font=("Consolas", 11, "bold"),
-                    text_color=COLORS["accent"], width=64, anchor="w"
+                if c["is_head"]:
+                    graph_canvas.create_rectangle(
+                        0, y0, content_w, y1, fill="#2c3a4d", width=0
+                    )
+                elif i % 2 == 1:
+                    graph_canvas.create_rectangle(
+                        0, y0, content_w, y1, fill=COLORS["panel"], width=0
+                    )
+
+                # raias que só passam retas por esta linha (sem relação com o commit)
+                for pcol in c["passthrough"]:
+                    px = lane_x(pcol)
+                    graph_canvas.create_line(px, y0, px, y1, fill=lane_color(pcol), width=2)
+
+                # topo: liga com a linha de cima (reta se mesma coluna, diagonal se convergindo)
+                if c["same_col_in"]:
+                    graph_canvas.create_line(col_x, y0, col_x, yc, fill=color, width=2)
+                for icol in c["incoming"]:
+                    ix = lane_x(icol)
+                    graph_canvas.create_line(ix, y0, col_x, yc, fill=lane_color(icol), width=2)
+
+                # baixo: liga com a linha de baixo (reta se mesma coluna, diagonal se divergindo/merge)
+                if c["same_col_out"]:
+                    graph_canvas.create_line(col_x, yc, col_x, y1, fill=color, width=2)
+                for ocol in c["outgoing"]:
+                    ox = lane_x(ocol)
+                    graph_canvas.create_line(col_x, yc, ox, y1, fill=color, width=2)
+
+                r = 5 if c["is_merge"] else (4 if col_w >= 12 else 3)
+                graph_canvas.create_oval(
+                    col_x - r, yc - r, col_x + r, yc + r,
+                    fill=color, outline=COLORS["bg"], width=2
                 )
-                hash_label.grid(row=0, column=0, padx=(10, 4), pady=(8, 0), sticky="w")
 
-                msg_label = ctk.CTkLabel(
-                    row, text=c["message"], font=("Segoe UI", 12),
-                    text_color=COLORS["text"], anchor="w", justify="left", wraplength=340
+                # texto: uma linha só (mensagem + autor), compacto, estilo Git Graph
+                msg = c["message"]
+                avail_px = content_w - tx - 70
+                while msg and msg_font.measure(msg) > avail_px:
+                    msg = msg[:-1]
+                if msg != c["message"]:
+                    msg = msg[:-1] + "…"
+
+                msg_color = "#ffffff" if c["is_head"] else COLORS["text"]
+                msg_weight = "bold" if c["is_head"] else "normal"
+                row_font = tkfont.Font(family="Segoe UI", size=11, weight=msg_weight)
+
+                graph_canvas.create_text(
+                    tx, yc, anchor="w", text=msg, fill=msg_color, font=row_font
                 )
-                msg_label.grid(row=0, column=1, padx=4, pady=(8, 0), sticky="w")
+                msg_w = row_font.measure(msg)
 
-                meta_label = ctk.CTkLabel(
-                    row, text=f"󰀄 {c['author']}   󰃭 {c['date']}",
-                    font=("Segoe UI", 10), text_color=COLORS["text_dim"], anchor="w"
+                author_x = tx + msg_w + 12
+                graph_canvas.create_text(
+                    author_x, yc, anchor="w", text=c["author"],
+                    fill=COLORS["text_dim"], font=dim_font
                 )
-                meta_label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0, 8), sticky="w")
 
-        reload_log()
+                graph_canvas.create_text(
+                    content_w - 14, yc, anchor="e", text=c["hash"],
+                    fill=COLORS["text_dim"], font=("Consolas", 9)
+                )
+
+                if c["is_head"] and branch:
+                    label = branch if len(branch) <= 18 else branch[:16] + "…"
+                    pill_w = tkfont.Font(family="Segoe UI", size=9, weight="bold").measure(label) + 16
+                    pill_x = author_x + dim_font.measure(c["author"]) + 10
+                    graph_canvas.create_rectangle(
+                        pill_x, yc - 9, pill_x + pill_w, yc + 9,
+                        fill=COLORS["accent"], outline="", width=0
+                    )
+                    graph_canvas.create_text(
+                        pill_x + pill_w / 2, yc, text=label,
+                        fill="#1e2127", font=("Segoe UI", 9, "bold")
+                    )
+
+            graph_canvas.configure(scrollregion=(0, 0, content_w, total_h))
+
+        def reload_log():
+            """Busca o log de novo no git (usado no botão de refresh / abertura inicial)."""
+            state["commits"] = self.get_commit_graph()
+            draw(state["commits"])
+
+        def redraw_only(_event=None):
+            """Apenas re-desenha com os dados já buscados (usado em redimensionamento)."""
+            if state["commits"] is not None:
+                draw(state["commits"])
+
+        # a primeira renderização precisa esperar o Canvas ter largura real
+        popup.after(30, reload_log)
+        graph_canvas.bind("<Configure>", redraw_only)
 
         close_btn = ctk.CTkButton(
             popup, text="Fechar", height=32,
