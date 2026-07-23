@@ -1,3 +1,4 @@
+import json
 import subprocess
 import threading
 import os
@@ -7,27 +8,63 @@ from typing import Optional, Tuple, List
 import customtkinter as ctk
 from core.src.app_context import AppContext
 
-COLORS = {
-    "bg": "#1e2127",
-    "panel": "#282c34",
-    "panel_alt": "#21252b",
-    "border": "#3a3f4b",
-    "text": "#cccccc",
-    "text_dim": "#7f848e",
-    "accent": "#61afef",
-    "accent_hover": "#4d94d6",
-    "mod": "#e5c07b",
-    "add": "#98c379",
-    "del": "#e06c75",
-    "danger": "#e06c75",
-    "danger_hover": "#c65f68",
-}
-
-GRAPH_COLORS = ["#e06c75", "#61afef", "#56b6c2", "#c678dd", "#e5c07b", "#98c379", "#d19a66"]
-
 class GitPlugin:
     def __init__(self):
         self.ctx = AppContext()
+        self._load_theme()
+
+    def _load_theme(self):
+        self.colors = {
+            "bg": "#1e2127", "panel": "#282c34", "panel_alt": "#21252b",
+            "border": "#3a3f4b", "text": "#cccccc", "text_dim": "#7f848e",
+            "accent": "#61afef", "accent_hover": "#4d94d6", "mod": "#e5c07b",
+            "add": "#98c379", "del": "#e06c75", "danger": "#e06c75", "danger_hover": "#c65f68"
+        }
+        self.graph_colors = ["#e06c75", "#61afef", "#56b6c2", "#c678dd", "#e5c07b", "#98c379", "#d19a66"]
+
+        try:
+            base_dir = os.getcwd()
+            pref_path = os.path.join(base_dir, "ui", "preferencias", "preferecia.json")
+            
+            if os.path.exists(pref_path):
+                with open(pref_path, "r", encoding="utf-8") as f:
+                    prefs = json.load(f)
+                
+                theme_name = prefs.get("selected_theme")
+                if theme_name:
+                    theme_path = os.path.join(base_dir, "ui", "estilo", f"{theme_name}.json")
+                    if os.path.exists(theme_path):
+                        with open(theme_path, "r", encoding="utf-8") as t:
+                            theme = json.load(t)
+                            
+                            editor = theme.get("editor", {})
+                            sidebar = theme.get("sidebar", {})
+                            status_bar = theme.get("status_bar", {})
+                            syntax = theme.get("syntax", {})
+
+                            self.colors["bg"] = editor.get("bg", self.colors["bg"])
+                            self.colors["panel"] = status_bar.get("bg", self.colors["panel"])
+                            self.colors["panel_alt"] = sidebar.get("bg", self.colors["panel_alt"])
+                            self.colors["border"] = sidebar.get("label", self.colors["border"])
+                            self.colors["text"] = editor.get("fg", self.colors["text"])
+                            self.colors["text_dim"] = sidebar.get("fg", self.colors["text_dim"])
+                            self.colors["accent"] = syntax.get("builtin", self.colors["accent"])
+                            self.colors["accent_hover"] = syntax.get("keyword", self.colors["accent_hover"])
+                            self.colors["mod"] = syntax.get("string", self.colors["mod"])
+                            self.colors["add"] = syntax.get("definition", self.colors["add"])
+                            self.colors["del"] = syntax.get("keyword", self.colors["del"])
+                            self.colors["danger"] = syntax.get("keyword", self.colors["danger"])
+                            self.colors["danger_hover"] = syntax.get("comment", self.colors["danger_hover"])
+
+                            self.graph_colors = [
+                                syntax.get("keyword", self.graph_colors[0]),
+                                syntax.get("builtin", self.graph_colors[1]),
+                                syntax.get("string", self.graph_colors[2]),
+                                syntax.get("number", self.graph_colors[3]),
+                                syntax.get("definition", self.graph_colors[4])
+                            ]
+        except Exception as e:
+            print(f"Erro ao carregar as cores do tema: {e}")
 
     def is_git_repo(self, path: str) -> bool:
         try:
@@ -72,8 +109,8 @@ class GitPlugin:
 
         root = self.ctx.project_root
         status_data = self.get_status_data()
-        colors = {"mod": COLORS["mod"], "add": COLORS["add"], "del": COLORS["del"]}
-        theme_fg = self.ctx.theme.get("sidebar", {}).get("fg", "#cccccc")
+        colors = {"mod": self.colors["mod"], "add": self.colors["add"], "del": self.colors["del"]}
+        theme_fg = self.ctx.theme.get("sidebar", {}).get("fg", self.colors["text"])
 
         status_map = {}
         for code, rel_path in status_data:
@@ -321,9 +358,6 @@ class GitPlugin:
             if on_done: self.ctx.window.after(0, lambda: on_done(ok, msg))
         threading.Thread(target=task, daemon=True).start()
 
-    # ------------------------------------------------------------------ #
-    # Painel UI Principal Reorganizado
-    # ------------------------------------------------------------------ #
     def quick_commit_ui(self):
         if not self.ctx.project_root or not self.is_git_repo(self.ctx.project_root):
             return
@@ -335,21 +369,19 @@ class GitPlugin:
         dialog.geometry("800x500")
         dialog.minsize(700, 400)
         dialog.attributes("-topmost", True)
-        dialog.configure(fg_color=COLORS["bg"])
+        dialog.configure(fg_color=self.colors["bg"])
         dialog.focus_set()
 
-        # Layout Split: Sidebar (Ações) | Main (Arquivos e Commit)
-        sidebar = ctk.CTkFrame(dialog, fg_color=COLORS["panel"], width=200, corner_radius=0)
+        sidebar = ctk.CTkFrame(dialog, fg_color=self.colors["panel"], width=200, corner_radius=0)
         sidebar.pack(side="left", fill="y")
         sidebar.pack_propagate(False)
 
         main_area = ctk.CTkFrame(dialog, fg_color="transparent")
         main_area.pack(side="right", fill="both", expand=True, padx=16, pady=16)
 
-        # --- Sidebar ---
-        ctk.CTkLabel(sidebar, text="Local", font=("Segoe UI", 11, "bold"), text_color=COLORS["text_dim"]).pack(anchor="w", padx=16, pady=(16, 4))
+        ctk.CTkLabel(sidebar, text="Local", font=("Segoe UI", 11, "bold"), text_color=self.colors["text_dim"]).pack(anchor="w", padx=16, pady=(16, 4))
 
-        btn_style = {"height": 30, "font": ("Segoe UI", 11), "fg_color": "transparent", "hover_color": COLORS["panel_alt"], "text_color": COLORS["text"], "anchor": "w"}
+        btn_style = {"height": 30, "font": ("Segoe UI", 11), "fg_color": "transparent", "hover_color": self.colors["panel_alt"], "text_color": self.colors["text"], "anchor": "w"}
 
         new_branch_btn = ctk.CTkButton(sidebar, text="Nova Branch", command=lambda: self._open_create_branch_dialog(dialog, on_created=lambda: [refresh_status_label(), reload_file_list()]), **btn_style)
         new_branch_btn.pack(fill="x", padx=8, pady=2)
@@ -360,7 +392,7 @@ class GitPlugin:
         history_btn = ctk.CTkButton(sidebar, text="Histórico", command=lambda: self._open_commit_log_dialog(dialog), **btn_style)
         history_btn.pack(fill="x", padx=8, pady=(2, 12))
 
-        ctk.CTkLabel(sidebar, text="Remoto", font=("Segoe UI", 11, "bold"), text_color=COLORS["text_dim"]).pack(anchor="w", padx=16, pady=(8, 4))
+        ctk.CTkLabel(sidebar, text="Remoto", font=("Segoe UI", 11, "bold"), text_color=self.colors["text_dim"]).pack(anchor="w", padx=16, pady=(8, 4))
 
         def set_toolbar_busy(busy: bool, msg: str = ""):
             state = "disabled" if busy else "normal"
@@ -385,34 +417,33 @@ class GitPlugin:
         push_btn = ctk.CTkButton(sidebar, text="Push", command=lambda: with_feedback(self.git_push)(), **btn_style)
         push_btn.pack(fill="x", padx=8, pady=2)
 
-        sync_btn = ctk.CTkButton(sidebar, text="Sincronizar", fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"], text_color="#1e2127", font=("Segoe UI", 11, "bold"), height=30, anchor="center", command=lambda: with_feedback(self.git_sync)())
+        sync_btn = ctk.CTkButton(sidebar, text="Sincronizar", fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", font=("Segoe UI", 11, "bold"), height=30, anchor="center", command=lambda: with_feedback(self.git_sync)())
         sync_btn.pack(fill="x", padx=16, pady=(12, 2))
 
-        feedback_label = ctk.CTkLabel(sidebar, text="", font=("Segoe UI", 10), text_color=COLORS["text_dim"], wraplength=160)
+        feedback_label = ctk.CTkLabel(sidebar, text="", font=("Segoe UI", 10), text_color=self.colors["text_dim"], wraplength=160)
         feedback_label.pack(side="bottom", fill="x", padx=16, pady=16)
 
-        # --- Main Area ---
         header = ctk.CTkFrame(main_area, fg_color="transparent")
         header.pack(fill="x", pady=(0, 12))
 
-        branch_label = ctk.CTkLabel(header, text=f"Branch: {branch or 'N/A'}", font=("Segoe UI", 14, "bold"), text_color=COLORS["accent"])
+        branch_label = ctk.CTkLabel(header, text=f"Branch: {branch or 'N/A'}", font=("Segoe UI", 14, "bold"), text_color=self.colors["accent"])
         branch_label.pack(side="left")
 
         def refresh_status_label():
             b, c = self.get_git_info()
             branch_label.configure(text=f"Branch: {b or 'N/A'}  |  {c} arquivos")
 
-        refresh_btn = ctk.CTkButton(header, text="Refresh", width=60, height=26, font=("Segoe UI", 11), fg_color=COLORS["panel"], hover_color=COLORS["border"], text_color=COLORS["text"], command=lambda: [refresh_status_label(), reload_file_list()])
+        refresh_btn = ctk.CTkButton(header, text="Refresh", width=60, height=26, font=("Segoe UI", 11), fg_color=self.colors["panel"], hover_color=self.colors["border"], text_color=self.colors["text"], command=lambda: [refresh_status_label(), reload_file_list()])
         refresh_btn.pack(side="right")
 
-        ctk.CTkLabel(main_area, text="Arquivos Alterados", font=("Segoe UI", 12, "bold"), text_color=COLORS["text"]).pack(anchor="w", pady=(0, 4))
+        ctk.CTkLabel(main_area, text="Arquivos Alterados", font=("Segoe UI", 12, "bold"), text_color=self.colors["text"]).pack(anchor="w", pady=(0, 4))
 
-        text_area = ctk.CTkTextbox(main_area, font=("Consolas", 12), fg_color=COLORS["panel_alt"], corner_radius=4, border_width=1, border_color=COLORS["border"])
+        text_area = ctk.CTkTextbox(main_area, font=("Consolas", 12), fg_color=self.colors["panel_alt"], corner_radius=4, border_width=1, border_color=self.colors["border"])
         text_area.pack(fill="both", expand=True, pady=(0, 12))
 
-        text_area._textbox.tag_configure("mod", foreground=COLORS["mod"])
-        text_area._textbox.tag_configure("add", foreground=COLORS["add"])
-        text_area._textbox.tag_configure("del", foreground=COLORS["del"])
+        text_area._textbox.tag_configure("mod", foreground=self.colors["mod"])
+        text_area._textbox.tag_configure("add", foreground=self.colors["add"])
+        text_area._textbox.tag_configure("del", foreground=self.colors["del"])
 
         def reload_file_list():
             text_area.configure(state="normal")
@@ -435,7 +466,7 @@ class GitPlugin:
         commit_frame = ctk.CTkFrame(main_area, fg_color="transparent")
         commit_frame.pack(fill="x")
 
-        entry = ctk.CTkEntry(commit_frame, placeholder_text="Mensagem do commit...", fg_color=COLORS["panel_alt"], border_color=COLORS["border"], corner_radius=4, height=36)
+        entry = ctk.CTkEntry(commit_frame, placeholder_text="Mensagem do commit...", fg_color=self.colors["panel_alt"], border_color=self.colors["border"], corner_radius=4, height=36)
         entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
         entry.focus_set()
 
@@ -454,29 +485,26 @@ class GitPlugin:
 
             threading.Thread(target=task, daemon=True).start()
 
-        commit_btn = ctk.CTkButton(commit_frame, text="Commit", width=100, height=36, font=("Segoe UI", 12, "bold"), fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"], text_color="#1e2127", command=execute_commit)
+        commit_btn = ctk.CTkButton(commit_frame, text="Commit", width=100, height=36, font=("Segoe UI", 12, "bold"), fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", command=execute_commit)
         commit_btn.pack(side="right")
 
         dialog.bind("<Return>", lambda e: execute_commit())
         dialog.bind("<Escape>", lambda e: dialog.destroy())
 
-    # ------------------------------------------------------------------ #
-    # Diálogos auxiliares (branch, history) - Mantidos limpos
-    # ------------------------------------------------------------------ #
     def _open_create_branch_dialog(self, parent, on_created=None):
         popup = ctk.CTkToplevel(parent)
         popup.title("Nova Branch")
         popup.geometry("360x180")
         popup.attributes("-topmost", True)
-        popup.configure(fg_color=COLORS["bg"])
+        popup.configure(fg_color=self.colors["bg"])
         popup.focus_set()
 
-        ctk.CTkLabel(popup, text="Nome da nova branch", font=("Segoe UI", 12, "bold"), text_color=COLORS["text"]).pack(pady=(20, 4), padx=20, anchor="w")
-        entry = ctk.CTkEntry(popup, placeholder_text="feature/minha-branch", fg_color=COLORS["panel_alt"], border_color=COLORS["border"], corner_radius=4)
+        ctk.CTkLabel(popup, text="Nome da nova branch", font=("Segoe UI", 12, "bold"), text_color=self.colors["text"]).pack(pady=(20, 4), padx=20, anchor="w")
+        entry = ctk.CTkEntry(popup, placeholder_text="feature/minha-branch", fg_color=self.colors["panel_alt"], border_color=self.colors["border"], corner_radius=4)
         entry.pack(fill="x", padx=20, pady=4)
         entry.focus_set()
 
-        feedback = ctk.CTkLabel(popup, text="", font=("Segoe UI", 10), text_color=COLORS["danger"])
+        feedback = ctk.CTkLabel(popup, text="", font=("Segoe UI", 10), text_color=self.colors["danger"])
         feedback.pack(padx=20, anchor="w")
 
         def confirm():
@@ -491,7 +519,7 @@ class GitPlugin:
             else:
                 feedback.configure(text=msg[:80])
 
-        btn = ctk.CTkButton(popup, text="Criar e Trocar", height=32, fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"], text_color="#1e2127", command=confirm)
+        btn = ctk.CTkButton(popup, text="Criar e Trocar", height=32, fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", command=confirm)
         btn.pack(pady=16, padx=20, fill="x")
 
         popup.bind("<Return>", lambda e: confirm())
@@ -507,24 +535,24 @@ class GitPlugin:
         popup.geometry("620x600")
         popup.minsize(460, 380)
         popup.attributes("-topmost", True)
-        popup.configure(fg_color=COLORS["bg"])
+        popup.configure(fg_color=self.colors["bg"])
         popup.focus_set()
 
-        header = ctk.CTkFrame(popup, fg_color=COLORS["panel"], corner_radius=0)
+        header = ctk.CTkFrame(popup, fg_color=self.colors["panel"], corner_radius=0)
         header.pack(fill="x")
 
         branch, _ = self.get_git_info()
-        ctk.CTkLabel(header, text=f"Branch: {branch or 'N/A'}", font=("Segoe UI", 13, "bold"), text_color=COLORS["accent"]).pack(side="left", padx=16, pady=12)
+        ctk.CTkLabel(header, text=f"Branch: {branch or 'N/A'}", font=("Segoe UI", 13, "bold"), text_color=self.colors["accent"]).pack(side="left", padx=16, pady=12)
 
-        refresh_btn = ctk.CTkButton(header, text="Refresh", width=60, height=26, font=("Segoe UI", 11), fg_color="transparent", hover_color=COLORS["panel_alt"], text_color=COLORS["text"], command=lambda: reload_log())
+        refresh_btn = ctk.CTkButton(header, text="Refresh", width=60, height=26, font=("Segoe UI", 11), fg_color="transparent", hover_color=self.colors["panel_alt"], text_color=self.colors["text"], command=lambda: reload_log())
         refresh_btn.pack(side="right", padx=16, pady=12)
 
-        canvas_frame = ctk.CTkFrame(popup, fg_color=COLORS["panel_alt"], corner_radius=0)
+        canvas_frame = ctk.CTkFrame(popup, fg_color=self.colors["panel_alt"], corner_radius=0)
         canvas_frame.pack(fill="both", expand=True)
         canvas_frame.grid_rowconfigure(0, weight=1)
         canvas_frame.grid_columnconfigure(0, weight=1)
 
-        graph_canvas = tk.Canvas(canvas_frame, bg=COLORS["panel_alt"], highlightthickness=0)
+        graph_canvas = tk.Canvas(canvas_frame, bg=self.colors["panel_alt"], highlightthickness=0)
         graph_canvas.grid(row=0, column=0, sticky="nsew")
 
         vscroll = ctk.CTkScrollbar(canvas_frame, orientation="vertical", command=graph_canvas.yview)
@@ -551,14 +579,14 @@ class GitPlugin:
         msg_font = tkfont.Font(family="Segoe UI", size=11)
         dim_font = tkfont.Font(family="Segoe UI", size=9)
 
-        def lane_color(col: int) -> str: return GRAPH_COLORS[col % len(GRAPH_COLORS)]
+        def lane_color(col: int) -> str: return self.graph_colors[col % len(self.graph_colors)]
 
         def draw(commits):
             graph_canvas.delete("all")
             visible_w = max(graph_canvas.winfo_width(), 420)
 
             if not commits:
-                graph_canvas.create_text(20, 24, anchor="w", text="Nenhum commit.", fill=COLORS["text_dim"], font=("Segoe UI", 11))
+                graph_canvas.create_text(20, 24, anchor="w", text="Nenhum commit.", fill=self.colors["text_dim"], font=("Segoe UI", 11))
                 graph_canvas.configure(scrollregion=(0, 0, visible_w, 60))
                 return
 
@@ -579,7 +607,7 @@ class GitPlugin:
                 color = lane_color(c["col"])
 
                 if c["is_head"]: graph_canvas.create_rectangle(0, y0, content_w, y1, fill="#2c3a4d", width=0)
-                elif i % 2 == 1: graph_canvas.create_rectangle(0, y0, content_w, y1, fill=COLORS["panel"], width=0)
+                elif i % 2 == 1: graph_canvas.create_rectangle(0, y0, content_w, y1, fill=self.colors["panel"], width=0)
 
                 for pcol in c["passthrough"]:
                     px = lane_x(pcol)
@@ -596,14 +624,14 @@ class GitPlugin:
                     graph_canvas.create_line(col_x, yc, ox, y1, fill=color, width=2)
 
                 r = 5 if c["is_merge"] else (4 if col_w >= 12 else 3)
-                graph_canvas.create_oval(col_x - r, yc - r, col_x + r, yc + r, fill=color, outline=COLORS["bg"], width=2)
+                graph_canvas.create_oval(col_x - r, yc - r, col_x + r, yc + r, fill=color, outline=self.colors["bg"], width=2)
 
                 msg = c["message"]
                 avail_px = content_w - tx - 70
                 while msg and msg_font.measure(msg) > avail_px: msg = msg[:-1]
                 if msg != c["message"]: msg = msg[:-1] + "…"
 
-                msg_color = "#ffffff" if c["is_head"] else COLORS["text"]
+                msg_color = "#ffffff" if c["is_head"] else self.colors["text"]
                 msg_weight = "bold" if c["is_head"] else "normal"
                 row_font = tkfont.Font(family="Segoe UI", size=11, weight=msg_weight)
 
@@ -611,14 +639,14 @@ class GitPlugin:
                 msg_w = row_font.measure(msg)
                 author_x = tx + msg_w + 12
 
-                graph_canvas.create_text(author_x, yc, anchor="w", text=c["author"], fill=COLORS["text_dim"], font=dim_font)
-                graph_canvas.create_text(content_w - 14, yc, anchor="e", text=c["hash"], fill=COLORS["text_dim"], font=("Consolas", 9))
+                graph_canvas.create_text(author_x, yc, anchor="w", text=c["author"], fill=self.colors["text_dim"], font=dim_font)
+                graph_canvas.create_text(content_w - 14, yc, anchor="e", text=c["hash"], fill=self.colors["text_dim"], font=("Consolas", 9))
 
                 if c["is_head"] and branch:
                     label = branch if len(branch) <= 18 else branch[:16] + "…"
                     pill_w = tkfont.Font(family="Segoe UI", size=9, weight="bold").measure(label) + 16
                     pill_x = author_x + dim_font.measure(c["author"]) + 10
-                    graph_canvas.create_rectangle(pill_x, yc - 9, pill_x + pill_w, yc + 9, fill=COLORS["accent"], outline="", width=0)
+                    graph_canvas.create_rectangle(pill_x, yc - 9, pill_x + pill_w, yc + 9, fill=self.colors["accent"], outline="", width=0)
                     graph_canvas.create_text(pill_x + pill_w / 2, yc, text=label, fill="#1e2127", font=("Segoe UI", 9, "bold"))
 
             graph_canvas.configure(scrollregion=(0, 0, content_w, total_h))
@@ -642,17 +670,17 @@ class GitPlugin:
         popup.title("Trocar Branch")
         popup.geometry("360x220")
         popup.attributes("-topmost", True)
-        popup.configure(fg_color=COLORS["bg"])
+        popup.configure(fg_color=self.colors["bg"])
         popup.focus_set()
 
-        ctk.CTkLabel(popup, text="Selecione a branch", font=("Segoe UI", 12, "bold"), text_color=COLORS["text"]).pack(pady=(20, 4), padx=20, anchor="w")
+        ctk.CTkLabel(popup, text="Selecione a branch", font=("Segoe UI", 12, "bold"), text_color=self.colors["text"]).pack(pady=(20, 4), padx=20, anchor="w")
         current_branch, _ = self.get_git_info()
         
-        combo = ctk.CTkComboBox(popup, values=branches, fg_color=COLORS["panel_alt"], border_color=COLORS["border"], button_color=COLORS["accent"], button_hover_color=COLORS["accent_hover"])
+        combo = ctk.CTkComboBox(popup, values=branches, fg_color=self.colors["panel_alt"], border_color=self.colors["border"], button_color=self.colors["accent"], button_hover_color=self.colors["accent_hover"])
         combo.set(current_branch if current_branch in branches else branches[0])
         combo.pack(fill="x", padx=20, pady=4)
 
-        feedback = ctk.CTkLabel(popup, text="", font=("Segoe UI", 10), text_color=COLORS["text_dim"])
+        feedback = ctk.CTkLabel(popup, text="", font=("Segoe UI", 10), text_color=self.colors["text_dim"])
         feedback.pack(padx=20, anchor="w")
 
         def confirm():
@@ -664,7 +692,7 @@ class GitPlugin:
             popup.destroy()
             if on_switched: on_switched()
 
-        btn = ctk.CTkButton(popup, text="Trocar", height=32, fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"], text_color="#1e2127", command=confirm)
+        btn = ctk.CTkButton(popup, text="Trocar", height=32, fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", command=confirm)
         btn.pack(pady=16, padx=20, fill="x")
 
         popup.bind("<Return>", lambda e: confirm())
