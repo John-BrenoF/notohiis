@@ -56,7 +56,6 @@ Você decide o quanto de poder quer expor.
 
 <p align="center">
 <img width="800" alt="image" src="https://github.com/user-attachments/assets/42614cc1-1a6d-40b0-8de3-f6e3836982e1" />
-
   <br><sub>Modo terminal (TUI)</sub>
 </p>
 
