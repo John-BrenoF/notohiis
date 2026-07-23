@@ -660,7 +660,7 @@ class GitPlugin:
         destacado com badge da branch."""
         ROW_H = 26
         GRAPH_PAD = 14
-        COL_W = 16
+        MIN_TEXT_W = 380
 
         popup = ctk.CTkToplevel(parent)
         popup.title("󰋚 Histórico de Commits")
@@ -702,11 +702,26 @@ class GitPlugin:
         vscroll.grid(row=0, column=1, sticky="ns", pady=2, padx=(0, 2))
         graph_canvas.configure(yscrollcommand=vscroll.set)
 
+        hscroll = ctk.CTkScrollbar(canvas_frame, orientation="horizontal", command=graph_canvas.xview)
+        hscroll.grid(row=1, column=0, sticky="ew", padx=(2, 0))
+        graph_canvas.configure(xscrollcommand=hscroll.set)
+
         def _on_mousewheel(event):
             graph_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-        graph_canvas.bind("<Enter>", lambda e: graph_canvas.bind_all("<MouseWheel>", _on_mousewheel))
-        graph_canvas.bind("<Leave>", lambda e: graph_canvas.unbind_all("<MouseWheel>"))
+        def _on_shift_mousewheel(event):
+            graph_canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        def _bind_wheel(_e):
+            graph_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            graph_canvas.bind_all("<Shift-MouseWheel>", _on_shift_mousewheel)
+
+        def _unbind_wheel(_e):
+            graph_canvas.unbind_all("<MouseWheel>")
+            graph_canvas.unbind_all("<Shift-MouseWheel>")
+
+        graph_canvas.bind("<Enter>", _bind_wheel)
+        graph_canvas.bind("<Leave>", _unbind_wheel)
 
         state = {"commits": None}
         msg_font = tkfont.Font(family="Segoe UI", size=11)
@@ -717,28 +732,42 @@ class GitPlugin:
 
         def draw(commits):
             graph_canvas.delete("all")
-            content_w = max(graph_canvas.winfo_width(), 420)
+            visible_w = max(graph_canvas.winfo_width(), 420)
 
             if not commits:
                 graph_canvas.create_text(
                     20, 24, anchor="w", text="Nenhum commit encontrado neste repositório.",
                     fill=COLORS["text_dim"], font=("Segoe UI", 11)
                 )
-                graph_canvas.configure(scrollregion=(0, 0, content_w, 60))
+                graph_canvas.configure(scrollregion=(0, 0, visible_w, 60))
                 return
 
             max_col = max(
                 max([c["col"]] + c["incoming"] + c["outgoing"] + c["passthrough"], default=0)
                 for c in commits
             )
-            graph_w = GRAPH_PAD + max_col * COL_W + 22
+
+            # colunas mais estreitas quando há muitas branches, pra caber mais raias
+            # visíveis antes de precisar rolar horizontalmente
+            if max_col <= 6:
+                col_w = 16
+            elif max_col <= 12:
+                col_w = 12
+            else:
+                col_w = 9
+
+            graph_w = GRAPH_PAD + max_col * col_w + 22
             tx = graph_w
+            content_w = max(visible_w, graph_w + MIN_TEXT_W)
             total_h = len(commits) * ROW_H
+
+            def lane_x(col: int) -> float:
+                return GRAPH_PAD + col * col_w
 
             for i, c in enumerate(commits):
                 y0, y1 = i * ROW_H, (i + 1) * ROW_H
                 yc = y0 + ROW_H / 2
-                col_x = GRAPH_PAD + c["col"] * COL_W
+                col_x = lane_x(c["col"])
                 color = lane_color(c["col"])
 
                 if c["is_head"]:
@@ -752,24 +781,24 @@ class GitPlugin:
 
                 # raias que só passam retas por esta linha (sem relação com o commit)
                 for pcol in c["passthrough"]:
-                    px = GRAPH_PAD + pcol * COL_W
+                    px = lane_x(pcol)
                     graph_canvas.create_line(px, y0, px, y1, fill=lane_color(pcol), width=2)
 
                 # topo: liga com a linha de cima (reta se mesma coluna, diagonal se convergindo)
                 if c["same_col_in"]:
                     graph_canvas.create_line(col_x, y0, col_x, yc, fill=color, width=2)
                 for icol in c["incoming"]:
-                    ix = GRAPH_PAD + icol * COL_W
+                    ix = lane_x(icol)
                     graph_canvas.create_line(ix, y0, col_x, yc, fill=lane_color(icol), width=2)
 
                 # baixo: liga com a linha de baixo (reta se mesma coluna, diagonal se divergindo/merge)
                 if c["same_col_out"]:
                     graph_canvas.create_line(col_x, yc, col_x, y1, fill=color, width=2)
                 for ocol in c["outgoing"]:
-                    ox = GRAPH_PAD + ocol * COL_W
+                    ox = lane_x(ocol)
                     graph_canvas.create_line(col_x, yc, ox, y1, fill=color, width=2)
 
-                r = 6 if c["is_merge"] else 4
+                r = 5 if c["is_merge"] else (4 if col_w >= 12 else 3)
                 graph_canvas.create_oval(
                     col_x - r, yc - r, col_x + r, yc + r,
                     fill=color, outline=COLORS["bg"], width=2
