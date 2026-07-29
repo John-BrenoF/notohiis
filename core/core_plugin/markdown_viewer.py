@@ -1,6 +1,7 @@
 # Dependências: pip install tkinterweb markdown2
 
 import os
+import webbrowser
 from typing import Optional
 import customtkinter as ctk
 import markdown2
@@ -78,6 +79,10 @@ class MarkdownPlugin:
         else:
             self.btn_view.pack_forget()
 
+    def _handle_link_click(self, url):
+        if url.startswith("http://") or url.startswith("https://"):
+            webbrowser.open(url)
+
     def _render_html(self, file_path, text_content):
         if self.last_rendered_content.get(file_path) == text_content:
             return
@@ -104,7 +109,7 @@ class MarkdownPlugin:
         is_preview_active = self.view_states.get(file_path, False)
 
         if not self.html_view:
-            self.html_view = HtmlFrame(editor)
+            self.html_view = HtmlFrame(editor, on_link_click=self._handle_link_click)
         
         if not is_preview_active:
             # Converter Markdown para HTML
