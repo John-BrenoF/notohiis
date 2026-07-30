@@ -255,7 +255,7 @@ class GitPlugin:
             is_merge = len(parents) > 1
             
             result.append({
-                "hash": c["hash"], "author": c["author"], "date": c["date"],
+                "full": c["full"], "hash": c["hash"], "author": c["author"], "date": c["date"],
                 "message": c["message"], "col": col,
                 "incoming": [i for i in incoming_cols if i != col],
                 "same_col_in": col in incoming_cols,
@@ -375,8 +375,8 @@ class GitPlugin:
 
         dialog = ctk.CTkToplevel(self.ctx.window)
         dialog.title("Git")
-        dialog.geometry("800x500")
-        dialog.minsize(700, 400)
+        dialog.geometry("820x520")
+        dialog.minsize(700, 420)
         dialog.attributes("-topmost", True)
         dialog.configure(fg_color=self.colors["bg"])
         dialog.focus_set()
@@ -392,13 +392,13 @@ class GitPlugin:
 
         btn_style = {"height": 30, "font": ("Segoe UI", 11), "fg_color": "transparent", "hover_color": self.colors["panel_alt"], "text_color": self.colors["text"], "anchor": "w"}
 
-        new_branch_btn = ctk.CTkButton(sidebar, text="Nova Branch", command=lambda: self._open_create_branch_dialog(dialog, on_created=lambda: [refresh_status_label(), reload_file_list()]), **btn_style)
+        new_branch_btn = ctk.CTkButton(sidebar, text="＋  Nova Branch", command=lambda: self._open_create_branch_dialog(dialog, on_created=lambda: [refresh_status_label(), reload_file_list()]), **btn_style)
         new_branch_btn.pack(fill="x", padx=8, pady=2)
 
-        switch_branch_btn = ctk.CTkButton(sidebar, text="Trocar Branch", command=lambda: self._open_switch_branch_dialog(dialog, on_switched=lambda: [refresh_status_label(), reload_file_list()]), **btn_style)
+        switch_branch_btn = ctk.CTkButton(sidebar, text="⇄  Trocar Branch", command=lambda: self._open_switch_branch_dialog(dialog, on_switched=lambda: [refresh_status_label(), reload_file_list()]), **btn_style)
         switch_branch_btn.pack(fill="x", padx=8, pady=2)
 
-        history_btn = ctk.CTkButton(sidebar, text="Histórico", command=lambda: self._open_commit_log_dialog(dialog), **btn_style)
+        history_btn = ctk.CTkButton(sidebar, text="☰  Histórico", command=lambda: self._open_commit_log_dialog(dialog), **btn_style)
         history_btn.pack(fill="x", padx=8, pady=(2, 12))
 
         ctk.CTkLabel(sidebar, text="Remoto", font=("Segoe UI", 11, "bold"), text_color=self.colors["text_dim"]).pack(anchor="w", padx=16, pady=(8, 4))
@@ -420,13 +420,13 @@ class GitPlugin:
                 action_fn(on_done=on_done, *args, **kwargs)
             return wrapped
 
-        pull_btn = ctk.CTkButton(sidebar, text="Pull", command=lambda: with_feedback(self.git_pull)(), **btn_style)
+        pull_btn = ctk.CTkButton(sidebar, text="↓  Pull", command=lambda: with_feedback(self.git_pull)(), **btn_style)
         pull_btn.pack(fill="x", padx=8, pady=2)
 
-        push_btn = ctk.CTkButton(sidebar, text="Push", command=lambda: with_feedback(self.git_push)(), **btn_style)
+        push_btn = ctk.CTkButton(sidebar, text="↑  Push", command=lambda: with_feedback(self.git_push)(), **btn_style)
         push_btn.pack(fill="x", padx=8, pady=2)
 
-        sync_btn = ctk.CTkButton(sidebar, text="Sincronizar", fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", font=("Segoe UI", 11, "bold"), height=30, anchor="center", command=lambda: with_feedback(self.git_sync)())
+        sync_btn = ctk.CTkButton(sidebar, text="⟲  Sincronizar", fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", font=("Segoe UI", 11, "bold"), height=30, anchor="center", command=lambda: with_feedback(self.git_sync)())
         sync_btn.pack(fill="x", padx=16, pady=(12, 2))
 
         feedback_label = ctk.CTkLabel(sidebar, text="", font=("Segoe UI", 10), text_color=self.colors["text_dim"], wraplength=160)
@@ -442,33 +442,98 @@ class GitPlugin:
             b, c = self.get_git_info()
             branch_label.configure(text=f"Branch: {b or 'N/A'}  |  {c} arquivos")
 
-        refresh_btn = ctk.CTkButton(header, text="Refresh", width=60, height=26, font=("Segoe UI", 11), fg_color=self.colors["panel"], hover_color=self.colors["border"], text_color=self.colors["text"], command=lambda: [refresh_status_label(), reload_file_list()])
+        refresh_btn = ctk.CTkButton(header, text="⟳  Refresh", width=70, height=26, font=("Segoe UI", 11), fg_color=self.colors["panel"], hover_color=self.colors["border"], text_color=self.colors["text"], command=lambda: [refresh_status_label(), reload_file_list()])
         refresh_btn.pack(side="right")
 
-        ctk.CTkLabel(main_area, text="Arquivos Alterados", font=("Segoe UI", 12, "bold"), text_color=self.colors["text"]).pack(anchor="w", pady=(0, 4))
+        list_header = ctk.CTkFrame(main_area, fg_color="transparent")
+        list_header.pack(fill="x", pady=(0, 4))
 
-        text_area = ctk.CTkTextbox(main_area, font=("Consolas", 12), fg_color=self.colors["panel_alt"], corner_radius=4, border_width=1, border_color=self.colors["border"])
-        text_area.pack(fill="both", expand=True, pady=(0, 12))
+        ctk.CTkLabel(list_header, text="Arquivos Alterados", font=("Segoe UI", 12, "bold"), text_color=self.colors["text"]).pack(side="left")
 
-        text_area._textbox.tag_configure("mod", foreground=self.colors["mod"])
-        text_area._textbox.tag_configure("add", foreground=self.colors["add"])
-        text_area._textbox.tag_configure("del", foreground=self.colors["del"])
+        files_count_label = ctk.CTkLabel(list_header, text="", font=("Segoe UI", 10), text_color=self.colors["text_dim"])
+        files_count_label.pack(side="left", padx=(8, 0))
+
+        unstage_all_btn = ctk.CTkButton(list_header, text="Unstage Tudo", width=94, height=22, font=("Segoe UI", 10), fg_color="transparent", hover_color=self.colors["panel"], text_color=self.colors["text_dim"], command=lambda: unstage_all())
+        unstage_all_btn.pack(side="right", padx=(4, 0))
+
+        stage_all_btn = ctk.CTkButton(list_header, text="Stage Tudo", width=84, height=22, font=("Segoe UI", 10), fg_color="transparent", hover_color=self.colors["panel"], text_color=self.colors["add"], command=lambda: stage_all())
+        stage_all_btn.pack(side="right")
+
+        file_list_frame = ctk.CTkScrollableFrame(main_area, fg_color=self.colors["panel_alt"], corner_radius=4, border_width=1, border_color=self.colors["border"])
+        file_list_frame.pack(fill="both", expand=True, pady=(0, 12))
+
+        def toggle_stage(path, currently_staged):
+            if currently_staged:
+                self.unstage_file(path)
+            else:
+                self.stage_file(path)
+            reload_file_list()
+            refresh_status_label()
+
+        def stage_all():
+            subprocess.run(["git", "add", "."], cwd=self.ctx.project_root)
+            self.async_update_status()
+            reload_file_list()
+            refresh_status_label()
+
+        def unstage_all():
+            subprocess.run(["git", "reset", "HEAD"], cwd=self.ctx.project_root)
+            self.async_update_status()
+            reload_file_list()
+            refresh_status_label()
 
         def reload_file_list():
-            text_area.configure(state="normal")
-            text_area.delete("1.0", "end")
+            for child in file_list_frame.winfo_children():
+                child.destroy()
+
             status_data = self.get_status_data()
+
             if not status_data:
-                text_area.insert("end", "\nNenhuma alteração pendente.")
-            else:
-                for code, path in status_data:
-                    tag = None
-                    if 'M' in code or 'R' in code: tag = "mod"
-                    elif 'A' in code or '?' in code: tag = "add"
-                    elif 'D' in code: tag = "del"
-                    text_area._textbox.insert("end", f"{code} ", tag)
-                    text_area._textbox.insert("end", f"{path}\n")
-            text_area.configure(state="disabled")
+                files_count_label.configure(text="0 arquivos")
+                ctk.CTkLabel(file_list_frame, text="Nenhuma alteração pendente.", font=("Segoe UI", 11), text_color=self.colors["text_dim"]).pack(pady=20)
+                return
+
+            files_count_label.configure(text=f"{len(status_data)} arquivo{'s' if len(status_data) != 1 else ''}")
+
+            for code, path in status_data:
+                char, color = "", self.colors["text"]
+                if 'M' in code: char, color = "M", self.colors["mod"]
+                elif 'A' in code or '?' in code: char, color = "A", self.colors["add"]
+                elif 'D' in code: char, color = "D", self.colors["del"]
+                elif 'R' in code: char, color = "R", self.colors["mod"]
+
+                is_staged = code[0] not in (' ', '?')
+
+                row = ctk.CTkFrame(file_list_frame, fg_color="transparent", corner_radius=4)
+                row.pack(fill="x", padx=4, pady=1)
+
+                def make_hover(r):
+                    def on_enter(_e): r.configure(fg_color=self.colors["panel"])
+                    def on_leave(_e): r.configure(fg_color="transparent")
+                    return on_enter, on_leave
+
+                on_enter, on_leave = make_hover(row)
+                row.bind("<Enter>", on_enter)
+                row.bind("<Leave>", on_leave)
+
+                check_var = ctk.BooleanVar(value=is_staged)
+                cb = ctk.CTkCheckBox(row, text="", variable=check_var, width=18, height=18, corner_radius=3,
+                                      fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"],
+                                      border_color=self.colors["border"],
+                                      command=lambda p=path, s=is_staged: toggle_stage(p, s))
+                cb.pack(side="left", padx=(6, 6), pady=4)
+                cb.bind("<Enter>", on_enter)
+                cb.bind("<Leave>", on_leave)
+
+                badge = ctk.CTkLabel(row, text=char, width=18, font=("Consolas", 11, "bold"), text_color=color)
+                badge.pack(side="left", padx=(0, 6))
+                badge.bind("<Enter>", on_enter)
+                badge.bind("<Leave>", on_leave)
+
+                path_label = ctk.CTkLabel(row, text=path, font=("Consolas", 11), text_color=self.colors["text"], anchor="w")
+                path_label.pack(side="left", fill="x", expand=True)
+                path_label.bind("<Enter>", on_enter)
+                path_label.bind("<Leave>", on_leave)
 
         reload_file_list()
 
@@ -482,19 +547,27 @@ class GitPlugin:
         def execute_commit():
             msg = entry.get()
             if not msg: return
+
+            status_data = self.get_status_data()
+            staged = [p for c, p in status_data if c[0] not in (' ', '?')]
+            if not staged:
+                original_text = commit_btn.cget("text")
+                commit_btn.configure(text="Nada staged!")
+                dialog.after(1500, lambda: commit_btn.configure(text=original_text))
+                return
+
             commit_btn.configure(state="disabled", text="Enviando...")
 
             def task():
                 try:
-                    subprocess.run(["git", "add", "."], cwd=self.ctx.project_root, check=True)
                     subprocess.run(["git", "commit", "-m", msg], cwd=self.ctx.project_root, check=True)
                     self.ctx.window.after(0, lambda: [self.async_update_status(), dialog.destroy()])
                 except subprocess.CalledProcessError:
-                    self.ctx.window.after(0, lambda: commit_btn.configure(state="normal", text="Commit"))
+                    self.ctx.window.after(0, lambda: commit_btn.configure(state="normal", text="✓  Commit"))
 
             threading.Thread(target=task, daemon=True).start()
 
-        commit_btn = ctk.CTkButton(commit_frame, text="Commit", width=100, height=36, font=("Segoe UI", 12, "bold"), fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", command=execute_commit)
+        commit_btn = ctk.CTkButton(commit_frame, text="✓  Commit", width=110, height=36, font=("Segoe UI", 12, "bold"), fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", command=execute_commit)
         commit_btn.pack(side="right")
 
         dialog.bind("<Return>", lambda e: execute_commit())
@@ -528,7 +601,7 @@ class GitPlugin:
             else:
                 feedback.configure(text=msg[:80])
 
-        btn = ctk.CTkButton(popup, text="Criar e Trocar", height=32, fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", command=confirm)
+        btn = ctk.CTkButton(popup, text="＋  Criar e Trocar", height=32, fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", command=confirm)
         btn.pack(pady=16, padx=20, fill="x")
 
         popup.bind("<Return>", lambda e: confirm())
@@ -541,8 +614,8 @@ class GitPlugin:
 
         popup = ctk.CTkToplevel(parent)
         popup.title("Histórico de Commits")
-        popup.geometry("620x600")
-        popup.minsize(460, 380)
+        popup.geometry("680x640")
+        popup.minsize(480, 420)
         popup.attributes("-topmost", True)
         popup.configure(fg_color=self.colors["bg"])
         popup.focus_set()
@@ -553,7 +626,11 @@ class GitPlugin:
         branch, _ = self.get_git_info()
         ctk.CTkLabel(header, text=f"Branch: {branch or 'N/A'}", font=("Segoe UI", 13, "bold"), text_color=self.colors["accent"]).pack(side="left", padx=16, pady=12)
 
-        refresh_btn = ctk.CTkButton(header, text="Refresh", width=60, height=26, font=("Segoe UI", 11), fg_color="transparent", hover_color=self.colors["panel_alt"], text_color=self.colors["text"], command=lambda: reload_log())
+        search_var = ctk.StringVar()
+        search_entry = ctk.CTkEntry(header, textvariable=search_var, placeholder_text="Filtrar por mensagem, autor ou hash...", height=28, width=230, fg_color=self.colors["panel_alt"], border_color=self.colors["border"], corner_radius=4)
+        search_entry.pack(side="left", padx=(12, 0), pady=12)
+
+        refresh_btn = ctk.CTkButton(header, text="⟳  Refresh", width=70, height=26, font=("Segoe UI", 11), fg_color="transparent", hover_color=self.colors["panel_alt"], text_color=self.colors["text"], command=lambda: reload_log())
         refresh_btn.pack(side="right", padx=16, pady=12)
 
         canvas_frame = ctk.CTkFrame(popup, fg_color=self.colors["panel_alt"], corner_radius=0)
@@ -561,7 +638,7 @@ class GitPlugin:
         canvas_frame.grid_rowconfigure(0, weight=1)
         canvas_frame.grid_columnconfigure(0, weight=1)
 
-        graph_canvas = tk.Canvas(canvas_frame, bg=self.colors["panel_alt"], highlightthickness=0)
+        graph_canvas = tk.Canvas(canvas_frame, bg=self.colors["panel_alt"], highlightthickness=0, cursor="hand2")
         graph_canvas.grid(row=0, column=0, sticky="nsew")
 
         vscroll = ctk.CTkScrollbar(canvas_frame, orientation="vertical", command=graph_canvas.yview)
@@ -584,19 +661,125 @@ class GitPlugin:
         graph_canvas.bind("<Enter>", _bind_wheel)
         graph_canvas.bind("<Leave>", _unbind_wheel)
 
-        state = {"commits": None}
+        detail_panel = ctk.CTkFrame(popup, fg_color=self.colors["panel"], corner_radius=0, height=76)
+        detail_panel.pack(fill="x", side="bottom")
+        detail_panel.pack_propagate(False)
+
+        detail_label = ctk.CTkLabel(detail_panel, text="Clique em um commit para ver detalhes.", font=("Segoe UI", 11), text_color=self.colors["text_dim"], anchor="w", justify="left", wraplength=520)
+        detail_label.pack(side="left", fill="both", expand=True, padx=16, pady=10)
+
+        def copy_hash():
+            sel = state.get("selected")
+            if sel:
+                popup.clipboard_clear()
+                popup.clipboard_append(sel.get("full", sel["hash"]))
+                copy_btn.configure(text="Copiado!")
+                popup.after(1200, lambda: copy_btn.configure(text="Copiar Hash"))
+
+        copy_btn = ctk.CTkButton(detail_panel, text="Copiar Hash", width=110, height=28, font=("Segoe UI", 10), fg_color=self.colors["panel_alt"], hover_color=self.colors["border"], text_color=self.colors["text"], command=copy_hash)
+        copy_btn.pack(side="right", padx=16, pady=10)
+
+        state = {"commits": None, "hover_idx": None, "selected": None, "selected_idx": None, "content_w": 420, "search_job": None, "resize_job": None, "tooltip": None}
         msg_font = tkfont.Font(family="Segoe UI", size=11)
+        msg_font_bold = tkfont.Font(family="Segoe UI", size=11, weight="bold")
         dim_font = tkfont.Font(family="Segoe UI", size=9)
+        pill_font = tkfont.Font(family="Segoe UI", size=9, weight="bold")
+
+        hover_overlay = graph_canvas.create_rectangle(-10, -10, -10, -10, outline=self.colors["accent_hover"], width=1, fill="", state="hidden")
+        selection_overlay = graph_canvas.create_rectangle(-10, -10, -10, -10, outline=self.colors["accent"], width=2, fill="", state="hidden")
 
         def lane_color(col: int) -> str: return self.graph_colors[col % len(self.graph_colors)]
 
-        def draw(commits):
-            graph_canvas.delete("all")
+        def set_hover(idx):
+            if idx is None:
+                graph_canvas.itemconfigure(hover_overlay, state="hidden")
+                return
+            cw = state["content_w"]
+            y0, y1 = idx * ROW_H, (idx + 1) * ROW_H
+            graph_canvas.coords(hover_overlay, 1, y0 + 1, cw - 1, y1 - 1)
+            graph_canvas.itemconfigure(hover_overlay, state="normal")
+
+        def set_selection(idx):
+            if idx is None:
+                graph_canvas.itemconfigure(selection_overlay, state="hidden")
+                return
+            cw = state["content_w"]
+            y0, y1 = idx * ROW_H, (idx + 1) * ROW_H
+            graph_canvas.coords(selection_overlay, 1, y0 + 1, cw - 1, y1 - 1)
+            graph_canvas.itemconfigure(selection_overlay, state="normal")
+
+        def _hide_tooltip():
+            tw = state.get("tooltip")
+            if tw is not None:
+                try:
+                    tw.destroy()
+                except Exception:
+                    pass
+                state["tooltip"] = None
+
+        def _position_tooltip(tw, x_root, y_root):
+            tw.update_idletasks()
+            tw_w = tw.winfo_width()
+            tw_h = tw.winfo_height()
+            screen_w = tw.winfo_screenwidth()
+            screen_h = tw.winfo_screenheight()
+
+            x = x_root + 16
+            y = y_root + 16
+            if x + tw_w > screen_w:
+                x = x_root - tw_w - 16
+            if y + tw_h > screen_h:
+                y = y_root - tw_h - 16
+            tw.geometry(f"+{int(x)}+{int(y)}")
+
+        def _show_tooltip(idx, x_root, y_root):
+            if not state["commits"] or idx is None or idx >= len(state["commits"]):
+                _hide_tooltip()
+                return
+            c = state["commits"][idx]
+            _hide_tooltip()
+
+            tw = tk.Toplevel(popup)
+            tw.overrideredirect(True)
+            tw.attributes("-topmost", True)
+            tw.configure(bg=self.colors["border"])
+
+            inner = tk.Frame(tw, bg=self.colors["panel"], highlightthickness=0)
+            inner.pack(padx=1, pady=1)
+
+            tk.Label(
+                inner, text=c["message"], bg=self.colors["panel"], fg="#ffffff",
+                font=("Segoe UI", 10, "bold"), anchor="w", justify="left", wraplength=320
+            ).pack(anchor="w", padx=10, pady=(8, 3))
+
+            tk.Label(
+                inner, text=f"Autor: {c['author']}", bg=self.colors["panel"], fg=self.colors["text_dim"],
+                font=("Segoe UI", 9), anchor="w", justify="left"
+            ).pack(anchor="w", padx=10)
+
+            tk.Label(
+                inner, text=f"Data: {c['date']}", bg=self.colors["panel"], fg=self.colors["text_dim"],
+                font=("Segoe UI", 9), anchor="w", justify="left"
+            ).pack(anchor="w", padx=10)
+
+            tk.Label(
+                inner, text=c["hash"], bg=self.colors["panel"], fg=self.colors["accent"],
+                font=("Consolas", 9), anchor="w", justify="left"
+            ).pack(anchor="w", padx=10, pady=(2, 8))
+
+            _position_tooltip(tw, x_root, y_root)
+            state["tooltip"] = tw
+
+        def draw(commits, filter_text=""):
+            graph_canvas.delete("commit_item")
             visible_w = max(graph_canvas.winfo_width(), 420)
+            filter_text = (filter_text or "").strip().lower()
 
             if not commits:
-                graph_canvas.create_text(20, 24, anchor="w", text="Nenhum commit.", fill=self.colors["text_dim"], font=("Segoe UI", 11))
+                graph_canvas.create_text(20, 24, anchor="w", text="Nenhum commit.", fill=self.colors["text_dim"], font=("Segoe UI", 11), tags=("commit_item",))
                 graph_canvas.configure(scrollregion=(0, 0, visible_w, 60))
+                graph_canvas.itemconfigure(hover_overlay, state="hidden")
+                graph_canvas.itemconfigure(selection_overlay, state="hidden")
                 return
 
             max_col = max(max([c["col"]] + c["incoming"] + c["outgoing"] + c["passthrough"], default=0) for c in commits)
@@ -606,6 +789,7 @@ class GitPlugin:
             tx = graph_w
             content_w = max(visible_w, graph_w + MIN_TEXT_W)
             total_h = len(commits) * ROW_H
+            state["content_w"] = content_w
 
             def lane_x(col: int) -> float: return GRAPH_PAD + col * col_w
 
@@ -614,62 +798,130 @@ class GitPlugin:
                 yc = y0 + ROW_H / 2
                 col_x = lane_x(c["col"])
                 color = lane_color(c["col"])
+                row_tag = f"row{i}"
+                item_tags = ("commit_item", row_tag)
 
-                if c["is_head"]: graph_canvas.create_rectangle(0, y0, content_w, y1, fill="#2c3a4d", width=0)
-                elif i % 2 == 1: graph_canvas.create_rectangle(0, y0, content_w, y1, fill=self.colors["panel"], width=0)
+                matched = True
+                if filter_text:
+                    matched = filter_text in c["message"].lower() or filter_text in c["author"].lower() or filter_text in c["hash"].lower()
+
+                if c["is_head"]:
+                    row_bg = "#2c3a4d"
+                elif i % 2 == 1:
+                    row_bg = self.colors["panel"]
+                else:
+                    row_bg = self.colors["panel_alt"]
+
+                graph_canvas.create_rectangle(0, y0, content_w, y1, fill=row_bg, width=0, tags=item_tags)
 
                 for pcol in c["passthrough"]:
                     px = lane_x(pcol)
-                    graph_canvas.create_line(px, y0, px, y1, fill=lane_color(pcol), width=2)
+                    graph_canvas.create_line(px, y0, px, y1, fill=lane_color(pcol), width=2, tags=item_tags)
 
-                if c["same_col_in"]: graph_canvas.create_line(col_x, y0, col_x, yc, fill=color, width=2)
+                if c["same_col_in"]: graph_canvas.create_line(col_x, y0, col_x, yc, fill=color, width=2, tags=item_tags)
                 for icol in c["incoming"]:
                     ix = lane_x(icol)
-                    graph_canvas.create_line(ix, y0, col_x, yc, fill=lane_color(icol), width=2)
+                    graph_canvas.create_line(ix, y0, col_x, yc, fill=lane_color(icol), width=2, tags=item_tags)
 
-                if c["same_col_out"]: graph_canvas.create_line(col_x, yc, col_x, y1, fill=color, width=2)
+                if c["same_col_out"]: graph_canvas.create_line(col_x, yc, col_x, y1, fill=color, width=2, tags=item_tags)
                 for ocol in c["outgoing"]:
                     ox = lane_x(ocol)
-                    graph_canvas.create_line(col_x, yc, ox, y1, fill=color, width=2)
+                    graph_canvas.create_line(col_x, yc, ox, y1, fill=color, width=2, tags=item_tags)
 
                 r = 5 if c["is_merge"] else (4 if col_w >= 12 else 3)
-                graph_canvas.create_oval(col_x - r, yc - r, col_x + r, yc + r, fill=color, outline=self.colors["bg"], width=2)
+                graph_canvas.create_oval(col_x - r, yc - r, col_x + r, yc + r, fill=color, outline=self.colors["bg"], width=2, tags=item_tags)
 
                 msg = c["message"]
                 avail_px = content_w - tx - 70
                 while msg and msg_font.measure(msg) > avail_px: msg = msg[:-1]
                 if msg != c["message"]: msg = msg[:-1] + "…"
 
-                msg_color = "#ffffff" if c["is_head"] else self.colors["text"]
-                msg_weight = "bold" if c["is_head"] else "normal"
-                row_font = tkfont.Font(family="Segoe UI", size=11, weight=msg_weight)
+                if not matched:
+                    msg_color = self.colors["text_dim"]
+                else:
+                    msg_color = "#ffffff" if c["is_head"] else self.colors["text"]
+                row_font = msg_font_bold if c["is_head"] else msg_font
 
-                graph_canvas.create_text(tx, yc, anchor="w", text=msg, fill=msg_color, font=row_font)
+                graph_canvas.create_text(tx, yc, anchor="w", text=msg, fill=msg_color, font=row_font, tags=item_tags)
                 msg_w = row_font.measure(msg)
                 author_x = tx + msg_w + 12
 
-                graph_canvas.create_text(author_x, yc, anchor="w", text=c["author"], fill=self.colors["text_dim"], font=dim_font)
-                graph_canvas.create_text(content_w - 14, yc, anchor="e", text=c["hash"], fill=self.colors["text_dim"], font=("Consolas", 9))
+                author_color = self.colors["text_dim"] if matched else self.colors["border"]
+                graph_canvas.create_text(author_x, yc, anchor="w", text=c["author"], fill=author_color, font=dim_font, tags=item_tags)
+                graph_canvas.create_text(content_w - 14, yc, anchor="e", text=c["hash"], fill=self.colors["text_dim"], font=("Consolas", 9), tags=item_tags)
 
                 if c["is_head"] and branch:
                     label = branch if len(branch) <= 18 else branch[:16] + "…"
-                    pill_w = tkfont.Font(family="Segoe UI", size=9, weight="bold").measure(label) + 16
+                    pill_w = pill_font.measure(label) + 16
                     pill_x = author_x + dim_font.measure(c["author"]) + 10
-                    graph_canvas.create_rectangle(pill_x, yc - 9, pill_x + pill_w, yc + 9, fill=self.colors["accent"], outline="", width=0)
-                    graph_canvas.create_text(pill_x + pill_w / 2, yc, text=label, fill="#1e2127", font=("Segoe UI", 9, "bold"))
+                    graph_canvas.create_rectangle(pill_x, yc - 9, pill_x + pill_w, yc + 9, fill=self.colors["accent"], outline="", width=0, tags=item_tags)
+                    graph_canvas.create_text(pill_x + pill_w / 2, yc, text=label, fill="#1e2127", font=pill_font, tags=item_tags)
+
+                graph_canvas.tag_bind(row_tag, "<Button-1>", lambda e, idx=i: on_select(idx))
 
             graph_canvas.configure(scrollregion=(0, 0, content_w, total_h))
+            graph_canvas.tag_raise(hover_overlay)
+            graph_canvas.tag_raise(selection_overlay)
+            set_hover(state.get("hover_idx"))
+            set_selection(state.get("selected_idx"))
+
+        def on_select(idx):
+            if not state["commits"] or idx >= len(state["commits"]): return
+            c = state["commits"][idx]
+            state["selected"] = c
+            state["selected_idx"] = idx
+            detail_label.configure(text=f"{c['hash']}  |  {c['author']}  |  {c['date']}\n{c['message']}")
+            set_selection(idx)
+
+        def on_motion(event):
+            if not state["commits"]:
+                return
+            y = graph_canvas.canvasy(event.y)
+            idx = int(y // ROW_H)
+            if idx < 0 or idx >= len(state["commits"]): idx = None
+
+            if idx != state.get("hover_idx"):
+                state["hover_idx"] = idx
+                set_hover(idx)
+                if idx is None:
+                    _hide_tooltip()
+                else:
+                    _show_tooltip(idx, event.x_root, event.y_root)
+            elif idx is not None and state.get("tooltip") is not None:
+                _position_tooltip(state["tooltip"], event.x_root, event.y_root)
+
+        def on_canvas_leave(event):
+            if state.get("hover_idx") is not None:
+                state["hover_idx"] = None
+                set_hover(None)
+            _hide_tooltip()
+
+        graph_canvas.bind("<Motion>", on_motion, add="+")
+        graph_canvas.bind("<Leave>", on_canvas_leave, add="+")
 
         def reload_log():
+            _hide_tooltip()
             state["commits"] = self.get_commit_graph()
-            draw(state["commits"])
+            state["selected"] = None
+            state["selected_idx"] = None
+            state["hover_idx"] = None
+            detail_label.configure(text="Clique em um commit para ver detalhes.")
+            draw(state["commits"], search_var.get())
 
         def redraw_only(_event=None):
-            if state["commits"] is not None: draw(state["commits"])
+            if state.get("resize_job"): popup.after_cancel(state["resize_job"])
+            state["resize_job"] = popup.after(80, lambda: draw(state["commits"], search_var.get()) if state["commits"] is not None else None)
+
+        def on_search_change(*_a):
+            if state.get("search_job"): popup.after_cancel(state["search_job"])
+            state["search_job"] = popup.after(150, lambda: draw(state["commits"], search_var.get()) if state["commits"] is not None else None)
+
+        search_var.trace_add("write", on_search_change)
 
         popup.after(30, reload_log)
         graph_canvas.bind("<Configure>", redraw_only)
         popup.bind("<Escape>", lambda e: popup.destroy())
+        popup.protocol("WM_DELETE_WINDOW", lambda: [_hide_tooltip(), popup.destroy()])
 
     def _open_switch_branch_dialog(self, parent, on_switched=None):
         branches = self.get_branches()
@@ -677,31 +929,68 @@ class GitPlugin:
 
         popup = ctk.CTkToplevel(parent)
         popup.title("Trocar Branch")
-        popup.geometry("360x220")
+        popup.geometry("360x360")
+        popup.minsize(320, 280)
         popup.attributes("-topmost", True)
         popup.configure(fg_color=self.colors["bg"])
         popup.focus_set()
 
         ctk.CTkLabel(popup, text="Selecione a branch", font=("Segoe UI", 12, "bold"), text_color=self.colors["text"]).pack(pady=(20, 4), padx=20, anchor="w")
         current_branch, _ = self.get_git_info()
-        
-        combo = ctk.CTkComboBox(popup, values=branches, fg_color=self.colors["panel_alt"], border_color=self.colors["border"], button_color=self.colors["accent"], button_hover_color=self.colors["accent_hover"])
-        combo.set(current_branch if current_branch in branches else branches[0])
-        combo.pack(fill="x", padx=20, pady=4)
+
+        filter_entry = ctk.CTkEntry(popup, placeholder_text="Filtrar branches...", fg_color=self.colors["panel_alt"], border_color=self.colors["border"], corner_radius=4)
+        filter_entry.pack(fill="x", padx=20, pady=4)
+        filter_entry.focus_set()
+
+        list_frame = ctk.CTkScrollableFrame(popup, fg_color=self.colors["panel_alt"], corner_radius=4, border_width=1, border_color=self.colors["border"])
+        list_frame.pack(fill="both", expand=True, padx=20, pady=8)
 
         feedback = ctk.CTkLabel(popup, text="", font=("Segoe UI", 10), text_color=self.colors["text_dim"])
         feedback.pack(padx=20, anchor="w")
 
-        def confirm():
-            target = combo.get().strip()
-            if not target: return
+        state = {"selected": current_branch if current_branch in branches else branches[0]}
+
+        def confirm(target=None):
+            name = target or state["selected"]
+            if not name: return
             feedback.configure(text="Trocando...")
             popup.update_idletasks()
-            self.switch_branch(target)
+            self.switch_branch(name)
             popup.destroy()
             if on_switched: on_switched()
 
-        btn = ctk.CTkButton(popup, text="Trocar", height=32, fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", command=confirm)
+        def render_list(filter_text=""):
+            for child in list_frame.winfo_children():
+                child.destroy()
+
+            filter_text = filter_text.strip().lower()
+            shown = [b for b in branches if filter_text in b.lower()]
+
+            if not shown:
+                ctk.CTkLabel(list_frame, text="Nenhuma branch encontrada.", font=("Segoe UI", 11), text_color=self.colors["text_dim"]).pack(pady=12)
+                return
+
+            for b in shown:
+                is_current = b == current_branch
+                is_selected = b == state["selected"]
+                row_color = self.colors["accent"] if is_selected else "transparent"
+                row_text_color = "#1e2127" if is_selected else self.colors["text"]
+                row_hover = self.colors["accent_hover"] if is_selected else self.colors["panel"]
+
+                def select_and_render(name=b):
+                    state["selected"] = name
+                    render_list(filter_entry.get())
+
+                btn = ctk.CTkButton(list_frame, text=(f"{b}  (atual)" if is_current else b), anchor="w", height=28,
+                                     fg_color=row_color, hover_color=row_hover, text_color=row_text_color,
+                                     font=("Segoe UI", 11), command=select_and_render)
+                btn.pack(fill="x", padx=4, pady=2)
+                btn.bind("<Double-Button-1>", lambda e, name=b: confirm(name))
+
+        render_list()
+        filter_entry.bind("<KeyRelease>", lambda e: render_list(filter_entry.get()))
+
+        btn = ctk.CTkButton(popup, text="⇄  Trocar", height=32, fg_color=self.colors["accent"], hover_color=self.colors["accent_hover"], text_color="#1e2127", command=lambda: confirm())
         btn.pack(pady=16, padx=20, fill="x")
 
         popup.bind("<Return>", lambda e: confirm())
