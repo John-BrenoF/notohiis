@@ -679,7 +679,7 @@ class GitPlugin:
         copy_btn = ctk.CTkButton(detail_panel, text="Copiar Hash", width=110, height=28, font=("Segoe UI", 10), fg_color=self.colors["panel_alt"], hover_color=self.colors["border"], text_color=self.colors["text"], command=copy_hash)
         copy_btn.pack(side="right", padx=16, pady=10)
 
-        state = {"commits": None, "hover_idx": None, "selected": None, "selected_idx": None, "content_w": 420, "search_job": None, "resize_job": None}
+        state = {"commits": None, "hover_idx": None, "selected": None, "selected_idx": None, "content_w": 420, "search_job": None, "resize_job": None, "tooltip": None}
         msg_font = tkfont.Font(family="Segoe UI", size=11)
         msg_font_bold = tkfont.Font(family="Segoe UI", size=11, weight="bold")
         dim_font = tkfont.Font(family="Segoe UI", size=9)
@@ -707,6 +707,68 @@ class GitPlugin:
             y0, y1 = idx * ROW_H, (idx + 1) * ROW_H
             graph_canvas.coords(selection_overlay, 1, y0 + 1, cw - 1, y1 - 1)
             graph_canvas.itemconfigure(selection_overlay, state="normal")
+
+        def _hide_tooltip():
+            tw = state.get("tooltip")
+            if tw is not None:
+                try:
+                    tw.destroy()
+                except Exception:
+                    pass
+                state["tooltip"] = None
+
+        def _position_tooltip(tw, x_root, y_root):
+            tw.update_idletasks()
+            tw_w = tw.winfo_width()
+            tw_h = tw.winfo_height()
+            screen_w = tw.winfo_screenwidth()
+            screen_h = tw.winfo_screenheight()
+
+            x = x_root + 16
+            y = y_root + 16
+            if x + tw_w > screen_w:
+                x = x_root - tw_w - 16
+            if y + tw_h > screen_h:
+                y = y_root - tw_h - 16
+            tw.geometry(f"+{int(x)}+{int(y)}")
+
+        def _show_tooltip(idx, x_root, y_root):
+            if not state["commits"] or idx is None or idx >= len(state["commits"]):
+                _hide_tooltip()
+                return
+            c = state["commits"][idx]
+            _hide_tooltip()
+
+            tw = tk.Toplevel(popup)
+            tw.overrideredirect(True)
+            tw.attributes("-topmost", True)
+            tw.configure(bg=self.colors["border"])
+
+            inner = tk.Frame(tw, bg=self.colors["panel"], highlightthickness=0)
+            inner.pack(padx=1, pady=1)
+
+            tk.Label(
+                inner, text=c["message"], bg=self.colors["panel"], fg="#ffffff",
+                font=("Segoe UI", 10, "bold"), anchor="w", justify="left", wraplength=320
+            ).pack(anchor="w", padx=10, pady=(8, 3))
+
+            tk.Label(
+                inner, text=f"Autor: {c['author']}", bg=self.colors["panel"], fg=self.colors["text_dim"],
+                font=("Segoe UI", 9), anchor="w", justify="left"
+            ).pack(anchor="w", padx=10)
+
+            tk.Label(
+                inner, text=f"Data: {c['date']}", bg=self.colors["panel"], fg=self.colors["text_dim"],
+                font=("Segoe UI", 9), anchor="w", justify="left"
+            ).pack(anchor="w", padx=10)
+
+            tk.Label(
+                inner, text=c["hash"], bg=self.colors["panel"], fg=self.colors["accent"],
+                font=("Consolas", 9), anchor="w", justify="left"
+            ).pack(anchor="w", padx=10, pady=(2, 8))
+
+            _position_tooltip(tw, x_root, y_root)
+            state["tooltip"] = tw
 
         def draw(commits, filter_text=""):
             graph_canvas.delete("commit_item")
@@ -812,23 +874,33 @@ class GitPlugin:
             set_selection(idx)
 
         def on_motion(event):
-            if not state["commits"]: return
+            if not state["commits"]:
+                return
             y = graph_canvas.canvasy(event.y)
             idx = int(y // ROW_H)
             if idx < 0 or idx >= len(state["commits"]): idx = None
+
             if idx != state.get("hover_idx"):
                 state["hover_idx"] = idx
                 set_hover(idx)
+                if idx is None:
+                    _hide_tooltip()
+                else:
+                    _show_tooltip(idx, event.x_root, event.y_root)
+            elif idx is not None and state.get("tooltip") is not None:
+                _position_tooltip(state["tooltip"], event.x_root, event.y_root)
 
         def on_canvas_leave(event):
             if state.get("hover_idx") is not None:
                 state["hover_idx"] = None
                 set_hover(None)
+            _hide_tooltip()
 
         graph_canvas.bind("<Motion>", on_motion, add="+")
         graph_canvas.bind("<Leave>", on_canvas_leave, add="+")
 
         def reload_log():
+            _hide_tooltip()
             state["commits"] = self.get_commit_graph()
             state["selected"] = None
             state["selected_idx"] = None
@@ -849,6 +921,7 @@ class GitPlugin:
         popup.after(30, reload_log)
         graph_canvas.bind("<Configure>", redraw_only)
         popup.bind("<Escape>", lambda e: popup.destroy())
+        popup.protocol("WM_DELETE_WINDOW", lambda: [_hide_tooltip(), popup.destroy()])
 
     def _open_switch_branch_dialog(self, parent, on_switched=None):
         branches = self.get_branches()
