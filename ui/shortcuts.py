@@ -18,6 +18,20 @@ class ShortcutManager:
     """Gerencia os atalhos de teclado da aplicação."""
     
     @staticmethod
+    def next_tab(event=None):
+        ctx = AppContext()
+        if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge:
+            ctx.tab_bridge.next_tab()
+        return "break"
+
+    @staticmethod
+    def prev_tab(event=None):
+        ctx = AppContext()
+        if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge:
+            ctx.tab_bridge.prev_tab()
+        return "break"
+
+    @staticmethod
     def setup_shortcuts(window):
         """
         Configura todos os atalhos de teclado da aplicação.
@@ -33,6 +47,7 @@ class ShortcutManager:
         - Ctrl+Alt+C: Painel de controle
         - Ctrl+M: Toggle Markdown Preview
         - Ctrl+G: Quick Git Commit
+        - Alt+Setas direita/esquerda: Navegar entre abas
         
         Navegação rápida:
         - Alt+↑/↓ + Número (1-9): Mover cursor N linhas para cima/baixo
@@ -47,9 +62,11 @@ class ShortcutManager:
         window.bind("<Control-o>", ShortcutManager.open_folder)
         window.bind("<F1>", ShortcutManager.show_help)
         window.bind("<Control-n>", ShortcutManager.new_buffer)
-        window.bind("<Control-n>", ShortcutManager.new_buffer)
+        window.bind("<Control-N>", ShortcutManager.new_buffer)
         window.bind("<Control-r>", ShortcutManager.open_quick_access)
         window.bind("<Control-R>", ShortcutManager.open_quick_access)
+        window.bind("<Alt-Right>", ShortcutManager.next_tab)
+        window.bind("<Alt-Left>", ShortcutManager.prev_tab)
         
         # Painel de Controle (Configurações e Plugins)
         window.bind("<Control-Alt-c>", ShortcutManager.open_control_panel)
@@ -203,6 +220,7 @@ class ShortcutManager:
 
         ctx = AppContext()
         HelpWindow(ctx.window)
+        
     @staticmethod
     def open_control_panel(event=None):
         from ui.control_panel import ControlPanel
