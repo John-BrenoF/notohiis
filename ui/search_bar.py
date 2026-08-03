@@ -10,7 +10,6 @@
 #[add] adição  do arquivo search_bar.py
 # ui/search_bar.py (não retire essa linha de comentario)
 import customtkinter as ctk
-import json
 from core.src.app_context import AppContext
 
 class SearchBar(ctk.CTkFrame):
@@ -40,27 +39,20 @@ class SearchBar(ctk.CTkFrame):
         self.apply_theme()
 
     def apply_theme(self):
-        try:
-            with open("ui/preferencias/preferecia.json", "r", encoding="utf-8") as f:
-                prefs = json.load(f)
-                tema_nome = prefs.get("selected_theme", "default")
-            
-            with open(f"ui/estilo/{tema_nome}.json", "r", encoding="utf-8") as f:
-                tema = json.load(f)
+        tema = self.ctx.theme
+        if not tema:
+            return
 
-            bg_color = tema.get("editor", {}).get("bg", "#1e1e1e")
-            fg_color = tema.get("editor", {}).get("fg", "#d4d4d4")
-            entry_bg = tema.get("editor", {}).get("selection_bg", "#2d2d30")
-            btn_hover = tema.get("editor", {}).get("gutter_bg", "#3e3e42")
+        bg_color = tema.get("editor", {}).get("bg", "#1e1e1e")
+        fg_color = tema.get("editor", {}).get("fg", "#d4d4d4")
+        entry_bg = tema.get("editor", {}).get("selection_bg", "#2d2d30")
+        btn_hover = tema.get("editor", {}).get("gutter_bg", "#3e3e42")
 
-            self.configure(fg_color=bg_color)
-            self.entry.configure(fg_color=entry_bg, text_color=fg_color, border_color=btn_hover)
-            self.lbl_count.configure(text_color=fg_color)
-            self.btn_prev.configure(fg_color=bg_color, hover_color=btn_hover, text_color=fg_color)
-            self.btn_next.configure(fg_color=bg_color, hover_color=btn_hover, text_color=fg_color)
-            
-        except (FileNotFoundError, json.JSONDecodeError):
-            pass
+        self.configure(fg_color=bg_color)
+        self.entry.configure(fg_color=entry_bg, text_color=fg_color, border_color=btn_hover)
+        self.lbl_count.configure(text_color=fg_color)
+        self.btn_prev.configure(fg_color=bg_color, hover_color=btn_hover, text_color=fg_color)
+        self.btn_next.configure(fg_color=bg_color, hover_color=btn_hover, text_color=fg_color)
 
     def update_count(self, current, total):
         if total == 0:
