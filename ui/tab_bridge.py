@@ -199,6 +199,24 @@ class TabBridge:
         if self.ctx.status_bar:
             self.ctx.status_bar.update_status(1, 0, self.ctx.current_file)
 
+    def next_tab(self):
+        tabs = self.ctx.tab_manager.get_tabs()
+        if not tabs or len(tabs) < 2: return
+        current_id = self.ctx.tab_manager.active_tab_id
+        idx = next((i for i, t in enumerate(tabs) if t.id == current_id), -1)
+        if idx != -1:
+            next_idx = (idx + 1) % len(tabs)
+            self.select_tab(tabs[next_idx].id)
+
+    def prev_tab(self):
+        tabs = self.ctx.tab_manager.get_tabs()
+        if not tabs or len(tabs) < 2: return
+        current_id = self.ctx.tab_manager.active_tab_id
+        idx = next((i for i, t in enumerate(tabs) if t.id == current_id), -1)
+        if idx != -1:
+            prev_idx = (idx - 1) % len(tabs)
+            self.select_tab(tabs[prev_idx].id)
+
     def _render_tabs(self):
         current_tabs = self.ctx.tab_manager.get_tabs()
         current_ids = {tab.id for tab in current_tabs}

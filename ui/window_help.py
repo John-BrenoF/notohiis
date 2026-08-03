@@ -16,6 +16,7 @@ class HelpWindow:
         ("Ctrl+A", "Selecionar Tudo"),
         ("ctrl+alt+c", "Painel de Controle"),
         ("Alt+↑/↓ + Num", "Navegação Rápida"),
+        ("alt+setas D/E", "Navegar entre abas"),
         ("F1", "Ajuda"),
     ]
 
