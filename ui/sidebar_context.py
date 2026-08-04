@@ -136,6 +136,11 @@ class SidebarContextMenu:
         self._add_item("Renomear", self._menu_rename, icon="\uf044", **base_style, state="normal" if has_targets and not multi else "disabled")
         
         self._add_separator()
+
+        self._add_item("Copiar Caminho Relativo", self._copy_relative_path, icon="\uf0c5", **base_style, state="normal" if has_targets else "disabled")
+        self._add_item("Copiar Caminho Absoluto", self._copy_absolute_path, icon="\uf0c5", **base_style, state="normal" if has_targets else "disabled")
+        
+        self._add_separator()
         
         delete_style = base_style.copy()
         delete_style["text_color"] = "#e06c75"
@@ -186,6 +191,22 @@ class SidebarContextMenu:
         if not self._menu_targets or len(self._menu_targets) > 1:
             return
         RenameDialog(self.sidebar, self._menu_targets[0], self._on_rename_success)
+
+    def _copy_relative_path(self):
+        if not self._menu_targets:
+            return
+        ctx = AppContext()
+        root = ctx.project_root or ""
+        paths = "\n".join([os.path.relpath(t, root) if root else t for t in self._menu_targets])
+        self.sidebar.clipboard_clear()
+        self.sidebar.clipboard_append(paths)
+
+    def _copy_absolute_path(self):
+        if not self._menu_targets:
+            return
+        paths = "\n".join(self._menu_targets)
+        self.sidebar.clipboard_clear()
+        self.sidebar.clipboard_append(paths)
 
     def _menu_delete(self):
         if not self._menu_targets:
