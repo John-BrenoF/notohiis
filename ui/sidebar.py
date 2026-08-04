@@ -32,30 +32,30 @@ class Sidebar(ctk.CTkFrame):
         
         # Cabeçalho da Sidebar
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.header_frame.pack(fill="x", pady=(15, 5), padx=10)
+        self.header_frame.pack(fill="x", pady=(15, 10), padx=14)
         
         self.label = ctk.CTkLabel(self.header_frame, text="EXPLORER", font=("Segoe UI", 11, "bold"), text_color=theme.get("label", "gray"))
         self.label.pack(side="left")
 
         # Botões de ação rápida (estilo VS Code)
         self.refresh_btn = ctk.CTkButton(
-            self.header_frame, text="󰑐", width=20, height=20, corner_radius=4,
+            self.header_frame, text="󰑐", width=24, height=24, corner_radius=4,
             fg_color="transparent", hover_color=theme.get("hover", "#2d2d2d"),
-            text_color=theme.get("label", "gray"), command=self.refresh_explorer
+            text_color=theme.get("label", "gray"), font=("Segoe UI", 14), command=self.refresh_explorer
         )
         self.refresh_btn.pack(side="right")
 
         self.new_folder_btn = ctk.CTkButton(
-            self.header_frame, text="󰉋", width=20, height=20, corner_radius=4,
+            self.header_frame, text="󰉋", width=24, height=24, corner_radius=4,
             fg_color="transparent", hover_color=theme.get("hover", "#2d2d2d"),
-            text_color=theme.get("label", "gray"), command=lambda: self._show_inline_entry(is_dir=True)
+            text_color=theme.get("label", "gray"), font=("Segoe UI", 14), command=lambda: self._show_inline_entry(is_dir=True)
         )
         self.new_folder_btn.pack(side="right", padx=2)
 
         self.new_file_btn = ctk.CTkButton(
-            self.header_frame, text="󰈔", width=20, height=20, corner_radius=4,
+            self.header_frame, text="󰈔", width=24, height=24, corner_radius=4,
             fg_color="transparent", hover_color=theme.get("hover", "#2d2d2d"),
-            text_color=theme.get("label", "gray"), command=lambda: self._show_inline_entry(is_dir=False)
+            text_color=theme.get("label", "gray"), font=("Segoe UI", 14), command=lambda: self._show_inline_entry(is_dir=False)
         )
         self.new_file_btn.pack(side="right", padx=2)
         
@@ -68,7 +68,6 @@ class Sidebar(ctk.CTkFrame):
             scrollbar_button_hover_color=theme.get("label", "#5c6370")
         )
         self.scrollable_frame.pack(fill="both", expand=True)
-        
         
         self.scrollable_frame._scrollbar.configure(width=8)
 
@@ -102,13 +101,17 @@ class Sidebar(ctk.CTkFrame):
 
         ctx = AppContext()
         if not ctx.project_root:
-            ctk.CTkLabel(self.scrollable_frame, text="Nenhum diretório\naberto", text_color="gray").pack(pady=20)
+            ctk.CTkLabel(self.scrollable_frame, text="Nenhum diretório\naberto", text_color="gray").pack(pady=40)
             return
 
-        items = FileManager.list_directory(ctx.project_root)
+        try:
+            items = FileManager.list_directory(ctx.project_root)
+        except Exception as e:
+            self._show_error(f"Erro ao ler diretório:\n{str(e)}")
+            return
         
         # Botão para voltar (opcional)
-        if ctx.project_root != "/":
+        if ctx.project_root != "/" and os.path.dirname(ctx.project_root) != ctx.project_root:
             self._add_item("..", os.path.dirname(ctx.project_root), True)
 
         for item in items:
@@ -145,10 +148,11 @@ class Sidebar(ctk.CTkFrame):
             text_color=theme.get("fg", "#cccccc"),
             hover_color=theme.get("hover", "#2d2d2d"),
             font=("Segoe UI", 12),
-            height=28,
+            height=26,
+            corner_radius=4,
             command=lambda: self._handle_click(path, is_dir)
         )
-        btn.pack(fill="x", padx=5, pady=2)
+        btn.pack(fill="x", padx=4, pady=1)
         self.item_widgets[path] = btn
         btn.bind("<Button-3>", lambda e: self._show_context_menu(e, path))
         
@@ -184,20 +188,23 @@ class Sidebar(ctk.CTkFrame):
             ctx.project_root = path
             self.refresh_explorer()
         else:
-            if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge:
-                ctx.tab_bridge.open_file(path)
-            else:
-                ctx.current_file = path
-                ctx.is_dirty = False
-                content = BufferManager.read_file(path)
-                if ctx.editor:
-                    ctx.editor.set_text(content)
-                if ctx.status_bar:
-                    ctx.status_bar.update_status(1, 0, path)
-                
-                # Dispara realce de sintaxe imediatamente após carregar o arquivo
-                if ctx.py_plugin:
-                    ctx.py_plugin.highlight()
+            try:
+                if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge:
+                    ctx.tab_bridge.open_file(path)
+                else:
+                    ctx.current_file = path
+                    ctx.is_dirty = False
+                    content = BufferManager.read_file(path)
+                    if ctx.editor:
+                        ctx.editor.set_text(content)
+                    if ctx.status_bar:
+                        ctx.status_bar.update_status(1, 0, path)
+                    
+                    # Dispara realce de sintaxe imediatamente após carregar o arquivo
+                    if ctx.py_plugin:
+                        ctx.py_plugin.highlight()
+            except Exception as e:
+                self._show_error(f"Erro ao abrir arquivo:\n{str(e)}")
 
     def _show_inline_entry(self, is_dir=False, target_path=None):
         """Cria um campo de texto temporário na lista para nomear novo item."""
@@ -207,27 +214,29 @@ class Sidebar(ctk.CTkFrame):
         # Define o widget de referência para posicionamento
         anchor_widget = self.item_widgets.get(target_path) if target_path else None
 
-        inline_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="#2c313a", height=30, corner_radius=4)
+        inline_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="#2c313a", height=28, corner_radius=4)
         
         # Se houver um âncora (via menu de contexto), coloca depois dele. Senão, no topo.
         if anchor_widget:
-            inline_frame.pack(fill="x", padx=5, pady=2, after=anchor_widget)
+            inline_frame.pack(fill="x", padx=4, pady=2, after=anchor_widget)
         else:
             children = self.scrollable_frame.winfo_children()
-            inline_frame.pack(fill="x", padx=5, pady=2, before=children[0] if children else None)
+            inline_frame.pack(fill="x", padx=4, pady=2, before=children[0] if children else None)
 
         icon = "󰉋 " if is_dir else "󰈔 "
         icon_label = ctk.CTkLabel(inline_frame, text=icon, font=("Segoe UI", 12))
-        icon_label.pack(side="left", padx=(5, 10))
+        icon_label.pack(side="left", padx=(8, 4))
         
         entry = ctk.CTkEntry(
             inline_frame, 
-            height=24, 
+            height=22, 
             font=("Segoe UI", 11), 
-            border_width=0,
-            fg_color="#1d2026"
+            border_width=1,
+            border_color="#3e4451",
+            fg_color="#1d2026",
+            text_color="#cccccc"
         )
-        entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        entry.pack(side="left", fill="x", expand=True, padx=(0, 4), pady=3)
         entry.focus_set()
 
         # Garante que o scroll funcione mesmo com a caixa de texto aberta
@@ -236,7 +245,7 @@ class Sidebar(ctk.CTkFrame):
         self._bind_scroll_to_widget(entry)
 
         def confirm(event=None):
-            name = entry.get()
+            name = entry.get().strip()
             if name:
                 # Se o target_path for um arquivo, usamos o diretório dele
                 base_dir = ctx.project_root
@@ -244,9 +253,14 @@ class Sidebar(ctk.CTkFrame):
                     base_dir = target_path if os.path.isdir(target_path) else os.path.dirname(target_path)
                 
                 new_path = os.path.join(base_dir, name)
-                if is_dir: FileManager.create_directory(new_path)
-                else: FileManager.create_file(new_path)
-                self.refresh_explorer()
+                try:
+                    if is_dir: 
+                        FileManager.create_directory(new_path)
+                    else: 
+                        FileManager.create_file(new_path)
+                    self.refresh_explorer()
+                except Exception as e:
+                    self._show_error(f"Erro ao criar:\n{str(e)}")
             inline_frame.destroy()
 
         entry.bind("<Return>", confirm)
@@ -274,6 +288,7 @@ class Sidebar(ctk.CTkFrame):
     def _show_error(self, message):
         dialog = ctk.CTkToplevel(self)
         dialog.title("Erro")
-        self._center_dialog(dialog, 300, 120)
-        ctk.CTkLabel(dialog, text=message, pady=20).pack()
-        ctk.CTkButton(dialog, text="OK", command=dialog.destroy).pack()
+        dialog.attributes("-topmost", True)
+        self._center_dialog(dialog, 320, 140)
+        ctk.CTkLabel(dialog, text=message, pady=20, font=("Segoe UI", 11), justify="center").pack(padx=10, fill="both", expand=True)
+        ctk.CTkButton(dialog, text="OK", width=80, command=dialog.destroy).pack(pady=(0, 15))
