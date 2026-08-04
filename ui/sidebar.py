@@ -42,7 +42,6 @@ class Sidebar(ctk.CTkFrame):
             cls.ICON_MAP.update({k.lower(): v for k, v in new_icons.items()})
 
     def __init__(self, master, width=0, corner_radius=0, **kwargs):
-        # Extraímos width e corner_radius da assinatura para evitar duplicidade no **kwargs
         super().__init__(
             master, 
             width=width, 
@@ -50,18 +49,19 @@ class Sidebar(ctk.CTkFrame):
             **kwargs
         )
         self.grid_propagate(False)
-        self.item_widgets = {}  # Mapeia caminhos para seus widgets na UI
+        self.item_widgets = {}
+        self.item_paths_ordered = []
+        self.selected_paths = []
+        self.last_clicked_path = None
         theme = AppContext().theme.get("sidebar", {})
         self.configure(fg_color=theme.get("bg", "#1a1a1c"))
         
-        # Cabeçalho da Sidebar
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.header_frame.pack(fill="x", pady=(15, 10), padx=14)
         
         self.label = ctk.CTkLabel(self.header_frame, text="EXPLORER", font=("Segoe UI", 11, "bold"), text_color=theme.get("label", "gray"))
         self.label.pack(side="left")
 
-        # Botões de ação rápida (estilo VS Code)
         self.refresh_btn = ctk.CTkButton(
             self.header_frame, text="󰑐", width=24, height=24, corner_radius=4,
             fg_color="transparent", hover_color=theme.get("hover", "#2d2d2d"),
@@ -83,7 +83,6 @@ class Sidebar(ctk.CTkFrame):
         )
         self.new_file_btn.pack(side="right", padx=2)
         
-        # Configuração minimalista da área de scroll
         self.scrollable_frame = ctk.CTkScrollableFrame(
             self, 
             corner_radius=0, 
@@ -111,15 +110,14 @@ class Sidebar(ctk.CTkFrame):
             scrollbar_button_hover_color=theme.get("label", "#5c6370")
         )
 
-        for btn in self.item_widgets.values():
-            btn.configure(
-                text_color=theme.get("fg", "#cccccc"),
-                hover_color=theme.get("hover", "#2d2d2d")
-            )
+        for p, btn in self.item_widgets.items():
+            btn.configure(text_color=theme.get("fg", "#cccccc"), hover_color=theme.get("hover", "#2d2d2d"))
+        self._update_selection_ui()
 
     def refresh_explorer(self):
-        """Popula a lista de arquivos do diretório atual."""
         self.item_widgets.clear()
+        self.item_paths_ordered.clear()
+        self.selected_paths.clear()
         for child in self.scrollable_frame.winfo_children():
             child.destroy()
 
@@ -134,7 +132,6 @@ class Sidebar(ctk.CTkFrame):
             self._show_error(f"Erro ao ler diretório:\n{str(e)}")
             return
         
-        # Botão para voltar (opcional)
         if ctx.project_root != "/" and os.path.dirname(ctx.project_root) != ctx.project_root:
             self._add_item("..", os.path.dirname(ctx.project_root), True)
 
@@ -142,16 +139,16 @@ class Sidebar(ctk.CTkFrame):
             self._add_item(item["name"], item["path"], item["is_dir"])
 
     def _get_icon(self, name, is_dir):
-        """Retorna o ícone baseado na extensão ou tipo."""
         if is_dir:
             return self.DIR_ICON
-        
         ext = os.path.splitext(name)[1].lower()
         return self.ICON_MAP.get(ext, self.DEFAULT_ICON)
 
     def _add_item(self, name, path, is_dir):
         icon = self._get_icon(name, is_dir)
         theme = AppContext().theme.get("sidebar", {})
+        self.item_paths_ordered.append(path)
+        
         btn = ctk.CTkButton(
             self.scrollable_frame, 
             text=f"{icon}    {name}",
@@ -161,37 +158,61 @@ class Sidebar(ctk.CTkFrame):
             hover_color=theme.get("hover", "#2d2d2d"),
             font=("Segoe UI", 12),
             height=26,
-            corner_radius=4,
-            command=lambda: self._handle_click(path, is_dir)
+            corner_radius=4
         )
         btn.pack(fill="x", padx=4, pady=1)
         self.item_widgets[path] = btn
+        
+        # Binds para seleção e clique
+        btn.bind("<Button-1>", lambda e, p=path, d=is_dir: self._on_left_click(e, p, d, "none"))
+        btn.bind("<Control-Button-1>", lambda e, p=path, d=is_dir: self._on_left_click(e, p, d, "ctrl"))
+        btn.bind("<Shift-Button-1>", lambda e, p=path, d=is_dir: self._on_left_click(e, p, d, "shift"))
         btn.bind("<Button-3>", lambda e: self._show_context_menu(e, path))
         
-        # Vincula o scroll em cada botão item
         self._bind_scroll_to_widget(btn)
 
+    def _on_left_click(self, event, path, is_dir, modifier="none"):
+        if modifier == "ctrl":
+            if path in self.selected_paths:
+                self.selected_paths.remove(path)
+            else:
+                self.selected_paths.append(path)
+            self.last_clicked_path = path
+        elif modifier == "shift" and self.last_clicked_path in self.item_paths_ordered:
+            idx1 = self.item_paths_ordered.index(self.last_clicked_path)
+            idx2 = self.item_paths_ordered.index(path)
+            start, end = min(idx1, idx2), max(idx1, idx2)
+            self.selected_paths = self.item_paths_ordered[start:end+1]
+        else:
+            self.selected_paths = [path]
+            self.last_clicked_path = path
+            self._handle_click(path, is_dir)
+
+        self._update_selection_ui()
+
+    def _update_selection_ui(self):
+        theme = AppContext().theme.get("sidebar", {})
+        default_bg = "transparent"
+        selected_bg = theme.get("selected", "#3a3f4b")
+        for p, btn in self.item_widgets.items():
+            if p in self.selected_paths:
+                btn.configure(fg_color=selected_bg)
+            else:
+                btn.configure(fg_color=default_bg)
+
     def _bind_scroll_to_widget(self, widget):
-        """Aplica os binds de scroll de forma universal ao widget."""
         widget.bind("<MouseWheel>", self._on_mousewheel)
         widget.bind("<Button-4>", self._on_mousewheel)
         widget.bind("<Button-5>", self._on_mousewheel)
 
     def _on_mousewheel(self, event):
-        """Motor de scroll manual e resiliente para suportar Linux/Win/Mac."""
-        # 1. Tenta usar o método interno do CustomTkinter (mais seguro)
         if hasattr(self.scrollable_frame, "_on_mousewheel"):
             self.scrollable_frame._on_mousewheel(event)
             return "break"
-
-        # 2. Fallback manual acessando o canvas de scroll real (_parent_canvas)
-        # Evitamos winfo_children pois botões internos têm 'canvas' no nome do widget
         canvas = getattr(self.scrollable_frame, "_parent_canvas", None)
         if canvas and hasattr(canvas, "yview_scroll"):
-            # No Linux usa event.num, no Win/Mac usa event.delta
             direction = -1 if (event.num == 4 or event.delta > 0) else 1
             canvas.yview_scroll(direction, "units")
-            
         return "break"
 
     def _handle_click(self, path, is_dir):
@@ -211,24 +232,18 @@ class Sidebar(ctk.CTkFrame):
                         ctx.editor.set_text(content)
                     if ctx.status_bar:
                         ctx.status_bar.update_status(1, 0, path)
-                    
-                    # Dispara realce de sintaxe imediatamente após carregar o arquivo
                     if ctx.py_plugin:
                         ctx.py_plugin.highlight()
             except Exception as e:
                 self._show_error(f"Erro ao abrir arquivo:\n{str(e)}")
 
     def _show_inline_entry(self, is_dir=False, target_path=None):
-        """Cria um campo de texto temporário na lista para nomear novo item."""
         ctx = AppContext()
         if not ctx.project_root: return
 
-        # Define o widget de referência para posicionamento
         anchor_widget = self.item_widgets.get(target_path) if target_path else None
-
         inline_frame = ctk.CTkFrame(self.scrollable_frame, fg_color="#2c313a", height=28, corner_radius=4)
         
-        # Se houver um âncora (via menu de contexto), coloca depois dele. Senão, no topo.
         if anchor_widget:
             inline_frame.pack(fill="x", padx=4, pady=2, after=anchor_widget)
         else:
@@ -240,18 +255,12 @@ class Sidebar(ctk.CTkFrame):
         icon_label.pack(side="left", padx=(8, 4))
         
         entry = ctk.CTkEntry(
-            inline_frame, 
-            height=22, 
-            font=("Segoe UI", 11), 
-            border_width=1,
-            border_color="#3e4451",
-            fg_color="#1d2026",
-            text_color="#cccccc"
+            inline_frame, height=22, font=("Segoe UI", 11), border_width=1,
+            border_color="#3e4451", fg_color="#1d2026", text_color="#cccccc"
         )
         entry.pack(side="left", fill="x", expand=True, padx=(0, 4), pady=3)
         entry.focus_set()
 
-        # Garante que o scroll funcione mesmo com a caixa de texto aberta
         self._bind_scroll_to_widget(inline_frame)
         self._bind_scroll_to_widget(icon_label)
         self._bind_scroll_to_widget(entry)
@@ -259,11 +268,9 @@ class Sidebar(ctk.CTkFrame):
         def confirm(event=None):
             name = entry.get().strip()
             if name:
-                # Se o target_path for um arquivo, usamos o diretório dele
                 base_dir = ctx.project_root
                 if target_path:
                     base_dir = target_path if os.path.isdir(target_path) else os.path.dirname(target_path)
-                
                 new_path = os.path.join(base_dir, name)
                 try:
                     if is_dir: 
@@ -280,17 +287,17 @@ class Sidebar(ctk.CTkFrame):
         entry.bind("<FocusOut>", lambda e: inline_frame.destroy())
 
     def _show_context_menu(self, event, target_path=None):
-        self.sidebar_context.show(event, target_path)
+        if target_path and target_path not in self.selected_paths:
+            self.selected_paths = [target_path]
+            self.last_clicked_path = target_path
+            self._update_selection_ui()
+        self.sidebar_context.show(event, self.selected_paths)
 
     def _center_dialog(self, dialog, width, height):
         dialog.update_idletasks()
-
-        # Define como transiente e não redimensionável para melhor comportamento em Wayland/Tiling WMs
         master = self.winfo_toplevel()
         dialog.transient(master)
         dialog.resizable(False, False)
-
-        # Ajuste para centralização global na tela, ignorando limitações de coordenadas do Wayland
         screen_width = dialog.winfo_screenwidth()
         screen_height = dialog.winfo_screenheight()
         x = max(0, (screen_width // 2) - (width // 2))

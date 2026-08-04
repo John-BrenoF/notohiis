@@ -68,11 +68,11 @@ class SidebarContextMenu:
         self.sidebar = sidebar
         self.popup = None
         self.theme = AppContext().theme.get("sidebar", {})
-        self._menu_target = None
+        self._menu_targets = []
         self._unbind_id = None
 
-    def show(self, event, target_path=None):
-        self._menu_target = target_path
+    def show(self, event, target_paths=None):
+        self._menu_targets = target_paths or []
         self._close_menu()
         menu_bg = self.theme.get("menu_bg", "#282c34")
         border = self.theme.get("menu_border", "#3e4451")
@@ -126,33 +126,36 @@ class SidebarContextMenu:
             "font": ("Segoe UI", 11)
         }
         
+        has_targets = len(self._menu_targets) > 0
+        multi = len(self._menu_targets) > 1
+        
         ctk.CTkFrame(self.menu_frame, height=4, fg_color="transparent").pack(fill="x")
         
         self._add_item("Novo Arquivo", self._menu_new_file, icon="\uf15b", **base_style)
         self._add_item("Nova Pasta", self._menu_new_folder, icon="\uf07b", **base_style)
-        self._add_item("Renomear", self._menu_rename, icon="\uf044", **base_style, state="normal" if self._menu_target else "disabled")
+        self._add_item("Renomear", self._menu_rename, icon="\uf044", **base_style, state="normal" if has_targets and not multi else "disabled")
         
         self._add_separator()
         
         delete_style = base_style.copy()
         delete_style["text_color"] = "#e06c75"
         delete_style["hover_color"] = "#4a2530"
-        self._add_item("Excluir", self._menu_delete, icon="\uf1f8", **delete_style)
+        self._add_item("Excluir", self._menu_delete, icon="\uf1f8", **delete_style, state="normal" if has_targets else "disabled")
         
         self._add_separator()
         
         ctk.CTkLabel(self.menu_frame, text="GIT", **label_style).pack(fill="x", padx=14, pady=(2, 2))
         
-        self._add_item("Add (Stage)", self._git_add, icon="\uf067", **base_style, state="normal" if self._menu_target else "disabled")
-        self._add_item("Reset (Unstage)", self._git_reset, icon="\uf0e2", **base_style, state="normal" if self._menu_target else "disabled")
-        self._add_item("Ver Diff", self._git_diff, icon="\uf126", **base_style, state="normal" if self._menu_target else "disabled")
+        self._add_item("Add (Stage)", self._git_add, icon="\uf067", **base_style, state="normal" if has_targets else "disabled")
+        self._add_item("Reset (Unstage)", self._git_reset, icon="\uf0e2", **base_style, state="normal" if has_targets else "disabled")
+        self._add_item("Ver Diff", self._git_diff, icon="\uf126", **base_style, state="normal" if has_targets else "disabled")
         
         ctk.CTkFrame(self.menu_frame, height=4, fg_color="transparent").pack(fill="x")
         
     def _add_item(self, label, command, icon="", **kwargs):
         btn = ctk.CTkButton(self.menu_frame, text=f"{icon}    {label}", command=lambda: self._action(command), **kwargs)
         btn.pack(fill="x", padx=6, pady=1)
-        btn.bind("<Button-1>", lambda e: self._action(command))
+        btn.bind("<Button-1>", lambda e: self._action(command) if kwargs.get("state") != "disabled" else None)
 
     def _add_separator(self):
         sep = ctk.CTkFrame(self.menu_frame, height=1, fg_color=self.theme.get("menu_separator", "#3e4451"))
@@ -172,20 +175,24 @@ class SidebarContextMenu:
             self.popup = None
 
     def _menu_new_file(self):
-        self.sidebar._show_inline_entry(is_dir=False, target_path=self._menu_target)
+        target = self._menu_targets[0] if self._menu_targets else None
+        self.sidebar._show_inline_entry(is_dir=False, target_path=target)
 
     def _menu_new_folder(self):
-        self.sidebar._show_inline_entry(is_dir=True, target_path=self._menu_target)
+        target = self._menu_targets[0] if self._menu_targets else None
+        self.sidebar._show_inline_entry(is_dir=True, target_path=target)
 
     def _menu_rename(self):
-        if not self._menu_target:
+        if not self._menu_targets or len(self._menu_targets) > 1:
             return
-        RenameDialog(self.sidebar, self._menu_target, self._on_rename_success)
+        RenameDialog(self.sidebar, self._menu_targets[0], self._on_rename_success)
 
     def _menu_delete(self):
-        if not self._menu_target:
+        if not self._menu_targets:
             return
-        name = os.path.basename(self._menu_target)
+        count = len(self._menu_targets)
+        name = os.path.basename(self._menu_targets[0]) if count == 1 else f"{count} itens"
+        
         dialog = ctk.CTkToplevel(self.sidebar)
         dialog.title("Excluir")
         dialog.attributes("-topmost", True)
@@ -201,51 +208,57 @@ class SidebarContextMenu:
         ctk.CTkLabel(dialog, text=f"Deseja excluir '{name}'?", pady=20).pack()
         btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         btn_frame.pack()
+        
         def do_delete():
-            if FileManager.delete_path(self._menu_target):
-                self.sidebar.refresh_explorer()
-            else:
-                if hasattr(self.sidebar, "_show_error"):
-                    self.sidebar._show_error("Não foi possível excluir o item.")
+            for target in self._menu_targets:
+                if not FileManager.delete_path(target):
+                    if hasattr(self.sidebar, "_show_error"):
+                        self.sidebar._show_error(f"Não foi possível excluir o item: {os.path.basename(target)}")
+            self.sidebar.refresh_explorer()
             dialog.destroy()
+            
         ctk.CTkButton(btn_frame, text="Excluir", fg_color="#e06c75", hover_color="#be5046", command=do_delete).pack(side="left", padx=10)
         ctk.CTkButton(btn_frame, text="Cancelar", fg_color="gray", command=dialog.destroy).pack(side="left", padx=10)
 
     def _git_add(self):
         ctx = AppContext()
-        if ctx.git_plugin and self._menu_target:
-            ctx.git_plugin.stage_file(self._menu_target)
+        if ctx.git_plugin and self._menu_targets:
+            for t in self._menu_targets:
+                ctx.git_plugin.stage_file(t)
 
     def _git_reset(self):
         ctx = AppContext()
-        if ctx.git_plugin and self._menu_target:
-            ctx.git_plugin.unstage_file(self._menu_target)
+        if ctx.git_plugin and self._menu_targets:
+            for t in self._menu_targets:
+                ctx.git_plugin.unstage_file(t)
 
     def _git_diff(self):
         ctx = AppContext()
-        if not ctx.git_plugin or not self._menu_target:
+        if not ctx.git_plugin or not self._menu_targets:
             return
-        diff_text = ctx.git_plugin.get_diff(self._menu_target)
-        if not diff_text:
-            diff_text = "Nenhuma alteração detectada ou arquivo não rastreado."
-        dialog = ctk.CTkToplevel(self.sidebar)
-        dialog.title(f"Git Diff - {os.path.basename(self._menu_target)}")
-        dialog.geometry("700x500")
-        txt = ctk.CTkTextbox(dialog, font=("Consolas", 11))
-        txt.pack(fill="both", expand=True, padx=10, pady=10)
-        txt._textbox.tag_configure("add", foreground="#98c379")
-        txt._textbox.tag_configure("del", foreground="#e06c75")
-        txt._textbox.tag_configure("header", foreground="#61afef")
-        for line in diff_text.splitlines():
-            if line.startswith("+") and not line.startswith("+++"):
-                txt._textbox.insert("end", line + "\n", "add")
-            elif line.startswith("-") and not line.startswith("---"):
-                txt._textbox.insert("end", line + "\n", "del")
-            elif line.startswith("@@") or line.startswith("diff"):
-                txt._textbox.insert("end", line + "\n", "header")
-            else:
-                txt._textbox.insert("end", line + "\n")
-        txt.configure(state="disabled")
+        
+        for t in self._menu_targets:
+            diff_text = ctx.git_plugin.get_diff(t)
+            if not diff_text:
+                diff_text = "Nenhuma alteração detectada ou arquivo não rastreado."
+            dialog = ctk.CTkToplevel(self.sidebar)
+            dialog.title(f"Git Diff - {os.path.basename(t)}")
+            dialog.geometry("700x500")
+            txt = ctk.CTkTextbox(dialog, font=("Consolas", 11))
+            txt.pack(fill="both", expand=True, padx=10, pady=10)
+            txt._textbox.tag_configure("add", foreground="#98c379")
+            txt._textbox.tag_configure("del", foreground="#e06c75")
+            txt._textbox.tag_configure("header", foreground="#61afef")
+            for line in diff_text.splitlines():
+                if line.startswith("+") and not line.startswith("+++"):
+                    txt._textbox.insert("end", line + "\n", "add")
+                elif line.startswith("-") and not line.startswith("---"):
+                    txt._textbox.insert("end", line + "\n", "del")
+                elif line.startswith("@@") or line.startswith("diff"):
+                    txt._textbox.insert("end", line + "\n", "header")
+                else:
+                    txt._textbox.insert("end", line + "\n")
+            txt.configure(state="disabled")
 
     def _on_rename_success(self, old_path, new_path):
         ctx = AppContext()
