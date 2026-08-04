@@ -98,46 +98,65 @@ class SidebarContextMenu:
         self.popup.grab_set()
         self.popup.focus_force()
         self.popup.bind("<FocusOut>", lambda e: self._close_menu())
+        self.popup.bind("<Button-1>", self._check_click_outside, add="+")
+
+    def _check_click_outside(self, event):
+        x, y = event.x_root, event.y_root
+        x0 = self.popup.winfo_rootx()
+        y0 = self.popup.winfo_rooty()
+        x1 = x0 + self.popup.winfo_width()
+        y1 = y0 + self.popup.winfo_height()
+        if not (x0 <= x <= x1 and y0 <= y <= y1):
+            self._close_menu()
 
     def _build_menu(self):
         label_style = {
-            "text_color": self.theme.get("menu_heading", "#8f9bb3"),
+            "text_color": self.theme.get("menu_heading", "#7b828e"),
             "font": ("Segoe UI", 10, "bold"),
             "anchor": "w"
         }
         base_style = {
-            "fg_color": self.theme.get("menu_item_bg", "#323842"),
+            "fg_color": "transparent",
             "hover_color": self.theme.get("menu_item_hover", "#3f4b61"),
             "text_color": self.theme.get("menu_fg", "#dcdfe4"),
             "corner_radius": 4,
             "height": 28,
             "border_width": 0,
             "anchor": "w",
-            "font": ("Segoe UI", 12)
+            "font": ("Segoe UI", 11)
         }
-        #M.D.I.D.S
+        
+        ctk.CTkFrame(self.menu_frame, height=4, fg_color="transparent").pack(fill="x")
+        
         self._add_item("Novo Arquivo", self._menu_new_file, icon="\uf15b", **base_style)
         self._add_item("Nova Pasta", self._menu_new_folder, icon="\uf07b", **base_style)
         self._add_item("Renomear", self._menu_rename, icon="\uf044", **base_style, state="normal" if self._menu_target else "disabled")
+        
         self._add_separator()
+        
         delete_style = base_style.copy()
-        delete_style["fg_color"] = "#3f1f28"
-        delete_style["hover_color"] = "#5c2b39"
+        delete_style["text_color"] = "#e06c75"
+        delete_style["hover_color"] = "#4a2530"
         self._add_item("Excluir", self._menu_delete, icon="\uf1f8", **delete_style)
+        
         self._add_separator()
-        ctk.CTkLabel(self.menu_frame, text="Git", **label_style).pack(fill="x", padx=10, pady=(4, 2))
+        
+        ctk.CTkLabel(self.menu_frame, text="GIT", **label_style).pack(fill="x", padx=14, pady=(2, 2))
+        
         self._add_item("Add (Stage)", self._git_add, icon="\uf067", **base_style, state="normal" if self._menu_target else "disabled")
         self._add_item("Reset (Unstage)", self._git_reset, icon="\uf0e2", **base_style, state="normal" if self._menu_target else "disabled")
         self._add_item("Ver Diff", self._git_diff, icon="\uf126", **base_style, state="normal" if self._menu_target else "disabled")
         
+        ctk.CTkFrame(self.menu_frame, height=4, fg_color="transparent").pack(fill="x")
+        
     def _add_item(self, label, command, icon="", **kwargs):
-        btn = ctk.CTkButton(self.menu_frame, text=f"{icon}   {label}", command=lambda: self._action(command), **kwargs)
-        btn.pack(fill="x", padx=6, pady=2)
+        btn = ctk.CTkButton(self.menu_frame, text=f"{icon}    {label}", command=lambda: self._action(command), **kwargs)
+        btn.pack(fill="x", padx=6, pady=1)
         btn.bind("<Button-1>", lambda e: self._action(command))
 
     def _add_separator(self):
         sep = ctk.CTkFrame(self.menu_frame, height=1, fg_color=self.theme.get("menu_separator", "#3e4451"))
-        sep.pack(fill="x", padx=2, pady=4)
+        sep.pack(fill="x", padx=6, pady=4)
 
     def _action(self, command):
         self._close_menu()
