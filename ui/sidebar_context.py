@@ -1,4 +1,3 @@
-#______________[português]____________________
 # Copyright (c) 2026 John-BrenoF
 # Este programa é um software livre: você pode redistribuí-lo e/ou modificá-lo
 # sob os termos da licença LUMEJ v1.0. Veja o arquivo LICENSE no repositório.
@@ -82,7 +81,11 @@ class SidebarContextMenu:
         self.popup.overrideredirect(True)
         self.popup.lift()
         self.popup.wm_attributes("-topmost", True)
-        self.popup.configure(fg_color=menu_bg, border_width=1, border_color=border)
+        self.popup.configure(fg_color=menu_bg)
+        
+        self.menu_frame = ctk.CTkFrame(self.popup, fg_color=menu_bg, border_width=1, border_color=border, corner_radius=6)
+        self.menu_frame.pack(fill="both", expand=True)
+
         x = event.x_root
         y = event.y_root
         self.popup.geometry(f"{width}x1+{x}+{y}")
@@ -99,18 +102,20 @@ class SidebarContextMenu:
     def _build_menu(self):
         label_style = {
             "text_color": self.theme.get("menu_heading", "#8f9bb3"),
-            "font": ("Segoe UI", 9, "bold")
+            "font": ("Segoe UI", 10, "bold"),
+            "anchor": "w"
         }
         base_style = {
             "fg_color": self.theme.get("menu_item_bg", "#323842"),
             "hover_color": self.theme.get("menu_item_hover", "#3f4b61"),
             "text_color": self.theme.get("menu_fg", "#dcdfe4"),
-            "corner_radius": 8,
-            "height": 34,
+            "corner_radius": 4,
+            "height": 28,
             "border_width": 0,
-            "anchor": "w"
+            "anchor": "w",
+            "font": ("Segoe UI", 12)
         }
-        
+        #M.D.I.D.S
         self._add_item("Novo Arquivo", self._menu_new_file, icon="\uf15b", **base_style)
         self._add_item("Nova Pasta", self._menu_new_folder, icon="\uf07b", **base_style)
         self._add_item("Renomear", self._menu_rename, icon="\uf044", **base_style, state="normal" if self._menu_target else "disabled")
@@ -120,23 +125,19 @@ class SidebarContextMenu:
         delete_style["hover_color"] = "#5c2b39"
         self._add_item("Excluir", self._menu_delete, icon="\uf1f8", **delete_style)
         self._add_separator()
-        ctk.CTkLabel(self.popup, text="Git", **label_style).pack(fill="x", padx=14, pady=(6, 2))
+        ctk.CTkLabel(self.menu_frame, text="Git", **label_style).pack(fill="x", padx=10, pady=(4, 2))
         self._add_item("Add (Stage)", self._git_add, icon="\uf067", **base_style, state="normal" if self._menu_target else "disabled")
         self._add_item("Reset (Unstage)", self._git_reset, icon="\uf0e2", **base_style, state="normal" if self._menu_target else "disabled")
         self._add_item("Ver Diff", self._git_diff, icon="\uf126", **base_style, state="normal" if self._menu_target else "disabled")
         
     def _add_item(self, label, command, icon="", **kwargs):
-        btn = ctk.CTkButton(self.popup, text=f"{icon}    {label}", command=lambda: self._action(command), **kwargs)
-        btn.pack(fill="x", padx=10, pady=4)
+        btn = ctk.CTkButton(self.menu_frame, text=f"{icon}   {label}", command=lambda: self._action(command), **kwargs)
+        btn.pack(fill="x", padx=6, pady=2)
         btn.bind("<Button-1>", lambda e: self._action(command))
 
     def _add_separator(self):
-        sep = ctk.CTkFrame(self.popup, height=1, fg_color=self.theme.get("menu_separator", "#3e4451"))
-        sep.pack(fill="x", padx=10, pady=6)
-
-    def _action(self, command):
-        self._close_menu()
-        command()
+        sep = ctk.CTkFrame(self.menu_frame, height=1, fg_color=self.theme.get("menu_separator", "#3e4451"))
+        sep.pack(fill="x", padx=2, pady=4)
 
     def _action(self, command):
         self._close_menu()
