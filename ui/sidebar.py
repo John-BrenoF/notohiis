@@ -1,5 +1,4 @@
 #______________[português]____________________
-# Copyright (c) 2026 John-BrenoF
 # Este programa é um software livre: você pode redistribuí-lo e/ou modificá-lo
 # sob os termos da licença LUMEJ v1.0. Veja o arquivo LICENSE no repositório.
 #_____________[english]____________________
@@ -17,6 +16,31 @@ from ui.sidebar_context import SidebarContextMenu
 
 class Sidebar(ctk.CTkFrame):
     """Explorador de arquivos lateral."""
+    
+    DIR_ICON = "󰉋 "
+    DEFAULT_ICON = "󰈔 "
+    ICON_MAP = {
+        '.py': ' ',
+        '.md': '󰍔 ',
+        '.json': ' ',
+        '.txt': '󰈙 ',
+        '.sh': '󱆃 ',
+        '.gitignore': '󰊢 ',
+        '.session_config': '󰒓 ',
+        '.html': ' ',
+        '.css': ' ',
+        '.js': ' '
+    }
+
+    @classmethod
+    def register_plugin_icons(cls, new_icons=None, dir_icon=None, default_icon=None):
+        if dir_icon:
+            cls.DIR_ICON = dir_icon
+        if default_icon:
+            cls.DEFAULT_ICON = default_icon
+        if new_icons:
+            cls.ICON_MAP.update({k.lower(): v for k, v in new_icons.items()})
+
     def __init__(self, master, width=0, corner_radius=0, **kwargs):
         # Extraímos width e corner_radius da assinatura para evitar duplicidade no **kwargs
         super().__init__(
@@ -120,22 +144,10 @@ class Sidebar(ctk.CTkFrame):
     def _get_icon(self, name, is_dir):
         """Retorna o ícone baseado na extensão ou tipo."""
         if is_dir:
-            return "󰉋 "
+            return self.DIR_ICON
         
         ext = os.path.splitext(name)[1].lower()
-        icons = {
-            '.py': ' ',
-            '.md': '󰍔 ',
-            '.json': ' ',
-            '.txt': '󰈙 ',
-            '.sh': '󱆃 ',
-            '.gitignore': '󰊢 ',
-            '.session_config': '󰒓 ',
-            '.html': ' ',
-            '.css': ' ',
-            '.js': ' '
-        }
-        return icons.get(ext, "󰈔 ")
+        return self.ICON_MAP.get(ext, self.DEFAULT_ICON)
 
     def _add_item(self, name, path, is_dir):
         icon = self._get_icon(name, is_dir)
@@ -223,7 +235,7 @@ class Sidebar(ctk.CTkFrame):
             children = self.scrollable_frame.winfo_children()
             inline_frame.pack(fill="x", padx=4, pady=2, before=children[0] if children else None)
 
-        icon = "󰉋 " if is_dir else "󰈔 "
+        icon = self.DIR_ICON if is_dir else self.DEFAULT_ICON
         icon_label = ctk.CTkLabel(inline_frame, text=icon, font=("Segoe UI", 12))
         icon_label.pack(side="left", padx=(8, 4))
         
