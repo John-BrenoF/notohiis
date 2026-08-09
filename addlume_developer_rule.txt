@@ -1,0 +1,7 @@
+                            regras adicionais LUMEJ do desenvolvedor desse projeto John-BrenoF (2026)
+                  essas regras se aplican somente á esse repositorio https://github.com/John-BrenoF/notohiis.git 
+
+
+1. todos os plugins que vem no editor por padrão está sobre os direitos do desenvolvedor https://github.com/John-BrenoF na licensa LUMEJ. isso se aplica a todas as versões do plugins que vinheiro des sua adição.
+2. esses plugins são livres para motifica , distribuí e vende des que compra as regras da https://github.com/John-BrenoF/notohiis/blob/main/LICENSE 
+3. ao motifica o plugin diratamente á esse repositorio https://github.com/John-BrenoF/notohiis.git deve se colocadado comentario  com a tag : # motification ou #adiçãi ou #depedencia no caso que em caixe
