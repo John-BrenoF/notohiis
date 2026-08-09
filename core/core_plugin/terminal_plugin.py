@@ -3,7 +3,9 @@ import os
 import pty
 import re
 import select
+import shutil
 import struct
+import tempfile
 import threading
 import subprocess
 import termios
@@ -38,8 +40,13 @@ BRIGHT_COLORS = {
     "white": "#ffffff",
 }
 
-SHELL_INIT_BASH = "PROMPT_COMMAND='__ec=$?; printf \"\\033]133;D;%s\\007\" \"$__ec\"'\n"
-SHELL_INIT_ZSH = "precmd() { local __ec=$?; printf '\\033]133;D;%s\\007' \"$__ec\" }\n"
+BASH_HOOK = "PROMPT_COMMAND='__ec=$?; printf \"\\033]133;D;%s\\007\" \"$__ec\"'\n"
+ZSH_HOOK = "precmd() { local __ec=$?; printf '\\033]133;D;%s\\007' \"$__ec\" }\n"
+
+FONT_CANDIDATES = (
+    "Consolas", "DejaVu Sans Mono", "Liberation Mono",
+    "Ubuntu Mono", "Noto Sans Mono", "Courier New", "Courier",
+)
 
 KEY_SEQUENCES = {
     "Return": b"\r",
@@ -71,7 +78,6 @@ class TerminalPlugin:
         self.status_dot = None
         self.status_label = None
         self.output_text = None
-        self.scrollbar = None
         self.master_fd = None
         self.slave_fd = None
         self.process = None
@@ -79,7 +85,8 @@ class TerminalPlugin:
         self.shell_path = None
         self.screen = None
         self.stream = None
-        self.font_family = "Consolas"
+        self.temp_paths = []
+        self.font_family = None
         self.font_size = 12
         self.default_fg = "#f8f8f2"
         self.default_bg = "#0d0f12"
@@ -90,7 +97,7 @@ class TerminalPlugin:
         self._tag_cache = {}
         self._fonts = {}
         self._cursor_visible = True
-        self._blink_job = None
+        self.status_bar_btn = None
         self._bind_shortcut()
         self._prepare_layout()
 
@@ -109,6 +116,7 @@ class TerminalPlugin:
         window.grid_rowconfigure(4, weight=0)
         if hasattr(self.ctx, "status_bar") and self.ctx.status_bar:
             self.ctx.status_bar.grid(row=3, column=1, sticky="ew")
+            self._add_status_bar_button(self.ctx.status_bar)
         if hasattr(self.ctx, "search_bar") and self.ctx.search_bar:
             self._patch_search_bar()
 
@@ -125,23 +133,52 @@ class TerminalPlugin:
 
         search_bar.show = patched_show
 
+    def _add_status_bar_button(self, status_bar):
+        theme = AppContext().theme.get("status_bar", {})
+        fg = theme.get("fg", "#9da5b4")
+        hover_color = theme.get("hover", "#2c313a")
+
+        btn = ctk.CTkButton(
+            status_bar,
+            text=">_ Terminal",
+            font=("Segoe UI", 11),
+            text_color=fg,
+            fg_color="transparent",
+            hover_color=hover_color,
+            command=self.toggle_terminal,
+            width=0,
+        )
+        btn.pack(side="left", padx=(2, 10))
+        self.status_bar_btn = btn
+        self._patch_status_bar_theme(status_bar)
+
+    def _patch_status_bar_theme(self, status_bar):
+        original_apply_theme = status_bar.apply_theme
+
+        def patched_apply_theme():
+            original_apply_theme()
+            theme = AppContext().theme.get("status_bar", {})
+            if self.status_bar_btn and self.status_bar_btn.winfo_exists():
+                self.status_bar_btn.configure(
+                    text_color=theme.get("fg", "#9da5b4"),
+                    hover_color=theme.get("hover", "#2c313a"),
+                )
+
+        status_bar.apply_theme = patched_apply_theme
+
     def toggle_terminal(self, event=None):
-        if self.term_frame and self.term_frame.winfo_exists():
+        if self.term_frame is not None and self.term_frame.winfo_exists():
             self.hide_terminal()
         else:
             self.show_terminal()
         return "break"
 
     def show_terminal(self):
-        if self.term_frame and self.term_frame.winfo_exists():
-            self.term_frame.lift()
-            self.output_text.focus_set()
-            return
-
         window = getattr(self.ctx, "window", None)
         if not window:
             return
 
+        self.font_family = self._pick_monospace_font()
         self.screen = pyte.HistoryScreen(80, 24, history=5000, ratio=0.4)
         self.stream = pyte.ByteStream(self.screen)
         self._tag_cache = {}
@@ -154,17 +191,16 @@ class TerminalPlugin:
         self.term_frame.grid_rowconfigure(0, weight=0)
         self.term_frame.grid_rowconfigure(1, weight=1)
         self.term_frame.grid_columnconfigure(0, weight=1)
-        self.term_frame.grid_columnconfigure(1, weight=0)
 
         self.header = ctk.CTkFrame(self.term_frame, height=26, corner_radius=0, fg_color="#161819")
-        self.header.grid(row=0, column=0, columnspan=2, sticky="ew")
+        self.header.grid(row=0, column=0, sticky="ew")
         self.header.grid_columnconfigure(0, weight=1)
 
         title = ctk.CTkLabel(self.header, text="TERMINAL", font=(self.font_family, 10), text_color="#8a8f98")
         title.grid(row=0, column=0, sticky="w", padx=8, pady=3)
 
-        self.status_dot = ctk.CTkLabel(self.header, text="●", font=(self.font_family, 12), text_color="#666666", width=14)
-        self.status_dot.grid(row=0, column=1, sticky="e", pady=3)
+        self.status_dot = ctk.CTkFrame(self.header, width=10, height=10, corner_radius=5, fg_color="#666666")
+        self.status_dot.grid(row=0, column=1, sticky="e", pady=8, padx=(0, 4))
 
         self.status_label = ctk.CTkLabel(self.header, text="", font=(self.font_family, 10), text_color="#8a8f98", width=28)
         self.status_label.grid(row=0, column=2, sticky="e", padx=(0, 8), pady=3)
@@ -183,15 +219,11 @@ class TerminalPlugin:
             spacing1=0,
             spacing3=0,
         )
-        self.output_text.grid(row=1, column=0, sticky="nsew", padx=(4, 0), pady=(0, 4))
+        self.output_text.grid(row=1, column=0, sticky="nsew", padx=4, pady=(0, 4))
         self.output_text.tag_configure("cursor", background=self.default_fg, foreground=self.default_bg)
-
-        self.scrollbar = tk.Scrollbar(self.term_frame, command=self._on_scrollbar)
-        self.scrollbar.grid(row=1, column=1, sticky="ns", pady=(0, 4), padx=(0, 4))
 
         self.output_text.bind("<Key>", self._on_key, add="+")
         self.output_text.bind("<Button-1>", lambda e: self.output_text.focus_set(), add="+")
-        self.output_text.bind("<Control-c>", self._send_interrupt, add="+")
         self.output_text.bind("<MouseWheel>", self._on_mousewheel, add="+")
         self.output_text.bind("<Button-4>", self._on_mousewheel, add="+")
         self.output_text.bind("<Button-5>", self._on_mousewheel, add="+")
@@ -201,31 +233,92 @@ class TerminalPlugin:
 
         self.spawn_shell()
         self.output_text.focus_set()
-        self._blink_job = self.term_frame.after(500, self._blink)
+        self.term_frame.after(500, self._blink)
 
     def hide_terminal(self):
-        if self.term_frame and self.term_frame.winfo_exists():
-            self.term_frame.grid_forget()
         window = getattr(self.ctx, "window", None)
         if window:
             window.grid_rowconfigure(2, minsize=0, weight=0)
         self._cleanup_shell()
+        if self.term_frame is not None:
+            try:
+                self.term_frame.destroy()
+            except tk.TclError:
+                pass
+        self.term_frame = None
+        self.header = None
+        self.status_dot = None
+        self.status_label = None
+        self.output_text = None
+
+    def _pick_monospace_font(self):
+        try:
+            available = set(tkfont.families())
+        except Exception:
+            return "Courier"
+        for name in FONT_CANDIDATES:
+            if name in available:
+                return name
+        try:
+            return tkfont.nametofont("TkFixedFont").actual("family")
+        except Exception:
+            return "Courier"
+
+    def _build_shell_launch(self, shell):
+        name = os.path.basename(shell)
+        env = os.environ.copy()
+        temp_paths = []
+
+        if "bash" in name:
+            fd, path = tempfile.mkstemp(prefix="term_rc_", suffix=".bash")
+            with os.fdopen(fd, "w") as handle:
+                handle.write('[ -f ~/.bashrc ] && source ~/.bashrc\n')
+                handle.write(BASH_HOOK)
+            temp_paths.append(path)
+            return [shell, "--rcfile", path, "-i"], env, temp_paths
+
+        if "zsh" in name:
+            tempdir = tempfile.mkdtemp(prefix="term_zdot_")
+            orig_zdotdir = env.get("ZDOTDIR", os.path.expanduser("~"))
+            rc_path = os.path.join(tempdir, ".zshrc")
+            with open(rc_path, "w") as handle:
+                handle.write(f'[ -f "{orig_zdotdir}/.zshrc" ] && source "{orig_zdotdir}/.zshrc"\n')
+                handle.write(ZSH_HOOK)
+            env["ZDOTDIR"] = tempdir
+            temp_paths.append(tempdir)
+            return [shell, "-i"], env, temp_paths
+
+        return [shell], env, temp_paths
+
+    def _cleanup_temp_paths(self):
+        for path in self.temp_paths:
+            try:
+                if os.path.isdir(path):
+                    shutil.rmtree(path, ignore_errors=True)
+                else:
+                    os.remove(path)
+            except OSError:
+                pass
+        self.temp_paths = []
 
     def spawn_shell(self):
         if self.process:
             return
         shell = os.environ.get("SHELL", "/bin/bash")
         self.shell_path = shell
+        args, env, temp_paths = self._build_shell_launch(shell)
+        self.temp_paths = temp_paths
         self.master_fd, self.slave_fd = pty.openpty()
         try:
             self._set_pty_size(self.master_fd, 24, 80)
             self.process = subprocess.Popen(
-                [shell],
+                args,
                 stdin=self.slave_fd,
                 stdout=self.slave_fd,
                 stderr=self.slave_fd,
                 close_fds=True,
                 preexec_fn=os.setsid,
+                env=env,
             )
         except Exception as exc:
             self._write_status_text(f"Falha ao iniciar shell: {exc}\n")
@@ -234,6 +327,7 @@ class TerminalPlugin:
             self.master_fd = None
             self.slave_fd = None
             self.process = None
+            self._cleanup_temp_paths()
             return
 
         self._safe_close(self.slave_fd)
@@ -242,25 +336,6 @@ class TerminalPlugin:
         self._stop.clear()
         self.reader_thread = threading.Thread(target=self._read_output, daemon=True)
         self.reader_thread.start()
-        if self.term_frame:
-            self.term_frame.after(250, lambda: self._inject_shell_integration(shell))
-
-    def _inject_shell_integration(self, shell):
-        if self.master_fd is None:
-            return
-        name = os.path.basename(shell)
-        if "zsh" in name:
-            cmd = SHELL_INIT_ZSH
-        elif "bash" in name:
-            cmd = SHELL_INIT_BASH
-        else:
-            cmd = ""
-        if not cmd:
-            return
-        try:
-            os.write(self.master_fd, cmd.encode())
-        except OSError:
-            pass
 
     @staticmethod
     def _safe_close(fd):
@@ -302,7 +377,8 @@ class TerminalPlugin:
     def _read_output(self):
         if self.master_fd is None:
             return
-        while not self._stop.is_set() and self.process and self.process.poll() is None:
+        process = self.process
+        while not self._stop.is_set() and process and process.poll() is None:
             try:
                 rlist, _, _ = select.select([self.master_fd], [], [], 0.1)
             except (OSError, ValueError):
@@ -315,8 +391,8 @@ class TerminalPlugin:
                 if not data:
                     break
                 self._on_output(data)
-        if self.process and self.term_frame and self.term_frame.winfo_exists():
-            code = self.process.poll()
+        if process and self.term_frame and self.term_frame.winfo_exists():
+            code = process.poll()
             if code is not None:
                 self.term_frame.after(0, lambda: self._write_status_text(f"\nProcesso encerrado ({code})\n"))
 
@@ -340,7 +416,7 @@ class TerminalPlugin:
         if not self.status_dot or not self.status_dot.winfo_exists():
             return
         color = "#23d18b" if code == 0 else "#f14c4c"
-        self.status_dot.configure(text_color=color)
+        self.status_dot.configure(fg_color=color)
         self.status_label.configure(text=str(code))
 
     def _write_status_text(self, text):
@@ -460,7 +536,7 @@ class TerminalPlugin:
                 self.output_text.tag_configure("cursor", background=self.default_fg, foreground=self.default_bg)
             else:
                 self.output_text.tag_configure("cursor", background=self.default_bg, foreground=self.default_fg)
-        self._blink_job = self.term_frame.after(500, self._blink)
+        self.term_frame.after(500, self._blink)
 
     def _scroll_view(self, lines):
         with self._render_lock:
@@ -482,9 +558,6 @@ class TerminalPlugin:
         if delta == 0:
             return "break"
         return self._scroll_view(delta)
-
-    def _on_scrollbar(self, *args):
-        return "break"
 
     def _on_key(self, event):
         if self.master_fd is None:
@@ -516,14 +589,6 @@ class TerminalPlugin:
             pass
         return "break"
 
-    def _send_interrupt(self, event=None):
-        if self.process:
-            try:
-                os.killpg(os.getpgid(self.process.pid), 2)
-            except Exception:
-                pass
-        return "break"
-
     def _cleanup_shell(self):
         self._stop.set()
 
@@ -549,6 +614,8 @@ class TerminalPlugin:
             self.slave_fd = None
             self.screen = None
             self.stream = None
+
+        self._cleanup_temp_paths()
 
     def run(self):
         pass
