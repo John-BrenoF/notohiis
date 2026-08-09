@@ -98,6 +98,7 @@ class TerminalPlugin:
         self._fonts = {}
         self._cursor_visible = True
         self.status_bar_btn = None
+        self._resize_timer = None
         self._bind_shortcut()
         self._prepare_layout()
 
@@ -236,6 +237,10 @@ class TerminalPlugin:
         self.term_frame.after(500, self._blink)
 
     def hide_terminal(self):
+        if self._resize_timer and self.term_frame:
+            self.term_frame.after_cancel(self._resize_timer)
+            self._resize_timer = None
+            
         window = getattr(self.ctx, "window", None)
         if window:
             window.grid_rowconfigure(2, minsize=0, weight=0)
@@ -355,17 +360,32 @@ class TerminalPlugin:
             pass
 
     def _on_resize(self, event=None):
+        if getattr(self, '_resize_timer', None) and self.term_frame:
+            self.term_frame.after_cancel(self._resize_timer)
+        if self.term_frame:
+            self._resize_timer = self.term_frame.after(150, self._apply_resize)
+
+    def _apply_resize(self):
         if not self.output_text or self.master_fd is None or not self.screen:
             return
+            
+        width = self.output_text.winfo_width()
+        height = self.output_text.winfo_height()
+        
+        if width <= 1 or height <= 1:
+            return
+
         font = self._font_for(False, False)
         char_w = max(font.measure("0"), 1)
         char_h = max(font.metrics("linespace"), 1)
-        cols = max(self.output_text.winfo_width() // char_w, 10)
-        rows = max(self.output_text.winfo_height() // char_h, 3)
+        cols = max(width // char_w, 10)
+        rows = max(height // char_h, 3)
+        
         with self._render_lock:
             if (cols, rows) == (self.screen.columns, self.screen.lines):
                 return
             self.screen.resize(lines=rows, columns=cols)
+            
         self._set_pty_size(self.master_fd, rows, cols)
         if self.process:
             try:
