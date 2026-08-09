@@ -14,6 +14,7 @@ import tkinter.font as tkfont
 import customtkinter as ctk
 import pyte
 from core.src.app_context import AppContext
+from core.src.session import SessionManager
 
 HEX_RE = re.compile(r"^[0-9a-fA-F]{6}$")
 EXIT_RE = re.compile(rb"\x1b\]133;D;?(\d*)?(?:\x07|\x1b\\)")
@@ -314,6 +315,11 @@ class TerminalPlugin:
         args, env, temp_paths = self._build_shell_launch(shell)
         self.temp_paths = temp_paths
         self.master_fd, self.slave_fd = pty.openpty()
+        
+        cwd = SessionManager.load_session()
+        if not cwd or not os.path.isdir(cwd):
+            cwd = None
+
         try:
             self._set_pty_size(self.master_fd, 24, 80)
             self.process = subprocess.Popen(
@@ -324,6 +330,7 @@ class TerminalPlugin:
                 close_fds=True,
                 preexec_fn=os.setsid,
                 env=env,
+                cwd=cwd
             )
         except Exception as exc:
             self._write_status_text(f"Falha ao iniciar shell: {exc}\n")
