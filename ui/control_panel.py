@@ -11,6 +11,9 @@ import customtkinter as ctk
 import os
 import json
 import tkinter as tk
+import time
+import subprocess
+import sys
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
 from core.src.session import SessionManager
@@ -42,6 +45,8 @@ class ControlPanel(ctk.CTkToplevel):
 
         self.configure(fg_color="#121216")
         self.resizable(True, True)
+
+        self._version_clicks = []
 
         # ── Layout raiz: sidebar + conteúdo ──────────────────────────────────
         self.grid_columnconfigure(0, weight=0)   # sidebar fixa
@@ -328,14 +333,35 @@ class ControlPanel(ctk.CTkToplevel):
 
         rows = [("Versão", f"{get_infor('version')} ({get_infor('version_code')})"), ("Licença", get_infor('license').upper()), ("Feito por", "John Breno F"), ("UI Lib", "CustomTkinter")]
         for i, (k, v) in enumerate(rows):
-            ctk.CTkLabel(
+            lbl_key = ctk.CTkLabel(
                 info_card, text=k,
                 font=("Segoe UI", 11, "bold"), text_color="#6b6f87"
-            ).grid(row=i, column=0, sticky="w", padx=20, pady=8)
-            ctk.CTkLabel(
+            )
+            lbl_key.grid(row=i, column=0, sticky="w", padx=20, pady=8)
+            
+            lbl_val = ctk.CTkLabel(
                 info_card, text=v,
                 font=("Segoe UI", 11), text_color="#d3d5df"
-            ).grid(row=i, column=1, sticky="w", padx=12, pady=8)
+            )
+            lbl_val.grid(row=i, column=1, sticky="w", padx=12, pady=8)
+            
+            if k == "Versão":
+                lbl_val.bind("<Button-1>", self._on_version_click)
+                lbl_val.configure(cursor="hand2")
+
+    def _on_version_click(self, event):
+        current_time = time.time()
+        self._version_clicks = [t for t in self._version_clicks if current_time - t <= 1.0]
+        self._version_clicks.append(current_time)
+        
+        if len(self._version_clicks) >= 3:
+            self._version_clicks.clear()
+            self._launch_music_player()
+
+    def _launch_music_player(self):
+        player_script = os.path.join(os.getcwd(), "infor_app", "egg_player", "player_music_version.py")
+        if os.path.exists(player_script):
+            subprocess.Popen([sys.executable, player_script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # ─────────────────────────── helpers ─────────────────────────────────────
 
