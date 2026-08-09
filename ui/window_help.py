@@ -1,8 +1,18 @@
+#______________[português]____________________
+# Copyright (c) 2026 John-BrenoF
+# Este programa é um software livre: você pode redistribuí-lo e/ou modificá-lo
+# sob os termos da licença LUMEJ v1.0. Veja o arquivo LICENSE no repositório.
+#_____________[english]____________________
+# Copyright (c) 2016-2026 John-BrenoF
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the LUMEJ v1.0 license. See the LICENSE file in the repository.
+
 import os
 import json
 import customtkinter as ctk
 from PIL import Image
 from core.src.app_context import AppContext
+from infor_app.reader import get_infor
 
 class HelpWindow:
     SHORTCUTS = [
@@ -108,7 +118,8 @@ class HelpWindow:
         footer = ctk.CTkFrame(self.window, fg_color="transparent")
         footer.pack(fill="x", padx=28, pady=(12, 20))
         
-        ctk.CTkLabel(footer, text="Notohiis v0.4α", font=("Segoe UI", 10), text_color=self.colors["text_dim"], anchor="w").pack(side="left")
+        version_text = f"Notohiis v{get_infor('version')} ({get_infor('version_code')})"
+        ctk.CTkLabel(footer, text=version_text, font=("Segoe UI", 10), text_color=self.colors["text_dim"], anchor="w").pack(side="left")
         
         ctk.CTkButton(
             footer, text="Entendido", command=self.window.destroy, 

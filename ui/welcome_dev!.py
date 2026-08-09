@@ -12,6 +12,7 @@ import math
 import datetime
 import customtkinter as ctk
 from PIL import Image, ImageFilter
+from infor_app.reader import get_infor
 
 
 def _saudacao() -> str:
@@ -125,9 +126,10 @@ class WelcomeWindow(ctk.CTk):
         )
         sub_lbl.grid(row=3, column=0, sticky="w")
 
+        version_text = f"v{get_infor('version')} {get_infor('version_name')}"
         ver_lbl = ctk.CTkLabel(
             right,
-            text="v0.4alpha",
+            text=version_text,
             font=("Segoe UI", 11),
             text_color="#8C8C96",
             anchor="w",

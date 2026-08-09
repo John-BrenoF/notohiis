@@ -9,10 +9,13 @@
 
 import customtkinter as ctk
 import os
+import json
 import tkinter as tk
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
 from core.src.session import SessionManager
+from infor_app.reader import get_infor
+
 try:
     from core.src.theme_manager import ThemeManager
 except (ImportError, AttributeError):
@@ -323,12 +326,7 @@ class ControlPanel(ctk.CTkToplevel):
         info_card.grid(row=2, column=0, sticky="ew")
         info_card.grid_columnconfigure(1, weight=1)
 
-        rows = [
-            ("Versão",    "0.4-alpha (Batata estilosa) 🥔😎"),
-            ("Licença",   "LUMEJ"),
-            ("feito por",    "John BrenoF"),
-            ("UI Lib",    "CustomTkinter"),
-        ]
+        rows = [("Versão", f"{get_infor('version')} ({get_infor('version_code')})"), ("Licença", get_infor('license').upper()), ("Feito por", "John Breno F"), ("UI Lib", "CustomTkinter")]
         for i, (k, v) in enumerate(rows):
             ctk.CTkLabel(
                 info_card, text=k,
