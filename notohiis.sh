@@ -1,88 +1,148 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Notohiis Editor Bootstrapper
-# Este script gerencia o ambiente virtual, dependências e inicialização do sistema.
+set -euo pipefail
+trap 'rc=$?; deactivate 2>/dev/null || true; exit "$rc"' EXIT
 
-# Calcula o diretório do projeto dinamicamente
-SCRIPT_DIR="$(cd "$(dirname "$(realpath "$0")")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 
-FIRST_RUN=false
-set -e # Aborta em caso de erro simples
+VENV_DIR="$SCRIPT_DIR/.venv"
+PY_PKGS=(customtkinter markdown2 Pillow svglib reportlab opencv-python pyte)
 
+INSTALL_ALIAS=false
+SKIP_PIP=false
+FORCE_VENV=false
 
+usage(){
+    cat <<EOF
+Uso: $(basename "$0") [--install-alias] [--skip-deps] [--force] [--help] [-- args]
 
-# 0. Configuração Inicial (Splash Screen e Alias)
-if [ "$FIRST_RUN" = true ]; then
-    show_splash
-    
-    # Configuração do Alias 'nth'
-    COMMAND_SCRIPT="$(dirname "$(realpath "$0")")/command.sh"
-    chmod +x "$COMMAND_SCRIPT" # Garante permissão de execução
+Opções:
+  --install-alias   Instala o alias 'nth' em ~/.bashrc e/ou ~/.zshrc
+  --skip-deps       Pula a instalação/sincronização de pacotes Python
+  --force           Recria o ambiente virtual mesmo que exista
+  --help            Mostra esta ajuda
+EOF
+}
 
-    # Detecta arquivos de configuração do shell (Bash e Zsh para CachyOS/Arch)
-    HAS_UPDATED=false
-    for CONFIG in "$HOME/.bashrc" "$HOME/.zshrc"; do
-        if [ -f "$CONFIG" ]; then
-            if ! grep -q "alias nth=" "$CONFIG"; then
-                echo "" >> "$CONFIG"
-                echo "# Notohiis Alias" >> "$CONFIG"
-                echo "alias nth='bash $COMMAND_SCRIPT'" >> "$CONFIG"
-                echo "[INFO] Alias 'nth' adicionado ao $CONFIG."
-                HAS_UPDATED=true
-            fi
-        fi
-    done
+while [[ ${1:-} != "" ]]; do
+    case "$1" in
+        --install-alias) INSTALL_ALIAS=true; shift;;
+        --skip-deps) SKIP_PIP=true; shift;;
+        --force) FORCE_VENV=true; shift;;
+        --help|-h) usage; exit 0;;
+        --) shift; break;;
+        -*) echo "Opção desconhecida: $1"; usage; exit 1;;
+        *) break;;
+    esac
+done
 
-    if [ "$HAS_UPDATED" = true ]; then
-        echo "[DICA] O comando 'nth' foi instalado. Para usá-lo agora, execute:"
-        echo "       source ~/.bashrc (ou source ~/.zshrc caso use Zsh)"
-    fi
-
-    # Sed técnico: Altera a flag para false para evitar re-exibição
-    sed -i "s/^FIRST_RUN=true/FIRST_RUN=false/" "$0"
-fi
-
-# 1. Verificação de dependências do sistema
-if ! command -v python3 &> /dev/null; then
-    echo "[ERRO] Python 3 não encontrado. Por favor, instale o Python 3 para continuar."
+if command -v python3 >/dev/null 2>&1; then
+    PYTHON_EXEC=python3
+elif command -v python >/dev/null 2>&1; then
+    PYTHON_EXEC=python
+else
+    echo "[ERRO] Nenhum interpretador Python encontrado. Instale Python 3." >&2
     exit 1
 fi
 
-# 2. Gerenciamento do Ambiente Virtual (VENV)
-VENV_DIR=".venv"
+echo "[INFO] Usando $PYTHON_EXEC"
 
-if [ ! -d "$VENV_DIR" ]; then
-    echo "[INFO] Ambiente virtual não detectado. Criando em $VENV_DIR..."
-    python3 -m venv "$VENV_DIR"
-    if [ $? -ne 0 ]; then
-        echo "[ERRO] Falha ao criar o ambiente virtual."
-        exit 1
-    fi
+if [ "$FORCE_VENV" = true ] && [ -d "$VENV_DIR" ]; then
+    echo "[INFO] --force ativo: removendo venv existente..."
+    rm -rf "$VENV_DIR"
 fi
 
-# 3. Ativação do ambiente
+if [ ! -d "$VENV_DIR" ]; then
+    echo "[INFO] Criando ambiente virtual em $VENV_DIR..."
+    if "$PYTHON_EXEC" -m venv "$VENV_DIR"; then
+        echo "[OK] Ambiente virtual criado com sucesso!"
+    else
+        echo "[ERRO] Falha ao criar venv."
+        exit 1
+    fi
+else
+    echo "[OK] Ambiente virtual já existe!"
+fi
+
 source "$VENV_DIR/bin/activate"
 
-# 4. Atualização de ferramentas e dependências
-echo "[INFO] Sincronizando dependências..."
+PYTHON_BIN="$VENV_DIR/bin/python"
+PIP_BIN="$VENV_DIR/bin/pip"
 
-# Permitimos que a atualização falhe (ex: rede instável) para que o editor 
-# possa abrir se as bibliotecas já estiverem presentes localmente.
-pip install --upgrade pip --quiet || echo "[AVISO] Não foi possível atualizar o pip."
+if [ "$SKIP_PIP" = false ]; then
+    echo "[INFO] Atualizando pip..."
+    if "$PIP_BIN" install --upgrade pip --quiet; then
+        echo "[OK] pip atualizado com sucesso!"
+    else
+        echo "[AVISO] Não foi possível atualizar o pip. Continuando..."
+    fi
 
-# Garante a instalação das dependências core e dos plugins (Markdown, etc)
-pip install customtkinter markdown2 tkinterweb Pillow svglib reportlab opencv-python --upgrade --quiet || {
-    echo "[AVISO] Falha ao sincronizar dependências. Tentando iniciar com bibliotecas locais..."
+    echo "[INFO] Instalando dependências Python..."
+    FAILED_PKGS=()
+    for pkg in "${PY_PKGS[@]}"; do
+        echo "[INFO] Instalando $pkg..."
+        if "$PIP_BIN" install "$pkg" --upgrade --quiet; then
+            echo "[OK] $pkg instalado com sucesso!"
+        else
+            echo "[AVISO] Falha ao instalar $pkg." >&2
+            FAILED_PKGS+=("$pkg")
+        fi
+    done
+
+    if [ "${#FAILED_PKGS[@]}" -gt 0 ]; then
+        echo "[AVISO] Falha ao instalar as seguintes dependências: ${FAILED_PKGS[*]}" >&2
+        echo "[DICA] Algumas libs (ex: tkinter, opencv) podem requerer pacotes do sistema (apt/pacman/dnf/brew)." >&2
+        if command -v apt >/dev/null 2>&1; then
+            echo "[SUGESTÃO] Ubuntu/Debian: sudo apt install python3-tk python3-dev libjpeg-dev libpng-dev" >&2
+        elif command -v pacman >/dev/null 2>&1; then
+            echo "[SUGESTÃO] Arch/CachyOS: sudo pacman -Syu tk python-pillow opencv" >&2
+        elif command -v dnf >/dev/null 2>&1; then
+            echo "[SUGESTÃO] Fedora: sudo dnf install python3-tkinter python3-devel" >&2
+        fi
+    fi
+else
+    echo "[INFO] Pulando instalação de dependências Python (--skip-deps)."
+fi
+
+install_alias(){
+    local cmd_script="$SCRIPT_DIR/command.sh"
+    if [ -f "$cmd_script" ]; then
+        chmod +x "$cmd_script" || true
+        local updated=false
+        for cfg in "$HOME/.bashrc" "$HOME/.zshrc"; do
+            if [ -f "$cfg" ] && ! grep -q "alias nth=" "$cfg"; then
+                printf "\n# Notohiis Alias\nalias nth='bash %s'\n" "$cmd_script" >> "$cfg"
+                echo "[OK] Alias 'nth' adicionado em $cfg com sucesso!"
+                updated=true
+            fi
+        done
+        if [ "$updated" = false ]; then
+            echo "[INFO] Alias já presente ou nenhum arquivo de shell encontrado.";
+        else
+            echo "[DICA] Para usar agora: source ~/.bashrc (ou ~/.zshrc se usar Zsh)"
+        fi
+    else
+        echo "[ERRO] comando $cmd_script não encontrado. Não foi possível instalar alias." >&2
+    fi
 }
 
-# 5. Configuração de ambiente e execução
+if [ "$INSTALL_ALIAS" = true ]; then
+    install_alias
+fi
+
+export PYTHONPATH="${PYTHONPATH:-}:$SCRIPT_DIR"
+
 cd "$SCRIPT_DIR"
-export PYTHONPATH="${PYTHONPATH}:$SCRIPT_DIR"
 
-echo "[SUCCESS] Notohiis iniciado com sucesso."
-python3 "$SCRIPT_DIR/ui/welcome_dev!.py" "$1"
+echo "[SUCCESS] Ambiente pronto. Iniciando Notohiis..."
 
-python3 "$SCRIPT_DIR/main.py" "$1"
+if [ -f "$SCRIPT_DIR/ui/welcome_dev!.py" ]; then
+    "$PYTHON_BIN" "$SCRIPT_DIR/ui/welcome_dev!.py" "$@" || echo "[AVISO] welcome_dev falhou, prosseguindo..."
+fi
 
-# Finalização limpa
-deactivate
+if [ -f "$SCRIPT_DIR/main.py" ]; then
+    exec "$PYTHON_BIN" "$SCRIPT_DIR/main.py" "$@"
+else
+    echo "[ERRO] main.py não encontrado em $SCRIPT_DIR" >&2
+    exit 1
+fi
