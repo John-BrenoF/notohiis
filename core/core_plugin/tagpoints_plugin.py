@@ -14,10 +14,14 @@ class TagPointsPlugin:
         self.cache_dir = ""
         self.cache_file = ""
         self.colors = {
-            "Vermelho": "#e06c75",
-            "Verde": "#98c379",
-            "Azul": "#61afef",
-            "Amarelo": "#e5c07b"
+            "Vermelho": "#ff3b3b",
+            "Verde": "#2ed573",
+            "Azul": "#1e90ff",
+            "Amarelo": "#ffd32a",
+            "Roxo": "#a55eea",
+            "Laranja": "#ff8f1f",
+            "Ciano": "#17c9e0",
+            "Rosa": "#ff2d95"
         }
 
     def setup(self, ctx: AppContext):
@@ -219,78 +223,209 @@ class TagPointsPlugin:
         except Exception:
             return 1
 
+    def _close_active_menu(self):
+        active = getattr(self, "_active_menu", None)
+        if active is not None:
+            try:
+                if active.winfo_exists():
+                    active.destroy()
+            except Exception:
+                pass
+            self._active_menu = None
+
     def _show_context_menu(self, event, line: int):
         if not self.ctx.window:
             return
 
         self._last_click_pos = (event.x_root, event.y_root)
+        self._close_active_menu()
 
-        menu = tk.Menu(self.ctx.window, tearoff=0)
         path_key = self._norm_path(self.ctx.current_file)
         tags = self.data.get(path_key, {})
         line_key = str(line)
         has_tag = line_key in tags
 
+        menu = ctk.CTkToplevel(self.ctx.window)
+        menu.overrideredirect(True)
+        menu.attributes("-topmost", True)
+        try:
+            menu.attributes("-alpha", 0.0)
+        except Exception:
+            pass
+
+        self._active_menu = menu
+        interactive_widgets = []
+
+        card = ctk.CTkFrame(
+            menu, corner_radius=14, border_width=1,
+            border_color=("#d0d0d0", "#2a2c35"),
+            fg_color=("#f5f5f5", "#16171d")
+        )
+        card.pack(fill="both", expand=True)
+
+        def close_menu():
+            try:
+                if menu.winfo_exists():
+                    menu.destroy()
+            except Exception:
+                pass
+            if getattr(self, "_active_menu", None) is menu:
+                self._active_menu = None
+
+        def reposition():
+            if not menu.winfo_exists():
+                return
+            menu.update_idletasks()
+            w = menu.winfo_reqwidth()
+            h = menu.winfo_reqheight()
+            screen_w = menu.winfo_screenwidth()
+            screen_h = menu.winfo_screenheight()
+            x = max(0, (screen_w - w) // 2)
+            y = max(0, (screen_h - h) // 2)
+            menu.geometry(f"{w}x{h}+{x}+{y}")
+
+        def run_and_close(command):
+            def handler():
+                close_menu()
+                if command:
+                    command()
+            return handler
+
+        def add_item(text, command=None, enabled=True, danger=False):
+            btn = ctk.CTkButton(
+                card, text=text, anchor="w",
+                font=("Segoe UI", 11),
+                fg_color="transparent",
+                hover_color=("#ececec", "#2d313c"),
+                text_color=("#c0392b", "#e06c75") if danger else ("#2a2a2a", "#e6e6e6"),
+                corner_radius=8, height=32, width=250,
+                command=run_and_close(command) if enabled else None,
+                state="normal" if enabled else "disabled"
+            )
+            btn.pack(padx=8, pady=2, fill="x")
+            interactive_widgets.append(btn)
+            return btn
+
+        def add_separator():
+            ctk.CTkFrame(card, height=1, fg_color=("#e2e2e2", "#3a3f4b")).pack(fill="x", padx=12, pady=6)
+
+        def add_expandable(title):
+            wrapper = ctk.CTkFrame(card, fg_color="transparent")
+            wrapper.pack(fill="x", padx=8, pady=2)
+
+            content = ctk.CTkFrame(wrapper, fg_color="transparent")
+            state = {"open": False}
+
+            def toggle():
+                state["open"] = not state["open"]
+                if state["open"]:
+                    header_btn.configure(text=f"▾  {title}")
+                    content.pack(fill="x", pady=(2, 4))
+                else:
+                    header_btn.configure(text=f"▸  {title}")
+                    content.pack_forget()
+                reposition()
+
+            header_btn = ctk.CTkButton(
+                wrapper, text=f"▸  {title}", anchor="w",
+                font=("Segoe UI", 11),
+                fg_color="transparent",
+                hover_color=("#ececec", "#2d313c"),
+                text_color=("#2a2a2a", "#e6e6e6"),
+                corner_radius=8, height=32, width=250,
+                command=toggle
+            )
+            header_btn.pack(fill="x")
+            interactive_widgets.append(header_btn)
+            return content
+
         if has_tag:
             info = tags[line_key]
             alias = info.get("alias", "").strip()
-            edit_label = f"Editar Tag Point: {alias}" if alias else f"Editar Tag Point (Linha {line})"
-            menu.add_command(label=edit_label, command=lambda: self._show_tag_dialog(line))
+            edit_label = f"Editar: {alias}" if alias else f"Editar Tag Point (Linha {line})"
+            add_item(edit_label, command=lambda: self._show_tag_dialog(line))
 
-            color_menu = tk.Menu(menu, tearoff=0)
-            for color_name, color_hex in self.colors.items():
-                color_menu.add_command(
-                    label=color_name,
-                    foreground=color_hex,
-                    command=lambda c=color_name: self._quick_set_color(line, c)
+            color_content = add_expandable("Alterar Cor")
+            grid_row = None
+            for idx, (color_name, color_hex) in enumerate(self.colors.items()):
+                if idx % 4 == 0:
+                    grid_row = ctk.CTkFrame(color_content, fg_color="transparent")
+                    grid_row.pack(pady=2)
+                swatch = ctk.CTkButton(
+                    grid_row, text="", width=28, height=28, corner_radius=9,
+                    fg_color=color_hex, hover_color=color_hex,
+                    border_width=3 if color_hex == info.get("color") else 0,
+                    border_color=("#2a2a2a", "#f2f2f2"),
+                    command=run_and_close(lambda c=color_name: self._quick_set_color(line, c))
                 )
-            menu.add_cascade(label="Alterar Cor", menu=color_menu)
+                swatch.pack(side="left", padx=3)
+                interactive_widgets.append(swatch)
 
-            menu.add_command(label="Remover Tag Point", command=lambda: self._remove_tag(line))
+            add_item("Remover Tag Point", command=lambda: self._remove_tag(line), danger=True)
         else:
-            menu.add_command(label=f"Adicionar Tag Point (Linha {line})", command=lambda: self._show_tag_dialog(line))
+            add_item(f"Adicionar Tag Point (Linha {line})", command=lambda: self._show_tag_dialog(line))
 
         if tags:
             threshold = 1 if has_tag else 0
             has_other_tags = len(tags) > threshold
-            nav_state = tk.NORMAL if has_other_tags else tk.DISABLED
 
-            menu.add_separator()
-            menu.add_command(
-                label="Ir para próximo Tag Point",
-                accelerator="Ctrl+Alt+Down",
-                command=lambda: self._navigate(1),
-                state=nav_state
-            )
-            menu.add_command(
-                label="Ir para Tag Point anterior",
-                accelerator="Ctrl+Alt+Up",
-                command=lambda: self._navigate(-1),
-                state=nav_state
-            )
+            add_separator()
+            add_item("Ir para próximo Tag Point  ·  Ctrl+Alt+↓", command=lambda: self._navigate(1), enabled=has_other_tags)
+            add_item("Ir para Tag Point anterior  ·  Ctrl+Alt+↑", command=lambda: self._navigate(-1), enabled=has_other_tags)
 
-            goto_menu = tk.Menu(menu, tearoff=0)
+            list_content = add_expandable(f"Listar Tag Points ({len(tags)})")
             for l_key in sorted(tags.keys(), key=lambda x: int(x)):
                 l_info = tags[l_key]
                 l_alias = l_info.get("alias", "").strip()
                 entry_label = f"Linha {l_key} — {l_alias}" if l_alias else f"Linha {l_key}"
-                goto_menu.add_command(
-                    label=entry_label,
-                    foreground=l_info.get("color", self.colors["Vermelho"]),
-                    command=lambda l=int(l_key): self._goto_line(l)
+                item_btn = ctk.CTkButton(
+                    list_content, text=entry_label, anchor="w",
+                    font=("Segoe UI", 10),
+                    fg_color="transparent",
+                    hover_color=("#ececec", "#2d313c"),
+                    text_color=l_info.get("color", self.colors["Vermelho"]),
+                    corner_radius=8, height=28, width=230,
+                    command=run_and_close(lambda l=int(l_key): self._goto_line(l))
                 )
-            menu.add_cascade(label=f"Listar Tag Points ({len(tags)})", menu=goto_menu)
+                item_btn.pack(padx=(18, 0), pady=1, fill="x")
+                interactive_widgets.append(item_btn)
 
-            menu.add_separator()
-            menu.add_command(
-                label=f"Remover todos os Tag Points deste arquivo ({len(tags)})",
-                command=self._remove_all_tags_current_file
-            )
+            add_separator()
+            add_item(f"Remover todos os Tag Points ({len(tags)})", command=self._remove_all_tags_current_file, danger=True)
+
+        def schedule_focus_check(event=None):
+            menu.after(60, check_focus)
+
+        def check_focus():
+            if not menu.winfo_exists():
+                return
+            try:
+                focused = menu.focus_get()
+            except Exception:
+                focused = None
+            if focused is None:
+                return
+            try:
+                if focused.winfo_toplevel() != menu:
+                    close_menu()
+            except Exception:
+                pass
+
+        for widget in interactive_widgets:
+            widget.bind("<FocusOut>", schedule_focus_check, add="+")
+
+        menu.bind("<Escape>", lambda e: close_menu())
+
+        reposition()
 
         try:
-            menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            menu.grab_release()
+            menu.attributes("-alpha", 0.97)
+        except Exception:
+            pass
+
+        menu.focus_force()
+        if interactive_widgets:
+            interactive_widgets[0].focus_set()
 
     def _quick_set_color(self, line: int, color_name: str):
         path_key = self._norm_path(self.ctx.current_file)
@@ -333,8 +468,8 @@ class TagPointsPlugin:
 
         card = ctk.CTkFrame(
             dialog, corner_radius=14, border_width=1,
-            border_color=("#d0d0d0", "#3a3f4b"),
-            fg_color=("#fbfbfb", "#232530")
+            border_color=("#d0d0d0", "#2a2c35"),
+            fg_color=("#f5f5f5", "#16171d")
         )
         card.pack(fill="both", expand=True)
 
@@ -348,7 +483,12 @@ class TagPointsPlugin:
             card, text="ALIAS", font=("Segoe UI", 9, "bold"),
             text_color=("#8a8a8a", "#8f96a3"), anchor="w"
         ).pack(fill="x", padx=18)
-        alias_entry = ctk.CTkEntry(card, width=260, placeholder_text="Nome da marcação")
+        alias_entry = ctk.CTkEntry(
+            card, width=260, height=34, corner_radius=10,
+            border_width=1, border_color=("#d5d5d5", "#3a3f4b"),
+            fg_color=("#ffffff", "#1b1d24"),
+            placeholder_text="Nome da marcação"
+        )
         alias_entry.insert(0, existing.get("alias", ""))
         alias_entry.pack(padx=18, pady=(3, 12))
 
@@ -356,7 +496,12 @@ class TagPointsPlugin:
             card, text="DESCRIÇÃO", font=("Segoe UI", 9, "bold"),
             text_color=("#8a8a8a", "#8f96a3"), anchor="w"
         ).pack(fill="x", padx=18)
-        desc_entry = ctk.CTkEntry(card, width=260, placeholder_text="Descrição breve (opcional)")
+        desc_entry = ctk.CTkEntry(
+            card, width=260, height=34, corner_radius=10,
+            border_width=1, border_color=("#d5d5d5", "#3a3f4b"),
+            fg_color=("#ffffff", "#1b1d24"),
+            placeholder_text="Descrição breve (opcional)"
+        )
         desc_entry.insert(0, existing.get("desc", ""))
         desc_entry.pack(padx=18, pady=(3, 12))
 
@@ -374,18 +519,23 @@ class TagPointsPlugin:
             for c_hex, btn in swatch_buttons.items():
                 btn.configure(border_width=3 if c_hex == color_hex else 0)
 
-        swatch_row = ctk.CTkFrame(card, fg_color="transparent")
-        swatch_row.pack(padx=16, pady=(4, 14), anchor="w")
+        swatch_wrap = ctk.CTkFrame(card, fg_color="transparent")
+        swatch_wrap.pack(padx=16, pady=(4, 14), anchor="w")
 
-        for color_hex in self.colors.values():
-            btn = ctk.CTkButton(
-                swatch_row, text="", width=26, height=26, corner_radius=13,
-                fg_color=color_hex, hover_color=color_hex,
-                border_color=("#2a2a2a", "#f2f2f2"),
-                command=lambda c=color_hex: select_color(c)
-            )
-            btn.pack(side="left", padx=3)
-            swatch_buttons[color_hex] = btn
+        color_values = list(self.colors.values())
+        per_row = 4
+        for row_start in range(0, len(color_values), per_row):
+            swatch_row = ctk.CTkFrame(swatch_wrap, fg_color="transparent")
+            swatch_row.pack(pady=3)
+            for color_hex in color_values[row_start:row_start + per_row]:
+                btn = ctk.CTkButton(
+                    swatch_row, text="", width=28, height=28, corner_radius=9,
+                    fg_color=color_hex, hover_color=color_hex,
+                    border_color=("#2a2a2a", "#f2f2f2"),
+                    command=lambda c=color_hex: select_color(c)
+                )
+                btn.pack(side="left", padx=3)
+                swatch_buttons[color_hex] = btn
 
         select_color(current_color)
 
@@ -413,7 +563,8 @@ class TagPointsPlugin:
             close_dialog()
 
         cancel_btn = ctk.CTkButton(
-            button_row, text="Cancelar", command=close_dialog, width=118,
+            button_row, text="Cancelar", command=close_dialog, width=118, height=34,
+            corner_radius=10,
             fg_color="transparent", border_width=1,
             border_color=("#c0c0c0", "#555555"),
             text_color=("#444444", "#cfcfcf"),
@@ -422,7 +573,8 @@ class TagPointsPlugin:
         cancel_btn.pack(side="left")
 
         confirm_btn = ctk.CTkButton(
-            button_row, text="Confirmar", command=save_tag, width=118,
+            button_row, text="Confirmar", command=save_tag, width=118, height=34,
+            corner_radius=10,
             fg_color="#4d9fe0", hover_color="#3f8cc9"
         )
         confirm_btn.pack(side="right")
@@ -455,16 +607,10 @@ class TagPointsPlugin:
         dialog_w = dialog.winfo_reqwidth()
         dialog_h = dialog.winfo_reqheight()
 
-        click_x, click_y = getattr(self, "_last_click_pos", (None, None))
-        if click_x is None:
-            self.ctx.window.update_idletasks()
-            click_x = self.ctx.window.winfo_x() + self.ctx.window.winfo_width() // 2 - dialog_w // 2
-            click_y = self.ctx.window.winfo_y() + self.ctx.window.winfo_height() // 2 - dialog_h // 2
-
         screen_w = dialog.winfo_screenwidth()
         screen_h = dialog.winfo_screenheight()
-        pos_x = min(max(0, click_x), max(0, screen_w - dialog_w - 10))
-        pos_y = min(max(0, click_y), max(0, screen_h - dialog_h - 10))
+        pos_x = max(0, (screen_w - dialog_w) // 2)
+        pos_y = max(0, (screen_h - dialog_h) // 2)
 
         dialog.geometry(f"{dialog_w}x{dialog_h}+{pos_x}+{pos_y}")
 
