@@ -5,11 +5,8 @@ import customtkinter as ctk
 from typing import Dict, Any, Optional
 from core.src.app_context import AppContext
 
+
 class TagPointsPlugin:
-    """
-    Gerencia pontos de marcação (Tag Points) em linhas específicas.
-    Permite navegação rápida e persistência de anotações por arquivo.
-    """
 
     def __init__(self):
         self.ctx: Optional[AppContext] = None
@@ -17,11 +14,16 @@ class TagPointsPlugin:
         self.cache_dir = ""
         self.cache_file = ""
         self.colors = {
-            "Vermelho": "#e06c75",
-            "Verde": "#98c379",
-            "Azul": "#61afef",
-            "Amarelo": "#e5c07b"
+            "Vermelho": "#ff3b3b",
+            "Verde": "#2ed573",
+            "Azul": "#1e90ff",
+            "Amarelo": "#ffd32a",
+            "Roxo": "#a55eea",
+            "Laranja": "#ff8f1f",
+            "Ciano": "#17c9e0",
+            "Rosa": "#ff2d95"
         }
+        self._tooltip_window = None
 
     def setup(self, ctx: AppContext):
         self.ctx = ctx
@@ -36,6 +38,11 @@ class TagPointsPlugin:
         if self.ctx.window:
             self.ctx.window.after(200, self._bind_events)
 
+    def _norm_path(self, path: Optional[str]) -> str:
+        if not path:
+            return ""
+        return os.path.normcase(os.path.normpath(os.path.abspath(path)))
+
     def _init_storage(self):
         try:
             os.makedirs(self.cache_dir, exist_ok=True)
@@ -47,12 +54,19 @@ class TagPointsPlugin:
                 with open(self.cache_file, "r", encoding="utf-8") as f:
                     self.data = json.load(f)
             except Exception:
+                try:
+                    backup_path = self.cache_file + ".corrupted"
+                    os.replace(self.cache_file, backup_path)
+                except Exception:
+                    pass
                 self.data = {}
 
     def _save_data(self):
         try:
-            with open(self.cache_file, "w", encoding="utf-8") as f:
+            tmp_path = self.cache_file + ".tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(self.data, f, indent=4, ensure_ascii=False)
+            os.replace(tmp_path, self.cache_file)
         except Exception:
             pass
 
@@ -77,6 +91,8 @@ class TagPointsPlugin:
 
     def _bind_events(self):
         if not self.ctx.editor:
+            if self.ctx.window:
+                self.ctx.window.after(200, self._bind_events)
             return
 
         editor = self.ctx.editor
@@ -93,6 +109,7 @@ class TagPointsPlugin:
         if hasattr(editor, "git_margin"):
             editor.git_margin.bind("<Button-3>", self._on_canvas_right_click, add="+")
             editor.git_margin.bind("<Button-2>", self._on_canvas_right_click, add="+")
+            editor.git_margin.bind("<Leave>", self._hide_tooltip, add="+")
 
         if hasattr(editor, "bind_key"):
             try:
@@ -208,81 +225,461 @@ class TagPointsPlugin:
         except Exception:
             return 1
 
+    def _get_mouse_position(self):
+        try:
+            if self.ctx.window:
+                return self.ctx.window.winfo_pointerx(), self.ctx.window.winfo_pointery()
+        except Exception:
+            pass
+        return getattr(self, "_last_click_pos", (None, None))
+
+    def _close_active_menu(self):
+        active = getattr(self, "_active_menu", None)
+        if active is not None:
+            try:
+                if active.winfo_exists():
+                    active.destroy()
+            except Exception:
+                pass
+            self._active_menu = None
+
     def _show_context_menu(self, event, line: int):
         if not self.ctx.window:
             return
 
-        menu = tk.Menu(self.ctx.window, tearoff=0)
-        tags = self.data.get(self.ctx.current_file or "", {})
+        self._last_click_pos = (event.x_root, event.y_root)
+        self._close_active_menu()
+        self._hide_tooltip()
+
+        path_key = self._norm_path(self.ctx.current_file)
+        tags = self.data.get(path_key, {})
         line_key = str(line)
+        has_tag = line_key in tags
 
-        if line_key in tags:
-            menu.add_command(label=f"Editar Tag Point (Linha {line})", command=lambda: self._show_tag_dialog(line))
-            menu.add_command(label="Remover Tag Point", command=lambda: self._remove_tag(line))
-        else:
-            menu.add_command(label=f"Adicionar Tag Point (Linha {line})", command=lambda: self._show_tag_dialog(line))
-
+        menu = ctk.CTkToplevel(self.ctx.window)
+        menu.overrideredirect(True)
+        menu.attributes("-topmost", True)
         try:
-            menu.tk_popup(event.x_root, event.y_root)
-        finally:
-            menu.grab_release()
+            menu.attributes("-alpha", 0.0)
+        except Exception:
+            pass
+
+        self._active_menu = menu
+        interactive_widgets = []
+
+        card = ctk.CTkFrame(
+            menu, corner_radius=8, border_width=1,
+            border_color=("#d0d0d0", "#2a2c35"),
+            fg_color=("#f5f5f5", "#16171d")
+        )
+        card.pack(fill="both", expand=True)
+
+        def close_menu():
+            try:
+                if menu.winfo_exists():
+                    menu.destroy()
+            except Exception:
+                pass
+            if getattr(self, "_active_menu", None) is menu:
+                self._active_menu = None
+
+        def reposition():
+            if not menu.winfo_exists():
+                return
+            menu.update_idletasks()
+            w = menu.winfo_reqwidth()
+            h = menu.winfo_reqheight()
+            screen_w = menu.winfo_screenwidth()
+            screen_h = menu.winfo_screenheight()
+
+            # Centralizado na tela (guardado para uso futuro, se quiser voltar a usar)
+            # x = max(0, (screen_w - w) // 2)
+            # y = max(0, (screen_h - h) // 2)
+
+            mx, my = self._get_mouse_position()
+            if mx is None:
+                mx, my = screen_w // 2, screen_h // 2
+            x = min(max(0, mx), max(0, screen_w - w - 10))
+            y = min(max(0, my), max(0, screen_h - h - 10))
+            menu.geometry(f"{w}x{h}+{x}+{y}")
+
+        def run_and_close(command):
+            def handler():
+                close_menu()
+                if command:
+                    command()
+            return handler
+
+        def add_item(text, command=None, enabled=True, danger=False):
+            btn = ctk.CTkButton(
+                card, text=text, anchor="w",
+                font=("Segoe UI", 11),
+                fg_color="transparent",
+                hover_color=("#ececec", "#2d313c"),
+                text_color=("#c0392b", "#e06c75") if danger else ("#2a2a2a", "#e6e6e6"),
+                corner_radius=6, height=32, width=250,
+                command=run_and_close(command) if enabled else None,
+                state="normal" if enabled else "disabled"
+            )
+            btn.pack(padx=8, pady=2, fill="x")
+            interactive_widgets.append(btn)
+            return btn
+
+        def add_separator():
+            ctk.CTkFrame(card, height=1, fg_color=("#e2e2e2", "#3a3f4b")).pack(fill="x", padx=12, pady=6)
+
+        def add_expandable(title):
+            wrapper = ctk.CTkFrame(card, fg_color="transparent")
+            wrapper.pack(fill="x", padx=8, pady=2)
+
+            content = ctk.CTkFrame(wrapper, fg_color="transparent")
+            state = {"open": False}
+
+            def toggle():
+                state["open"] = not state["open"]
+                if state["open"]:
+                    header_btn.configure(text=f"▾  {title}")
+                    content.pack(fill="x", pady=(2, 4))
+                else:
+                    header_btn.configure(text=f"▸  {title}")
+                    content.pack_forget()
+                reposition()
+
+            header_btn = ctk.CTkButton(
+                wrapper, text=f"▸  {title}", anchor="w",
+                font=("Segoe UI", 11),
+                fg_color="transparent",
+                hover_color=("#ececec", "#2d313c"),
+                text_color=("#2a2a2a", "#e6e6e6"),
+                corner_radius=6, height=32, width=250,
+                command=toggle
+            )
+            header_btn.pack(fill="x")
+            interactive_widgets.append(header_btn)
+            return content
+
+        if has_tag:
+            info = tags[line_key]
+            alias = info.get("alias", "").strip()
+            edit_label = f"Editar: {alias}" if alias else f"Editar Tag Point (Linha {line})"
+            add_item(edit_label, command=lambda: self._show_tag_dialog(line))
+
+            color_content = add_expandable("Alterar Cor")
+            grid_row = None
+            for idx, (color_name, color_hex) in enumerate(self.colors.items()):
+                if idx % 4 == 0:
+                    grid_row = ctk.CTkFrame(color_content, fg_color="transparent")
+                    grid_row.pack(pady=2)
+                swatch = ctk.CTkButton(
+                    grid_row, text="", width=28, height=28, corner_radius=6,
+                    fg_color=color_hex, hover_color=color_hex,
+                    border_width=3 if color_hex == info.get("color") else 0,
+                    border_color=("#2a2a2a", "#f2f2f2"),
+                    command=run_and_close(lambda c=color_name: self._quick_set_color(line, c))
+                )
+                swatch.pack(side="left", padx=3)
+                interactive_widgets.append(swatch)
+
+            add_item("Remover Tag Point", command=lambda: self._remove_tag(line), danger=True)
+        else:
+            add_item(f"Adicionar Tag Point (Linha {line})", command=lambda: self._show_tag_dialog(line))
+
+        if tags:
+            threshold = 1 if has_tag else 0
+            has_other_tags = len(tags) > threshold
+
+            add_separator()
+            add_item("Ir para próximo Tag Point  ·  Ctrl+Alt+↓", command=lambda: self._navigate(1), enabled=has_other_tags)
+            add_item("Ir para Tag Point anterior  ·  Ctrl+Alt+↑", command=lambda: self._navigate(-1), enabled=has_other_tags)
+
+            list_content = add_expandable(f"Listar Tag Points ({len(tags)})")
+            for l_key in sorted(tags.keys(), key=lambda x: int(x)):
+                l_info = tags[l_key]
+                l_alias = l_info.get("alias", "").strip()
+                entry_label = f"Linha {l_key} — {l_alias}" if l_alias else f"Linha {l_key}"
+                item_btn = ctk.CTkButton(
+                    list_content, text=entry_label, anchor="w",
+                    font=("Segoe UI", 10),
+                    fg_color="transparent",
+                    hover_color=("#ececec", "#2d313c"),
+                    text_color=l_info.get("color", self.colors["Vermelho"]),
+                    corner_radius=6, height=28, width=230,
+                    command=run_and_close(lambda l=int(l_key): self._goto_line(l))
+                )
+                item_btn.pack(padx=(18, 0), pady=1, fill="x")
+                interactive_widgets.append(item_btn)
+
+            add_separator()
+            add_item(f"Remover todos os Tag Points ({len(tags)})", command=self._remove_all_tags_current_file, danger=True)
+
+        def schedule_focus_check(event=None):
+            menu.after(60, check_focus)
+
+        def check_focus():
+            if not menu.winfo_exists():
+                return
+            try:
+                focused = menu.focus_get()
+            except Exception:
+                focused = None
+            if focused is None:
+                return
+            try:
+                if focused.winfo_toplevel() != menu:
+                    close_menu()
+            except Exception:
+                pass
+
+        for widget in interactive_widgets:
+            widget.bind("<FocusOut>", schedule_focus_check, add="+")
+
+        menu.bind("<Escape>", lambda e: close_menu())
+
+        def reveal():
+            if not menu.winfo_exists():
+                return
+            menu.update_idletasks()
+            reposition()
+            try:
+                menu.attributes("-alpha", 0.97)
+            except Exception:
+                pass
+            menu.focus_force()
+            if interactive_widgets:
+                interactive_widgets[0].focus_set()
+
+        reposition()
+        menu.after(30, reveal)
+
+    def _quick_set_color(self, line: int, color_name: str):
+        path_key = self._norm_path(self.ctx.current_file)
+        if path_key not in self.data or str(line) not in self.data[path_key]:
+            return
+
+        self.data[path_key][str(line)]["color"] = self.colors.get(color_name, self.colors["Vermelho"])
+        self._save_data()
+        self._draw_markers()
+
+    def _goto_line(self, line: int):
+        try:
+            self.ctx.editor.set_cursor(f"{line}.0")
+            text_widget = self._get_text_widget()
+            if text_widget is not None:
+                text_widget.see(f"{line}.0")
+                try:
+                    total_lines = max(1, self.ctx.editor.get_line_count())
+                    text_widget.yview_moveto(max(0.0, (line - 3) / total_lines))
+                except Exception:
+                    pass
+            self._draw_markers()
+        except Exception:
+            pass
 
     def _show_tag_dialog(self, line: int):
         if not self.ctx.window or not self.ctx.current_file:
             return
 
-        path = self.ctx.current_file
-        existing = self.data.get(path, {}).get(str(line), {})
+        self._hide_tooltip()
+        path_key = self._norm_path(self.ctx.current_file)
+        existing = self.data.get(path_key, {}).get(str(line), {})
 
         dialog = ctk.CTkToplevel(self.ctx.window)
-        dialog.title(f"Tag Point - Linha {line}")
-        dialog.geometry("320x320")
+        dialog.overrideredirect(True)
         dialog.attributes("-topmost", True)
-        dialog.resizable(False, False)
-        dialog.grab_set()
+        try:
+            dialog.attributes("-alpha", 0.0)
+        except Exception:
+            pass
 
-        ctk.CTkLabel(dialog, text="Alias / Nome:", font=("Segoe UI", 11, "bold")).pack(pady=(20, 0))
-        alias_entry = ctk.CTkEntry(dialog, width=250)
+        card = ctk.CTkFrame(
+            dialog, corner_radius=8, border_width=1,
+            border_color=("#d0d0d0", "#2a2c35"),
+            fg_color=("#f5f5f5", "#16171d")
+        )
+        card.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(
+            card, text=f"Tag Point · Linha {line}",
+            font=("Segoe UI", 12, "bold"),
+            text_color=("#2a2a2a", "#e6e6e6")
+        ).pack(pady=(16, 10), padx=18, anchor="w")
+
+        ctk.CTkLabel(
+            card, text="ALIAS", font=("Segoe UI", 9, "bold"),
+            text_color=("#8a8a8a", "#8f96a3"), anchor="w"
+        ).pack(fill="x", padx=18)
+        alias_entry = ctk.CTkEntry(
+            card, width=260, height=34, corner_radius=6,
+            border_width=1, border_color=("#d5d5d5", "#3a3f4b"),
+            fg_color=("#ffffff", "#1b1d24"),
+            placeholder_text="Nome da marcação"
+        )
         alias_entry.insert(0, existing.get("alias", ""))
-        alias_entry.pack(pady=5)
+        alias_entry.pack(padx=18, pady=(3, 12))
 
-        ctk.CTkLabel(dialog, text="Descrição breve:").pack(pady=(5, 0))
-        desc_entry = ctk.CTkEntry(dialog, width=250)
+        ctk.CTkLabel(
+            card, text="DESCRIÇÃO", font=("Segoe UI", 9, "bold"),
+            text_color=("#8a8a8a", "#8f96a3"), anchor="w"
+        ).pack(fill="x", padx=18)
+        desc_entry = ctk.CTkEntry(
+            card, width=260, height=34, corner_radius=6,
+            border_width=1, border_color=("#d5d5d5", "#3a3f4b"),
+            fg_color=("#ffffff", "#1b1d24"),
+            placeholder_text="Descrição breve (opcional)"
+        )
         desc_entry.insert(0, existing.get("desc", ""))
-        desc_entry.pack(pady=5)
+        desc_entry.pack(padx=18, pady=(3, 12))
+
+        ctk.CTkLabel(
+            card, text="COR", font=("Segoe UI", 9, "bold"),
+            text_color=("#8a8a8a", "#8f96a3"), anchor="w"
+        ).pack(fill="x", padx=18)
 
         current_color = existing.get("color", self.colors["Vermelho"])
-        current_name = next((name for name, value in self.colors.items() if value == current_color), "Vermelho")
+        selected_color = tk.StringVar(value=current_color)
+        swatch_buttons: Dict[str, ctk.CTkButton] = {}
 
-        color_var = tk.StringVar(value=current_name)
-        ctk.CTkOptionMenu(dialog, values=list(self.colors.keys()), variable=color_var, width=250).pack(pady=15)
+        def select_color(color_hex):
+            selected_color.set(color_hex)
+            for c_hex, btn in swatch_buttons.items():
+                btn.configure(border_width=3 if c_hex == color_hex else 0)
 
-        def save_tag():
-            if path not in self.data:
-                self.data[path] = {}
+        swatch_wrap = ctk.CTkFrame(card, fg_color="transparent")
+        swatch_wrap.pack(padx=16, pady=(4, 14), anchor="w")
 
-            self.data[path][str(line)] = {
+        color_values = list(self.colors.values())
+        per_row = 4
+        for row_start in range(0, len(color_values), per_row):
+            swatch_row = ctk.CTkFrame(swatch_wrap, fg_color="transparent")
+            swatch_row.pack(pady=3)
+            for color_hex in color_values[row_start:row_start + per_row]:
+                btn = ctk.CTkButton(
+                    swatch_row, text="", width=28, height=28, corner_radius=6,
+                    fg_color=color_hex, hover_color=color_hex,
+                    border_color=("#2a2a2a", "#f2f2f2"),
+                    command=lambda c=color_hex: select_color(c)
+                )
+                btn.pack(side="left", padx=3)
+                swatch_buttons[color_hex] = btn
+
+        select_color(current_color)
+
+        button_row = ctk.CTkFrame(card, fg_color="transparent")
+        button_row.pack(padx=18, pady=(0, 18), fill="x")
+
+        def close_dialog():
+            try:
+                if dialog.winfo_exists():
+                    dialog.destroy()
+            except Exception:
+                pass
+
+        def save_tag(event=None):
+            if path_key not in self.data:
+                self.data[path_key] = {}
+
+            self.data[path_key][str(line)] = {
                 "alias": alias_entry.get().strip(),
                 "desc": desc_entry.get().strip(),
-                "color": self.colors.get(color_var.get(), self.colors["Vermelho"])
+                "color": selected_color.get()
             }
             self._save_data()
             self._draw_markers()
-            dialog.destroy()
+            close_dialog()
 
-        ctk.CTkButton(dialog, text="Confirmar", command=save_tag, width=250, fg_color="#4d9fe0").pack(pady=10)
+        cancel_btn = ctk.CTkButton(
+            button_row, text="Cancelar", command=close_dialog, width=118, height=34,
+            corner_radius=6,
+            fg_color="transparent", border_width=1,
+            border_color=("#c0c0c0", "#555555"),
+            text_color=("#444444", "#cfcfcf"),
+            hover_color=("#ececec", "#31343f")
+        )
+        cancel_btn.pack(side="left")
+
+        confirm_btn = ctk.CTkButton(
+            button_row, text="Confirmar", command=save_tag, width=118, height=34,
+            corner_radius=6,
+            fg_color="#4d9fe0", hover_color="#3f8cc9"
+        )
+        confirm_btn.pack(side="right")
+
+        dialog.bind("<Return>", save_tag)
+        dialog.bind("<Escape>", lambda e: close_dialog())
+
+        def schedule_focus_check(event=None):
+            dialog.after(60, check_focus)
+
+        def check_focus():
+            if not dialog.winfo_exists():
+                return
+            try:
+                focused = dialog.focus_get()
+            except Exception:
+                focused = None
+            if focused is None:
+                return
+            try:
+                if focused.winfo_toplevel() != dialog:
+                    close_dialog()
+            except Exception:
+                pass
+
+        for widget in (alias_entry, desc_entry, cancel_btn, confirm_btn, *swatch_buttons.values()):
+            widget.bind("<FocusOut>", schedule_focus_check, add="+")
+
+        def position_dialog():
+            dialog.update_idletasks()
+            w = dialog.winfo_reqwidth()
+            h = dialog.winfo_reqheight()
+            screen_w = dialog.winfo_screenwidth()
+            screen_h = dialog.winfo_screenheight()
+
+            # Centralizado na tela (guardado para uso futuro, se quiser voltar a usar)
+            # x = max(0, (screen_w - w) // 2)
+            # y = max(0, (screen_h - h) // 2)
+
+            mx, my = self._get_mouse_position()
+            if mx is None:
+                mx, my = screen_w // 2, screen_h // 2
+            x = min(max(0, mx), max(0, screen_w - w - 10))
+            y = min(max(0, my), max(0, screen_h - h - 10))
+            dialog.geometry(f"{w}x{h}+{x}+{y}")
+
+        def reveal():
+            if not dialog.winfo_exists():
+                return
+            position_dialog()
+            try:
+                dialog.attributes("-alpha", 0.96)
+            except Exception:
+                pass
+            dialog.focus_force()
+            alias_entry.focus_set()
+
+        position_dialog()
+        dialog.after(30, reveal)
 
     def _remove_tag(self, line: int):
-        path = self.ctx.current_file
-        if not path:
+        path_key = self._norm_path(self.ctx.current_file)
+        if not path_key:
             return
 
-        if path in self.data and str(line) in self.data[path]:
-            del self.data[path][str(line)]
-            if not self.data[path]:
-                del self.data[path]
+        if path_key in self.data and str(line) in self.data[path_key]:
+            del self.data[path_key][str(line)]
+            if not self.data[path_key]:
+                del self.data[path_key]
             self._save_data()
             self._draw_markers()
+
+    def _remove_all_tags_current_file(self):
+        path_key = self._norm_path(self.ctx.current_file)
+        if not path_key or path_key not in self.data:
+            return
+
+        del self.data[path_key]
+        self._save_data()
+        self._draw_markers()
 
     def _draw_markers(self):
         editor = self.ctx.editor
@@ -294,7 +691,8 @@ class TagPointsPlugin:
         except Exception:
             pass
 
-        tags = self.data.get(self.ctx.current_file, {})
+        path_key = self._norm_path(self.ctx.current_file)
+        tags = self.data.get(path_key, {})
         if not tags:
             return
 
@@ -308,24 +706,82 @@ class TagPointsPlugin:
                 if not dline:
                     continue
                 y = dline[1]
-                editor.git_margin.create_oval(
+                
+                color = info.get("color", self.colors["Vermelho"])
+                item_id = editor.git_margin.create_oval(
                     2, y + 2, 12, y + 12,
-                    fill=info.get("color", self.colors["Vermelho"]),
+                    fill=color,
                     outline="",
                     tags="tag_point"
                 )
+                
+                editor.git_margin.tag_bind(item_id, "<Enter>", lambda e, l=line_key: self._show_tooltip(e, l))
+                editor.git_margin.tag_bind(item_id, "<Leave>", self._hide_tooltip)
+                
             except Exception:
                 continue
 
+    def _show_tooltip(self, event, line_key: str):
+        self._hide_tooltip()
+        
+        path_key = self._norm_path(self.ctx.current_file)
+        info = self.data.get(path_key, {}).get(str(line_key), {})
+        
+        alias = info.get("alias", "").strip()
+        desc = info.get("desc", "").strip()
+        color = info.get("color", self.colors["Vermelho"])
+        
+        if not alias and not desc:
+            alias = f"Tag Point (Linha {line_key})"
+            
+        self._tooltip_window = tk.Toplevel(self.ctx.window)
+        self._tooltip_window.overrideredirect(True)
+        self._tooltip_window.attributes("-topmost", True)
+        
+        frame = ctk.CTkFrame(
+            self._tooltip_window, 
+            corner_radius=6, border_width=1, 
+            border_color=color, fg_color=("#f5f5f5", "#16171d")
+        )
+        frame.pack(fill="both", expand=True)
+        
+        if alias:
+            ctk.CTkLabel(
+                frame, text=alias, font=("Segoe UI", 11, "bold"), text_color=color
+            ).pack(padx=10, pady=(6, 2 if desc else 6), anchor="w")
+            
+        if desc:
+            ctk.CTkLabel(
+                frame, text=desc, font=("Segoe UI", 10), text_color=("#555555", "#aaaaaa")
+            ).pack(padx=10, pady=(0, 6), anchor="w")
+            
+        mx, my = self._get_mouse_position()
+        if mx is None or my is None:
+            mx, my = event.x_root, event.y_root
+            
+        self._tooltip_window.geometry(f"+{mx + 15}+{my + 15}")
+
+    def _hide_tooltip(self, event=None):
+        if getattr(self, "_tooltip_window", None):
+            try:
+                if self._tooltip_window.winfo_exists():
+                    self._tooltip_window.destroy()
+            except Exception:
+                pass
+            self._tooltip_window = None
+
     def _navigate(self, direction: int):
-        path = self.ctx.current_file
-        if not path or path not in self.data:
+        path_key = self._norm_path(self.ctx.current_file)
+        if not path_key or path_key not in self.data:
             return
 
-        try:
-            lines = sorted(int(line) for line in self.data[path].keys())
-        except Exception:
-            return
+        lines = []
+        for key in self.data[path_key].keys():
+            try:
+                lines.append(int(key))
+            except (TypeError, ValueError):
+                continue
+        lines.sort()
 
         if not lines:
             return
@@ -336,19 +792,7 @@ class TagPointsPlugin:
         else:
             target_line = next((line for line in reversed(lines) if line < current_line), lines[-1])
 
-        try:
-            self.ctx.editor.set_cursor(f"{target_line}.0")
-            text_widget = self._get_text_widget()
-            if text_widget is not None:
-                text_widget.see(f"{target_line}.0")
-                try:
-                    # Tenta centralizar a linha no viewport, se disponível.
-                    text_widget.yview_moveto(max(0.0, (target_line - 3) / max(1, self.ctx.editor.get_line_count())))
-                except Exception:
-                    pass
-            self._draw_markers()
-        except Exception:
-            pass
+        self._goto_line(target_line)
 
     def run(self):
         self._draw_markers()
