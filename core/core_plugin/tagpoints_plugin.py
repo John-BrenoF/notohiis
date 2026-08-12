@@ -223,6 +223,14 @@ class TagPointsPlugin:
         except Exception:
             return 1
 
+    def _get_mouse_position(self):
+        try:
+            if self.ctx.window:
+                return self.ctx.window.winfo_pointerx(), self.ctx.window.winfo_pointery()
+        except Exception:
+            pass
+        return getattr(self, "_last_click_pos", (None, None))
+
     def _close_active_menu(self):
         active = getattr(self, "_active_menu", None)
         if active is not None:
@@ -280,8 +288,16 @@ class TagPointsPlugin:
             h = menu.winfo_reqheight()
             screen_w = menu.winfo_screenwidth()
             screen_h = menu.winfo_screenheight()
-            x = max(0, (screen_w - w) // 2)
-            y = max(0, (screen_h - h) // 2)
+
+            # Centralizado na tela (guardado para uso futuro, se quiser voltar a usar)
+            # x = max(0, (screen_w - w) // 2)
+            # y = max(0, (screen_h - h) // 2)
+
+            mx, my = self._get_mouse_position()
+            if mx is None:
+                mx, my = screen_w // 2, screen_h // 2
+            x = min(max(0, mx), max(0, screen_w - w - 10))
+            y = min(max(0, my), max(0, screen_h - h - 10))
             menu.geometry(f"{w}x{h}+{x}+{y}")
 
         def run_and_close(command):
@@ -614,8 +630,16 @@ class TagPointsPlugin:
             h = dialog.winfo_reqheight()
             screen_w = dialog.winfo_screenwidth()
             screen_h = dialog.winfo_screenheight()
-            x = max(0, (screen_w - w) // 2)
-            y = max(0, (screen_h - h) // 2)
+
+            # Centralizado na tela (guardado para uso futuro, se quiser voltar a usar)
+            # x = max(0, (screen_w - w) // 2)
+            # y = max(0, (screen_h - h) // 2)
+
+            mx, my = self._get_mouse_position()
+            if mx is None:
+                mx, my = screen_w // 2, screen_h // 2
+            x = min(max(0, mx), max(0, screen_w - w - 10))
+            y = min(max(0, my), max(0, screen_h - h - 10))
             dialog.geometry(f"{w}x{h}+{x}+{y}")
 
         def reveal():
