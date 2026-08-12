@@ -23,6 +23,7 @@ class TagPointsPlugin:
             "Ciano": "#17c9e0",
             "Rosa": "#ff2d95"
         }
+        self._tooltip_window = None
 
     def setup(self, ctx: AppContext):
         self.ctx = ctx
@@ -108,6 +109,7 @@ class TagPointsPlugin:
         if hasattr(editor, "git_margin"):
             editor.git_margin.bind("<Button-3>", self._on_canvas_right_click, add="+")
             editor.git_margin.bind("<Button-2>", self._on_canvas_right_click, add="+")
+            editor.git_margin.bind("<Leave>", self._hide_tooltip, add="+")
 
         if hasattr(editor, "bind_key"):
             try:
@@ -247,6 +249,7 @@ class TagPointsPlugin:
 
         self._last_click_pos = (event.x_root, event.y_root)
         self._close_active_menu()
+        self._hide_tooltip()
 
         path_key = self._norm_path(self.ctx.current_file)
         tags = self.data.get(path_key, {})
@@ -476,6 +479,7 @@ class TagPointsPlugin:
         if not self.ctx.window or not self.ctx.current_file:
             return
 
+        self._hide_tooltip()
         path_key = self._norm_path(self.ctx.current_file)
         existing = self.data.get(path_key, {}).get(str(line), {})
 
@@ -702,14 +706,69 @@ class TagPointsPlugin:
                 if not dline:
                     continue
                 y = dline[1]
-                editor.git_margin.create_oval(
+                
+                color = info.get("color", self.colors["Vermelho"])
+                item_id = editor.git_margin.create_oval(
                     2, y + 2, 12, y + 12,
-                    fill=info.get("color", self.colors["Vermelho"]),
+                    fill=color,
                     outline="",
                     tags="tag_point"
                 )
+                
+                editor.git_margin.tag_bind(item_id, "<Enter>", lambda e, l=line_key: self._show_tooltip(e, l))
+                editor.git_margin.tag_bind(item_id, "<Leave>", self._hide_tooltip)
+                
             except Exception:
                 continue
+
+    def _show_tooltip(self, event, line_key: str):
+        self._hide_tooltip()
+        
+        path_key = self._norm_path(self.ctx.current_file)
+        info = self.data.get(path_key, {}).get(str(line_key), {})
+        
+        alias = info.get("alias", "").strip()
+        desc = info.get("desc", "").strip()
+        color = info.get("color", self.colors["Vermelho"])
+        
+        if not alias and not desc:
+            alias = f"Tag Point (Linha {line_key})"
+            
+        self._tooltip_window = tk.Toplevel(self.ctx.window)
+        self._tooltip_window.overrideredirect(True)
+        self._tooltip_window.attributes("-topmost", True)
+        
+        frame = ctk.CTkFrame(
+            self._tooltip_window, 
+            corner_radius=6, border_width=1, 
+            border_color=color, fg_color=("#f5f5f5", "#16171d")
+        )
+        frame.pack(fill="both", expand=True)
+        
+        if alias:
+            ctk.CTkLabel(
+                frame, text=alias, font=("Segoe UI", 11, "bold"), text_color=color
+            ).pack(padx=10, pady=(6, 2 if desc else 6), anchor="w")
+            
+        if desc:
+            ctk.CTkLabel(
+                frame, text=desc, font=("Segoe UI", 10), text_color=("#555555", "#aaaaaa")
+            ).pack(padx=10, pady=(0, 6), anchor="w")
+            
+        mx, my = self._get_mouse_position()
+        if mx is None or my is None:
+            mx, my = event.x_root, event.y_root
+            
+        self._tooltip_window.geometry(f"+{mx + 15}+{my + 15}")
+
+    def _hide_tooltip(self, event=None):
+        if getattr(self, "_tooltip_window", None):
+            try:
+                if self._tooltip_window.winfo_exists():
+                    self._tooltip_window.destroy()
+            except Exception:
+                pass
+            self._tooltip_window = None
 
     def _navigate(self, direction: int):
         path_key = self._norm_path(self.ctx.current_file)
