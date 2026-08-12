@@ -129,7 +129,6 @@ class AppContext:
 
     def perform_undo(self):
         if self.editor and not self.is_processing_history:
-            # Garante que o que está sendo digitado seja "fechado" antes de desfazer
             if self._chars_since_sep > 0:
                 self.editor.edit_separator()
                 self._chars_since_sep = 0
