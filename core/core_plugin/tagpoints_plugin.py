@@ -257,7 +257,7 @@ class TagPointsPlugin:
         interactive_widgets = []
 
         card = ctk.CTkFrame(
-            menu, corner_radius=14, border_width=1,
+            menu, corner_radius=8, border_width=1,
             border_color=("#d0d0d0", "#2a2c35"),
             fg_color=("#f5f5f5", "#16171d")
         )
@@ -298,7 +298,7 @@ class TagPointsPlugin:
                 fg_color="transparent",
                 hover_color=("#ececec", "#2d313c"),
                 text_color=("#c0392b", "#e06c75") if danger else ("#2a2a2a", "#e6e6e6"),
-                corner_radius=8, height=32, width=250,
+                corner_radius=6, height=32, width=250,
                 command=run_and_close(command) if enabled else None,
                 state="normal" if enabled else "disabled"
             )
@@ -332,7 +332,7 @@ class TagPointsPlugin:
                 fg_color="transparent",
                 hover_color=("#ececec", "#2d313c"),
                 text_color=("#2a2a2a", "#e6e6e6"),
-                corner_radius=8, height=32, width=250,
+                corner_radius=6, height=32, width=250,
                 command=toggle
             )
             header_btn.pack(fill="x")
@@ -352,7 +352,7 @@ class TagPointsPlugin:
                     grid_row = ctk.CTkFrame(color_content, fg_color="transparent")
                     grid_row.pack(pady=2)
                 swatch = ctk.CTkButton(
-                    grid_row, text="", width=28, height=28, corner_radius=9,
+                    grid_row, text="", width=28, height=28, corner_radius=6,
                     fg_color=color_hex, hover_color=color_hex,
                     border_width=3 if color_hex == info.get("color") else 0,
                     border_color=("#2a2a2a", "#f2f2f2"),
@@ -384,7 +384,7 @@ class TagPointsPlugin:
                     fg_color="transparent",
                     hover_color=("#ececec", "#2d313c"),
                     text_color=l_info.get("color", self.colors["Vermelho"]),
-                    corner_radius=8, height=28, width=230,
+                    corner_radius=6, height=28, width=230,
                     command=run_and_close(lambda l=int(l_key): self._goto_line(l))
                 )
                 item_btn.pack(padx=(18, 0), pady=1, fill="x")
@@ -416,16 +416,21 @@ class TagPointsPlugin:
 
         menu.bind("<Escape>", lambda e: close_menu())
 
+        def reveal():
+            if not menu.winfo_exists():
+                return
+            menu.update_idletasks()
+            reposition()
+            try:
+                menu.attributes("-alpha", 0.97)
+            except Exception:
+                pass
+            menu.focus_force()
+            if interactive_widgets:
+                interactive_widgets[0].focus_set()
+
         reposition()
-
-        try:
-            menu.attributes("-alpha", 0.97)
-        except Exception:
-            pass
-
-        menu.focus_force()
-        if interactive_widgets:
-            interactive_widgets[0].focus_set()
+        menu.after(30, reveal)
 
     def _quick_set_color(self, line: int, color_name: str):
         path_key = self._norm_path(self.ctx.current_file)
@@ -467,7 +472,7 @@ class TagPointsPlugin:
             pass
 
         card = ctk.CTkFrame(
-            dialog, corner_radius=14, border_width=1,
+            dialog, corner_radius=8, border_width=1,
             border_color=("#d0d0d0", "#2a2c35"),
             fg_color=("#f5f5f5", "#16171d")
         )
@@ -484,7 +489,7 @@ class TagPointsPlugin:
             text_color=("#8a8a8a", "#8f96a3"), anchor="w"
         ).pack(fill="x", padx=18)
         alias_entry = ctk.CTkEntry(
-            card, width=260, height=34, corner_radius=10,
+            card, width=260, height=34, corner_radius=6,
             border_width=1, border_color=("#d5d5d5", "#3a3f4b"),
             fg_color=("#ffffff", "#1b1d24"),
             placeholder_text="Nome da marcação"
@@ -497,7 +502,7 @@ class TagPointsPlugin:
             text_color=("#8a8a8a", "#8f96a3"), anchor="w"
         ).pack(fill="x", padx=18)
         desc_entry = ctk.CTkEntry(
-            card, width=260, height=34, corner_radius=10,
+            card, width=260, height=34, corner_radius=6,
             border_width=1, border_color=("#d5d5d5", "#3a3f4b"),
             fg_color=("#ffffff", "#1b1d24"),
             placeholder_text="Descrição breve (opcional)"
@@ -529,7 +534,7 @@ class TagPointsPlugin:
             swatch_row.pack(pady=3)
             for color_hex in color_values[row_start:row_start + per_row]:
                 btn = ctk.CTkButton(
-                    swatch_row, text="", width=28, height=28, corner_radius=9,
+                    swatch_row, text="", width=28, height=28, corner_radius=6,
                     fg_color=color_hex, hover_color=color_hex,
                     border_color=("#2a2a2a", "#f2f2f2"),
                     command=lambda c=color_hex: select_color(c)
@@ -564,7 +569,7 @@ class TagPointsPlugin:
 
         cancel_btn = ctk.CTkButton(
             button_row, text="Cancelar", command=close_dialog, width=118, height=34,
-            corner_radius=10,
+            corner_radius=6,
             fg_color="transparent", border_width=1,
             border_color=("#c0c0c0", "#555555"),
             text_color=("#444444", "#cfcfcf"),
@@ -574,7 +579,7 @@ class TagPointsPlugin:
 
         confirm_btn = ctk.CTkButton(
             button_row, text="Confirmar", command=save_tag, width=118, height=34,
-            corner_radius=10,
+            corner_radius=6,
             fg_color="#4d9fe0", hover_color="#3f8cc9"
         )
         confirm_btn.pack(side="right")
@@ -603,24 +608,29 @@ class TagPointsPlugin:
         for widget in (alias_entry, desc_entry, cancel_btn, confirm_btn, *swatch_buttons.values()):
             widget.bind("<FocusOut>", schedule_focus_check, add="+")
 
-        dialog.update_idletasks()
-        dialog_w = dialog.winfo_reqwidth()
-        dialog_h = dialog.winfo_reqheight()
+        def position_dialog():
+            dialog.update_idletasks()
+            w = dialog.winfo_reqwidth()
+            h = dialog.winfo_reqheight()
+            screen_w = dialog.winfo_screenwidth()
+            screen_h = dialog.winfo_screenheight()
+            x = max(0, (screen_w - w) // 2)
+            y = max(0, (screen_h - h) // 2)
+            dialog.geometry(f"{w}x{h}+{x}+{y}")
 
-        screen_w = dialog.winfo_screenwidth()
-        screen_h = dialog.winfo_screenheight()
-        pos_x = max(0, (screen_w - dialog_w) // 2)
-        pos_y = max(0, (screen_h - dialog_h) // 2)
+        def reveal():
+            if not dialog.winfo_exists():
+                return
+            position_dialog()
+            try:
+                dialog.attributes("-alpha", 0.96)
+            except Exception:
+                pass
+            dialog.focus_force()
+            alias_entry.focus_set()
 
-        dialog.geometry(f"{dialog_w}x{dialog_h}+{pos_x}+{pos_y}")
-
-        try:
-            dialog.attributes("-alpha", 0.96)
-        except Exception:
-            pass
-
-        dialog.focus_force()
-        alias_entry.focus_set()
+        position_dialog()
+        dialog.after(30, reveal)
 
     def _remove_tag(self, line: int):
         path_key = self._norm_path(self.ctx.current_file)
