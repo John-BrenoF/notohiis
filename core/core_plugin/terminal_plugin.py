@@ -72,6 +72,8 @@ MODIFIER_KEYSYMS = (
 
 
 class TerminalPlugin:
+    _MAX_TAGS = 256
+
     def __init__(self, ctx):
         self.ctx = ctx
         self.term_frame = None
@@ -241,11 +243,11 @@ class TerminalPlugin:
         if self._resize_timer and self.term_frame:
             self.term_frame.after_cancel(self._resize_timer)
             self._resize_timer = None
-            
+
         window = getattr(self.ctx, "window", None)
         if window:
             window.grid_rowconfigure(2, minsize=0, weight=0)
-        self._cleanup_shell()
+        self._teardown_shell()
         if self.term_frame is not None:
             try:
                 self.term_frame.destroy()
@@ -296,8 +298,9 @@ class TerminalPlugin:
 
         return [shell], env, temp_paths
 
-    def _cleanup_temp_paths(self):
-        for path in self.temp_paths:
+    @staticmethod
+    def _remove_temp_paths(paths):
+        for path in paths:
             try:
                 if os.path.isdir(path):
                     shutil.rmtree(path, ignore_errors=True)
@@ -305,7 +308,6 @@ class TerminalPlugin:
                     os.remove(path)
             except OSError:
                 pass
-        self.temp_paths = []
 
     def spawn_shell(self):
         if self.process:
@@ -315,7 +317,7 @@ class TerminalPlugin:
         args, env, temp_paths = self._build_shell_launch(shell)
         self.temp_paths = temp_paths
         self.master_fd, self.slave_fd = pty.openpty()
-        
+
         cwd = SessionManager.load_session()
         if not cwd or not os.path.isdir(cwd):
             cwd = None
@@ -339,7 +341,8 @@ class TerminalPlugin:
             self.master_fd = None
             self.slave_fd = None
             self.process = None
-            self._cleanup_temp_paths()
+            self._remove_temp_paths(self.temp_paths)
+            self.temp_paths = []
             return
 
         self._safe_close(self.slave_fd)
@@ -375,10 +378,10 @@ class TerminalPlugin:
     def _apply_resize(self):
         if not self.output_text or self.master_fd is None or not self.screen:
             return
-            
+
         width = self.output_text.winfo_width()
         height = self.output_text.winfo_height()
-        
+
         if width <= 1 or height <= 1:
             return
 
@@ -387,12 +390,12 @@ class TerminalPlugin:
         char_h = max(font.metrics("linespace"), 1)
         cols = max(width // char_w, 10)
         rows = max(height // char_h, 3)
-        
+
         with self._render_lock:
             if (cols, rows) == (self.screen.columns, self.screen.lines):
                 return
             self.screen.resize(lines=rows, columns=cols)
-            
+
         self._set_pty_size(self.master_fd, rows, cols)
         if self.process:
             try:
@@ -402,17 +405,18 @@ class TerminalPlugin:
         self._render()
 
     def _read_output(self):
-        if self.master_fd is None:
+        master_fd = self.master_fd
+        if master_fd is None:
             return
         process = self.process
         while not self._stop.is_set() and process and process.poll() is None:
             try:
-                rlist, _, _ = select.select([self.master_fd], [], [], 0.1)
+                rlist, _, _ = select.select([master_fd], [], [], 0.1)
             except (OSError, ValueError):
                 break
-            if self.master_fd in rlist:
+            if master_fd in rlist:
                 try:
-                    data = os.read(self.master_fd, 4096)
+                    data = os.read(master_fd, 4096)
                 except OSError:
                     break
                 if not data:
@@ -485,6 +489,13 @@ class TerminalPlugin:
         name = self._tag_cache.get(key)
         if name:
             return name
+        if len(self._tag_cache) >= self._MAX_TAGS:
+            for cached_name in self._tag_cache.values():
+                try:
+                    self.output_text.tag_delete(cached_name)
+                except tk.TclError:
+                    pass
+            self._tag_cache.clear()
         name = f"s{len(self._tag_cache)}"
         font = self._font_for(char.bold, char.italics)
         self.output_text.tag_configure(
@@ -616,33 +627,48 @@ class TerminalPlugin:
             pass
         return "break"
 
-    def _cleanup_shell(self):
+    def _teardown_shell(self):
         self._stop.set()
 
-        if self.reader_thread and self.reader_thread.is_alive():
-            self.reader_thread.join(timeout=1.0)
-        self.reader_thread = None
+        master_fd = self.master_fd
+        slave_fd = self.slave_fd
+        process = self.process
+        reader_thread = self.reader_thread
+        temp_paths = self.temp_paths
 
-        if self.process:
-            try:
-                os.killpg(os.getpgid(self.process.pid), 9)
-            except Exception:
-                pass
-            try:
-                self.process.wait(timeout=1.0)
-            except Exception:
-                pass
-            self.process = None
+        self.master_fd = None
+        self.slave_fd = None
+        self.process = None
+        self.reader_thread = None
+        self.temp_paths = []
 
         with self._render_lock:
-            self._safe_close(self.master_fd)
-            self.master_fd = None
-            self._safe_close(self.slave_fd)
-            self.slave_fd = None
             self.screen = None
             self.stream = None
 
-        self._cleanup_temp_paths()
+        threading.Thread(
+            target=self._kill_shell,
+            args=(master_fd, slave_fd, process, reader_thread, temp_paths),
+            daemon=True,
+        ).start()
+
+    def _kill_shell(self, master_fd, slave_fd, process, reader_thread, temp_paths):
+        if reader_thread and reader_thread.is_alive():
+            reader_thread.join(timeout=2.0)
+
+        if process:
+            try:
+                os.killpg(os.getpgid(process.pid), 9)
+            except Exception:
+                pass
+            try:
+                process.wait(timeout=2.0)
+            except Exception:
+                pass
+
+        self._safe_close(master_fd)
+        self._safe_close(slave_fd)
+        self._remove_temp_paths(temp_paths)
 
     def run(self):
         pass
