@@ -16,6 +16,21 @@ from core.src.session import SessionManager
 
 class ShortcutManager:
     """Gerencia os atalhos de teclado da aplicação."""
+
+    HISTORY_UNDO_SEQUENCES = ("<Control-z>",)
+    HISTORY_REDO_SEQUENCES = (
+        "<Control-y>", "<Control-Y>",
+        "<Control-Z>",
+        "<Control-Shift-z>", "<Control-Shift-Z>",
+        "<Shift-Control-z>", "<Shift-Control-Z>",
+    )
+
+    @staticmethod
+    def bind_history_shortcuts(widget):
+        for sequence in ShortcutManager.HISTORY_UNDO_SEQUENCES:
+            widget.bind(sequence, ShortcutManager.undo)
+        for sequence in ShortcutManager.HISTORY_REDO_SEQUENCES:
+            widget.bind(sequence, ShortcutManager.redo)
     
     @staticmethod
     def next_tab(event=None):
@@ -77,10 +92,7 @@ class ShortcutManager:
         window.bind("<Control-M>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
         window.bind("<Control-g>", lambda e: AppContext().git_plugin.quick_commit_ui() if AppContext().git_plugin else None)
         window.bind("<Control-G>", lambda e: AppContext().git_plugin.quick_commit_ui() if AppContext().git_plugin else None)
-        window.bind("<Control-z>", ShortcutManager.undo)
-        window.bind("<Control-Z>", ShortcutManager.undo)
-        window.bind("<Control-y>", ShortcutManager.redo)
-        window.bind("<Control-Y>", ShortcutManager.redo)
+        ShortcutManager.bind_history_shortcuts(window)
 
     @staticmethod
     def undo(event=None):

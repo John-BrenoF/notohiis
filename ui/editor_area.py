@@ -12,6 +12,7 @@ import tkinter as tk
 from typing import Optional
 from core.src.app_context import AppContext
 from core.interfaces import TextEditor, EditorEvent
+from ui.shortcuts import ShortcutManager
 
 class EditorArea(ctk.CTkFrame, TextEditor):
     """Widget principal de edição de texto com numeração de linhas."""
@@ -60,10 +61,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.bind("<Control-Tab>", self._force_autocomplete)
         self.textbox._textbox.bind("<Control-f>", self._toggle_search)
         self.textbox._textbox.bind("<Control-F>", self._toggle_search)
-        self.textbox._textbox.bind("<Control-z>", self._on_undo)
-        self.textbox._textbox.bind("<Control-Z>", self._on_undo)
-        self.textbox._textbox.bind("<Control-y>", self._on_redo)
-        self.textbox._textbox.bind("<Control-Y>", self._on_redo)
+        ShortcutManager.bind_history_shortcuts(self.textbox._textbox)
         self.textbox._textbox.bind("<Configure>", self._on_event)
         self.textbox._textbox.bind("<Key>", self._set_dirty)
         
@@ -273,14 +271,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
     def _set_dirty(self, event=None):
         char = event.char if event else None
         AppContext().handle_typing(char)
-
-    def _on_undo(self, event=None):
-        AppContext().perform_undo()
-        return "break"
-
-    def _on_redo(self, event=None):
-        AppContext().perform_redo()
-        return "break"
 
     def _on_text_scroll(self, *args):
         """Callback for the textbox's yscrollcommand."""
