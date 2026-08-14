@@ -1,7 +1,17 @@
+#______________[português]____________________
+# Copyright (c) 2026 John-BrenoF
+# Este programa é um software livre: você pode redistribuí-lo e/ou modificá-lo
+# sob os termos da licença LUMEJ v1.0. Veja o arquivo LICENSE no repositório.
+#_____________[english]____________________
+# Copyright (c) 2016-2026 John-BrenoF
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the LUMEJ v1.0 license. See the LICENSE file in the repository.
+
 import os
 from typing import Optional, Any
 from core.interfaces import TextEditor, StatusBar, Sidebar, AppWindow
 from core.events import EventBus
+from core.src.edit_history_manager import EditHistoryManager
 
 class AppContext:
     """
@@ -19,13 +29,9 @@ class AppContext:
             cls._instance.status_bar: Optional[StatusBar] = None
             cls._instance.current_file: Optional[str] = None
             cls._instance.project_root: Optional[str] = None
-            cls._instance.is_dirty: bool = False
-            cls._instance._undo_stack_at_save: Optional[int] = 0
-            cls._instance._current_undo_index: int = 0
-            cls._instance._transaction_level: int = 0
-            cls._instance.is_processing_history: bool = False
-            cls._instance._chars_since_sep: int = 0
             cls._instance.events = EventBus()
+            cls._instance.edit_history = EditHistoryManager(cls._instance.events)
+            cls._instance.events.on("dirty_changed", cls._instance._on_dirty_changed)
             # Registrador de Plugins
             cls._instance.git_plugin = None
             cls._instance.md_plugin = None
@@ -39,11 +45,20 @@ class AppContext:
             cls._instance.tab_bridge = None
         return cls._instance
 
+    @property
+    def is_dirty(self) -> bool:
+        return self.edit_history.is_dirty
+
+    @is_dirty.setter
+    def is_dirty(self, dirty: bool) -> None:
+        self.edit_history.set_dirty(dirty)
+
     def set_window(self, window: AppWindow):
         self.window = window
 
     def set_editor(self, editor: TextEditor):
         self.editor = editor
+        self.edit_history.attach_editor(editor)
 
     def set_sidebar(self, sidebar: Sidebar):
         self.sidebar = sidebar
@@ -62,92 +77,33 @@ class AppContext:
         Marca o ponto atual na pilha de desfazer como o estado 'salvo'.
         Chamado pelo BufferManager ou ShortcutManager após gravação em disco.
         """
-        self._undo_stack_at_save = self._current_undo_index
-        self.is_dirty = False
+        if self.editor:
+            self.edit_history.mark_saved(self.editor.get_text())
 
     def handle_typing(self, char: Optional[str]):
         """
         Gerencia a entrada de texto para criar pontos de Undo granulares.
         Chamado pela UI a cada tecla pressionada.
         """
-        self.is_dirty = True
-        
-        if not self.editor or self.is_processing_history:
-            return
-
-        # Caracteres de controle não incrementam a granularidade
-        if char is None or len(char) == 0:
-            return
-
-        # Definimos separadores lógicos: espaços, pontuação, símbolos e quebras de linha
-        logical_separators = (" ", "\n", "\t", ".", ",", "!", "?", ";", ":", "(", "[", "{", "=", "+", "-", "*", "/", "\\")
-        
-        self._chars_since_sep += 1
-        
-        # Se for um separador ou o usuário digitou muito (15 chars), criamos um ponto de restauração
-        if char in logical_separators or self._chars_since_sep >= 15:
-            self.editor.edit_separator()
-            self._chars_since_sep = 0
-            self.update_undo_index(1, is_new_action=True)
-
-    def update_undo_index(self, change: int, is_new_action: bool = False):
-        """
-        Atualiza o índice atual da pilha de undo e recalcula is_dirty.
-        is_new_action: True se for uma nova digitação (que invalida o Redo).
-        """
-        if self.is_processing_history:
-            return
-
-        # Se o usuário digitar algo novo após um Undo, o "Futuro" (Redo) é descartado.
-        # Se o ponto de salvamento estava naquele futuro, ele nunca mais será alcançado.
-        if is_new_action and self._undo_stack_at_save is not None:
-            if self._current_undo_index < self._undo_stack_at_save:
-                self._undo_stack_at_save = None # Invalida o save point original
-
-        self._current_undo_index += change
-        
-        # Se o índice atual voltou para onde estava no último save, não está mais dirty
-        new_dirty_state = self._current_undo_index != self._undo_stack_at_save
-        
-        if new_dirty_state != self.is_dirty:
-            self.is_dirty = new_dirty_state
-            self._refresh_ui_status()
+        self.edit_history.on_text_input(char)
 
     def begin_transaction(self):
         """Inicia um grupo de operações que devem ser desfeitas juntas."""
-        if self._transaction_level == 0 and self.editor:
-            self.editor.begin_undo_group()
-            self._chars_since_sep = 0
-        self._transaction_level += 1
+        self.edit_history.begin_transaction()
 
     def end_transaction(self):
         """Finaliza o grupo de operações atômicas."""
-        self._transaction_level = max(0, self._transaction_level - 1)
-        if self._transaction_level == 0 and self.editor:
-            self.editor.end_undo_group()
-            self.update_undo_index(1, is_new_action=True)
+        self.edit_history.end_transaction()
 
     def perform_undo(self):
-        if self.editor and not self.is_processing_history:
-            if self._chars_since_sep > 0:
-                self.editor.edit_separator()
-                self._chars_since_sep = 0
-            
-            self.is_processing_history = True
-            self.editor.undo()
-            self.update_undo_index(-1)
-            self.is_processing_history = False
+        self.edit_history.perform_undo()
 
     def perform_redo(self):
-        if self.editor and not self.is_processing_history:
-            self.is_processing_history = True
-            self.editor.redo()
-            self.update_undo_index(1)
-            self.is_processing_history = False
+        self.edit_history.perform_redo()
 
-    def _refresh_ui_status(self):
+    def _on_dirty_changed(self, _dirty: bool):
         """Atualiza a StatusBar para refletir mudanças no estado Dirty."""
         if self.status_bar and self.editor:
             idx = self.editor.get_cursor_index()
             line, col = idx.split(".")
-            self.status_bar.update_status(int(line), int(col), self.current_file)
+            self.status_bar.update_status(int(line), int(col), self.current_file or "Novo Arquivo")
