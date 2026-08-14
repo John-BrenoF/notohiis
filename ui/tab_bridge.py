@@ -175,7 +175,7 @@ class TabBridge:
             if self.ctx.editor:
                 active.content = self.ctx.editor.get_text()
             if self.ctx.tab_manager.save_active_tab():
-                self.ctx.is_dirty = False
+                self.ctx.notify_save()
                 if self.ctx.status_bar:
                     self.ctx.status_bar.update_status(1, 0, active.path)
                 return True
@@ -187,15 +187,19 @@ class TabBridge:
         self.ctx.tab_manager.update_active_content(content)
         active = self.ctx.tab_manager.get_active_tab()
         if active:
-            self.ctx.is_dirty = active.is_dirty
+            active.is_dirty = self.ctx.is_dirty
 
     def _load_tab(self, tab):
         if not self.ctx.editor or not tab:
             return
         content = tab.content
         self.ctx.current_file = tab.path or tab.title
-        self.ctx.is_dirty = tab.is_dirty
         self.ctx.editor.set_text(content)
+        if tab.is_dirty and tab.path:
+            baseline = BufferManager.read_file(tab.path)
+            self.ctx.edit_history.on_content_loaded(content, baseline=baseline)
+        elif tab.is_dirty:
+            self.ctx.edit_history.on_content_loaded(content, force_dirty=True)
         if self.ctx.status_bar:
             self.ctx.status_bar.update_status(1, 0, self.ctx.current_file)
 

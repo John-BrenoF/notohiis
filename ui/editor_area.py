@@ -12,6 +12,7 @@ import tkinter as tk
 from typing import Optional
 from core.src.app_context import AppContext
 from core.interfaces import TextEditor, EditorEvent
+from ui.shortcuts import ShortcutManager
 
 class EditorArea(ctk.CTkFrame, TextEditor):
     """Widget principal de edição de texto com numeração de linhas."""
@@ -60,6 +61,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.bind("<Control-Tab>", self._force_autocomplete)
         self.textbox._textbox.bind("<Control-f>", self._toggle_search)
         self.textbox._textbox.bind("<Control-F>", self._toggle_search)
+        ShortcutManager.bind_history_shortcuts(self.textbox._textbox)
         self.textbox._textbox.bind("<Configure>", self._on_event)
         self.textbox._textbox.bind("<Key>", self._set_dirty)
         
@@ -186,8 +188,11 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         return content
 
     def set_text(self, text: str) -> None:
-        self.textbox.delete("1.0", tk.END)
+        text_widget = self.textbox._textbox
+        text_widget.delete("1.0", tk.END)
         self.insert(text, "1.0")
+        text_widget.edit_reset()
+        text_widget.edit_modified(False)
         self._after_content_load(text)
 
     def get_cursor_index(self) -> str:
@@ -259,12 +264,11 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.edit_separator()
 
     def is_in_transaction(self) -> bool:
-        return AppContext()._transaction_level > 0
+        return AppContext().edit_history._transaction_level > 0
 
     # --- Métodos de UI e Eventos ---
 
     def _set_dirty(self, event=None):
-        # Delega ao core a decisão de como tratar essa entrada de texto
         char = event.char if event else None
         AppContext().handle_typing(char)
 
@@ -486,7 +490,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         if self.ctx.autocomplete_engine and self.ctx.current_file:
             self.ctx.autocomplete_engine.notify_open(self.ctx.current_file, text)
         self.redraw_line_numbers()
-        self.ctx.is_dirty = False
-        
+        self.ctx.edit_history.on_content_loaded(text)
+
         if self.ctx.md_plugin:
             self.ctx.md_plugin.update_button_visibility(self.ctx.current_file)

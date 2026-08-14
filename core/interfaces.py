@@ -1,3 +1,12 @@
+#______________[português]____________________
+# Copyright (c) 2026 John-BrenoF
+# Este programa é um software livre: você pode redistribuí-lo e/ou modificá-lo
+# sob os termos da licença LUMEJ v1.0. Veja o arquivo LICENSE no repositório.
+#_____________[english]____________________
+# Copyright (c) 2016-2026 John-BrenoF
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the LUMEJ v1.0 license. See the LICENSE file in the repository.
+
 from typing import Protocol, Callable, Optional, Tuple, Any
 from dataclasses import dataclass
 
@@ -6,6 +15,17 @@ class EditorEvent:
     char: str
     keysym: str
     modifiers: int = 0
+
+class EditHistoryController(Protocol):
+    def on_content_loaded(self, content: str, baseline: Optional[str] = None, force_dirty: bool = False) -> None: ...
+    def mark_saved(self, content: str) -> None: ...
+    def on_text_input(self, char: Optional[str]) -> None: ...
+    def perform_undo(self) -> None: ...
+    def perform_redo(self) -> None: ...
+    def begin_transaction(self) -> None: ...
+    def end_transaction(self) -> None: ...
+    @property
+    def is_dirty(self) -> bool: ...
 
 class TextEditor(Protocol):
     def insert(self, text: str, index: str = "insert") -> None: ...

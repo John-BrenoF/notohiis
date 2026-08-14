@@ -16,6 +16,21 @@ from core.src.session import SessionManager
 
 class ShortcutManager:
     """Gerencia os atalhos de teclado da aplicação."""
+
+    HISTORY_UNDO_SEQUENCES = ("<Control-z>",)
+    HISTORY_REDO_SEQUENCES = (
+        "<Control-y>", "<Control-Y>",
+        "<Control-Z>",
+        "<Control-Shift-z>", "<Control-Shift-Z>",
+        "<Shift-Control-z>", "<Shift-Control-Z>",
+    )
+
+    @staticmethod
+    def bind_history_shortcuts(widget):
+        for sequence in ShortcutManager.HISTORY_UNDO_SEQUENCES:
+            widget.bind(sequence, ShortcutManager.undo)
+        for sequence in ShortcutManager.HISTORY_REDO_SEQUENCES:
+            widget.bind(sequence, ShortcutManager.redo)
     
     @staticmethod
     def next_tab(event=None):
@@ -77,6 +92,17 @@ class ShortcutManager:
         window.bind("<Control-M>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
         window.bind("<Control-g>", lambda e: AppContext().git_plugin.quick_commit_ui() if AppContext().git_plugin else None)
         window.bind("<Control-G>", lambda e: AppContext().git_plugin.quick_commit_ui() if AppContext().git_plugin else None)
+        ShortcutManager.bind_history_shortcuts(window)
+
+    @staticmethod
+    def undo(event=None):
+        AppContext().perform_undo()
+        return "break"
+
+    @staticmethod
+    def redo(event=None):
+        AppContext().perform_redo()
+        return "break"
 
     @staticmethod
     def select_all(event=None):
@@ -135,7 +161,7 @@ class ShortcutManager:
                         active.content = ctx.editor.get_text()
                     if BufferManager.save_file(active.path, active.content):
                         ctx.tab_manager.mark_active_saved()
-                        ctx.is_dirty = False
+                        ctx.notify_save()
                         if ctx.sidebar: ctx.sidebar.refresh_explorer()
                         if ctx.status_bar: ctx.status_bar.update_status(1, 0, active.path)
                     return "break"
@@ -148,7 +174,7 @@ class ShortcutManager:
                 if BufferManager.save_file(path, active.content):
                     ctx.tab_manager.update_tab_path(active.id, path)
                     ctx.current_file = path
-                    ctx.is_dirty = False
+                    ctx.notify_save()
                     if ctx.sidebar: ctx.sidebar.refresh_explorer()
                     if ctx.status_bar: ctx.status_bar.update_status(1, 0, path)
                 return "break"
@@ -162,7 +188,7 @@ class ShortcutManager:
         if ctx.editor:
             content = ctx.editor.get_text()
             if BufferManager.save_file(ctx.current_file, content):
-                ctx.is_dirty = False
+                ctx.notify_save()
                 if ctx.sidebar: ctx.sidebar.refresh_explorer()
                 # O próprio editor costuma atualizar o status via eventos de teclado, 
                 # mas forçamos aqui para garantir sincronia após o save.
@@ -190,7 +216,6 @@ class ShortcutManager:
                 ctx.tab_bridge.open_new_tab()
                 return
             ctx.current_file = None
-            ctx.is_dirty = False
             if ctx.editor:
                 ctx.editor.set_text("")
             if ctx.status_bar:
