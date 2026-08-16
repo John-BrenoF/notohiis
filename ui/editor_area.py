@@ -9,7 +9,7 @@
 
 import customtkinter as ctk
 import tkinter as tk
-from typing import Optional
+from typing import Optional, Callable, Any
 from core.src.app_context import AppContext
 from core.interfaces import TextEditor, EditorEvent
 from ui.shortcuts import ShortcutManager
@@ -209,7 +209,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             pass
         return None
 
-    def bind_key(self, key: str, callback: tk.Callable) -> None:
+    def bind_key(self, key: str, callback: Callable[[EditorEvent], Any]) -> None:
         def wrapper(event):
             editor_event = EditorEvent(char=event.char, keysym=event.keysym)
             return callback(editor_event)
