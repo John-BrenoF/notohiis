@@ -6,7 +6,7 @@
 # Copyright (c) 2016-2026 John-BrenoF
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the LUMEJ v1.0 license. See the LICENSE file in the repository.
-
+import os
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog
@@ -196,9 +196,9 @@ class ShortcutManager:
                     ctx.editor._update_status_bar()
 
     @staticmethod
-    def open_folder(event=None):
+    def open_folder(self, event=None):
         ctx = AppContext()
-        path = filedialog.askdirectory()
+        path = filedialog.askdirectory(initialdir=os.path.expanduser("~"))
         if path:
             ctx.project_root = path
             SessionManager.save_session(path)
