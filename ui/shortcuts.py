@@ -10,9 +10,14 @@
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog
+import os
+import subprocess
+import shutil
+import platform
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
 from core.src.session import SessionManager
+from core.src.file_manager import FileManager
 
 class ShortcutManager:
     """Gerencia os atalhos de teclado da aplicação."""
@@ -198,14 +203,63 @@ class ShortcutManager:
     @staticmethod
     def open_folder(event=None):
         ctx = AppContext()
-        path = filedialog.askdirectory()
-        if path:
-            ctx.project_root = path
-            SessionManager.save_session(path)
-            if ctx.sidebar:
-                ctx.sidebar.refresh_explorer()
-            if ctx.status_bar:
-                ctx.status_bar.update_status(1, 0, f"Projeto: {path}")
+
+        def _open_system_file_manager(path):
+            if not path:
+                return False
+            path = os.path.abspath(path)
+            system = platform.system().lower()
+            if system == 'linux':
+                cmd = shutil.which('xdg-open') or shutil.which('gio') or shutil.which('gnome-open')
+                if cmd:
+                    try:
+                        subprocess.Popen([cmd, path])
+                        return True
+                    except Exception:
+                        pass
+                for fm in ('nautilus', 'dolphin', 'thunar', 'pcmanfm', 'caja'):
+                    cmd = shutil.which(fm)
+                    if cmd:
+                        try:
+                            subprocess.Popen([cmd, path])
+                            return True
+                        except Exception:
+                            continue
+            elif system == 'darwin':
+                try:
+                    subprocess.Popen(['open', path])
+                    return True
+                except Exception:
+                    pass
+            elif system == 'windows':
+                try:
+                    os.startfile(path)
+                    return True
+                except Exception:
+                    pass
+            return False
+
+        target = ctx.project_root
+        if not target:
+            target = filedialog.askdirectory()
+            if not target:
+                return
+
+        opened = _open_system_file_manager(target)
+        if not opened:
+            path = filedialog.askdirectory(initialdir=target)
+            if path:
+                ctx.project_root = path
+                SessionManager.save_session(path)
+                if ctx.sidebar: ctx.sidebar.refresh_explorer()
+                if ctx.status_bar: ctx.status_bar.update_status(1, 0, f"Projeto: {path}")
+        else:
+            # If system manager opened, still set project root to keep app state
+            ctx.project_root = target
+            SessionManager.save_session(target)
+            if ctx.sidebar: ctx.sidebar.refresh_explorer()
+            if ctx.status_bar: ctx.status_bar.update_status(1, 0, f"Projeto: {target}")
+        return "break"
 
     @staticmethod
     def new_buffer(event=None):
