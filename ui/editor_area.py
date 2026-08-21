@@ -61,6 +61,8 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.bind("<Control-Tab>", self._force_autocomplete)
         self.textbox._textbox.bind("<Control-f>", self._toggle_search)
         self.textbox._textbox.bind("<Control-F>", self._toggle_search)
+        self.textbox._textbox.bind("<Control-h>", self._toggle_replace)
+        self.textbox._textbox.bind("<Control-H>", self._toggle_replace)
         ShortcutManager.bind_history_shortcuts(self.textbox._textbox)
         self.textbox._textbox.bind("<Configure>", self._on_event)
         self.textbox._textbox.bind("<Key>", self._set_dirty)
@@ -125,6 +127,18 @@ class EditorArea(ctk.CTkFrame, TextEditor):
                 self.ctx.search_bar.hide()
             else:
                 self.ctx.search_bar.show()
+                if hasattr(self.ctx, 'replace_bar') and self.ctx.replace_bar.winfo_ismapped():
+                    self.ctx.replace_bar.hide()
+        return "break"
+
+    def _toggle_replace(self, event=None):
+        if hasattr(self.ctx, 'replace_bar') and self.ctx.replace_bar:
+            if self.ctx.replace_bar.winfo_ismapped():
+                self.ctx.replace_bar.hide()
+            else:
+                self.ctx.replace_bar.show()
+                if hasattr(self.ctx, 'search_bar') and self.ctx.search_bar.winfo_ismapped():
+                    self.ctx.search_bar.hide()
         return "break"
 
     def clear_search_highlight(self):
@@ -172,6 +186,47 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.set_cursor(start_pos)
         
         return self.current_match_index + 1, len(self.search_matches)
+
+    def replace_current(self, term: str, replacement: str):
+        """Substitui o termo atual selecionado."""
+        if not self.search_matches or self.current_match_index == -1:
+            return
+        
+        start_pos, end_pos = self.search_matches[self.current_match_index]
+        
+        current_text = self.textbox.get(start_pos, end_pos)
+        if current_text.lower() == term.lower():
+            self.begin_undo_group()
+            self.textbox.delete(start_pos, end_pos)
+            self.textbox.insert(start_pos, replacement)
+            self.end_undo_group()
+            
+            self.highlight_search(term)
+
+    def replace_all(self, term: str, replacement: str):
+        if not term:
+            return
+
+        self.begin_undo_group()
+        
+        positions = []
+        start_pos = "1.0"
+        
+        while True:
+            start_pos = self.textbox._textbox.search(term, start_pos, stopindex=tk.END, nocase=True)
+            if not start_pos:
+                break
+            
+            end_pos = f"{start_pos}+{len(term)}c"
+            positions.insert(0, (start_pos, end_pos)) 
+            start_pos = end_pos
+            
+        for start, end in positions:
+            self.textbox.delete(start, end)
+            self.textbox.insert(start, replacement)
+            
+        self.end_undo_group()
+        self.clear_search_highlight()
 
     # --- Implementação do Protocolo TextEditor ---
 
