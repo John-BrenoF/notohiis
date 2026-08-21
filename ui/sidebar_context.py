@@ -13,54 +13,79 @@ from core.src.file_manager import FileManager
 from core.src.app_context import AppContext
 
 
-class RenameDialog:
-    def __init__(self, parent, target_path, on_confirm):
-        self.parent = parent
+class InlineRename:
+    def __init__(self, sidebar_instance, target_path, on_confirm_callback):
+        self.sidebar_instance = sidebar_instance
         self.target_path = target_path
-        self.on_confirm = on_confirm
-        self.dialog = ctk.CTkToplevel(parent)
-        self.dialog.title("Renomear")
-        self.dialog.attributes("-topmost", True)
-        self._center_dialog(350, 160)
-        ctk.CTkLabel(self.dialog, text=f"Novo nome para '{os.path.basename(target_path)}':", pady=10).pack()
-        self.entry = ctk.CTkEntry(self.dialog, width=280)
-        self.entry.insert(0, os.path.basename(target_path))
-        self.entry.pack(pady=10)
-        self.entry.focus_set()
-        self.entry.select_range(0, tk.END)
-        buttons = ctk.CTkFrame(self.dialog, fg_color="transparent")
-        buttons.pack()
-        ctk.CTkButton(buttons, text="Renomear", command=self._confirm).pack(side="left", padx=6)
-        ctk.CTkButton(buttons, text="Cancelar", fg_color="gray", command=self.dialog.destroy).pack(side="left", padx=6)
-        self.entry.bind("<Return>", self._confirm)
-        self.entry.bind("<Escape>", lambda e: self.dialog.destroy())
-
-    def _center_dialog(self, width, height):
-        self.dialog.update_idletasks()
-        master = self.parent.winfo_toplevel()
-        self.dialog.transient(master)
-        self.dialog.resizable(False, False)
-        screen_width = self.dialog.winfo_screenwidth()
-        screen_height = self.dialog.winfo_screenheight()
-        x = max(0, (screen_width // 2) - (width // 2))
-        y = max(0, (screen_height // 2) - (height // 2))
-        self.dialog.geometry(f"{width}x{height}+{x}+{y}")
-
-    def _confirm(self, event=None):
-        new_name = self.entry.get().strip()
-        if not new_name:
-            self.dialog.destroy()
+        self.on_confirm_callback = on_confirm_callback
+        
+        self.target_button = self.sidebar_instance.item_widgets.get(target_path)
+        if not self.target_button:
             return
-        if new_name == os.path.basename(self.target_path):
-            self.dialog.destroy()
+
+        button_text = self.target_button.cget("text")
+        icon_text = button_text.split("    ")[0] if "    " in button_text else ""
+        
+        self.inline_frame = ctk.CTkFrame(
+            self.sidebar_instance.scrollable_frame, 
+            fg_color="#2c313a", 
+            height=26, 
+            corner_radius=4
+        )
+        self.inline_frame.pack(fill="x", padx=4, pady=1, before=self.target_button)
+        self.target_button.pack_forget()
+        
+        if icon_text:
+            self.icon_label = ctk.CTkLabel(self.inline_frame, text=icon_text, font=("Segoe UI", 12))
+            self.icon_label.pack(side="left", padx=(8, 4))
+            
+        self.entry_field = ctk.CTkEntry(
+            self.inline_frame, height=22, font=("Segoe UI", 11), border_width=1,
+            border_color="#3e4451", fg_color="#1d2026", text_color="#cccccc"
+        )
+        self.entry_field.pack(side="left", fill="x", expand=True, padx=(0, 4), pady=2)
+        
+        base_name = os.path.basename(self.target_path)
+        self.entry_field.insert(0, base_name)
+        self.entry_field.focus_set()
+        
+        name_without_extension, extension = os.path.splitext(base_name)
+        if os.path.isfile(self.target_path) and extension:
+            self.entry_field.select_range(0, len(name_without_extension))
+        else:
+            self.entry_field.select_range(0, tk.END)
+
+        self.entry_field.bind("<Return>", self._confirm_rename_action)
+        self.entry_field.bind("<Escape>", self._cancel_rename_action)
+        self.entry_field.bind("<FocusOut>", self._cancel_rename_action)
+        
+        self.sidebar_instance._bind_scroll_to_widget(self.inline_frame)
+        if icon_text:
+            self.sidebar_instance._bind_scroll_to_widget(self.icon_label)
+        self.sidebar_instance._bind_scroll_to_widget(self.entry_field)
+
+    def _confirm_rename_action(self, event=None):
+        new_name = self.entry_field.get().strip()
+        if not new_name or new_name == os.path.basename(self.target_path):
+            self._cancel_rename_action()
             return
+            
         if FileManager.rename_path(self.target_path, new_name):
             new_path = os.path.join(os.path.dirname(self.target_path), new_name)
-            self.on_confirm(self.target_path, new_path)
+            self.on_confirm_callback(self.target_path, new_path)
         else:
-            if hasattr(self.parent, "_show_error"):
-                self.parent._show_error("Não foi possível renomear o item.")
-        self.dialog.destroy()
+            if hasattr(self.sidebar_instance, "_show_error"):
+                self.sidebar_instance._show_error("Não foi possível renomear o item.")
+                
+        self._destroy_inline_components()
+
+    def _cancel_rename_action(self, event=None):
+        self._destroy_inline_components()
+        self.sidebar_instance.refresh_explorer()
+
+    def _destroy_inline_components(self):
+        if self.inline_frame.winfo_exists():
+            self.inline_frame.destroy()
 
 
 class SidebarContextMenu:
@@ -190,7 +215,7 @@ class SidebarContextMenu:
     def _menu_rename(self):
         if not self._menu_targets or len(self._menu_targets) > 1:
             return
-        RenameDialog(self.sidebar, self._menu_targets[0], self._on_rename_success)
+        InlineRename(self.sidebar, self._menu_targets[0], self._on_rename_success)
 
     def _copy_relative_path(self):
         if not self._menu_targets:
