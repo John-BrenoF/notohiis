@@ -13,6 +13,7 @@ from ui.sidebar import Sidebar
 from ui.status_bar import StatusBar
 from ui.shortcuts import ShortcutManager
 from ui.search_bar import SearchBar 
+from ui.substiuss import ReplaceBar
 from core.src.app_context import AppContext
 from core.src.session import SessionManager
 try:
@@ -66,6 +67,9 @@ class MainWindow(ctk.CTk):
         # Search Bar (Instanciada, salva no contexto, oculta por padrão)
         self.search_bar = SearchBar(self)
         self.ctx.search_bar = self.search_bar
+        
+        self.replace_bar = ReplaceBar(self)
+        self.ctx.replace_bar = self.replace_bar
 
         # Tab Bridge (opcional)
         self.tab_bridge = TabBridge(self.ctx, self) if TabBridge else None
@@ -104,14 +108,7 @@ class MainWindow(ctk.CTk):
             self.editor.apply_theme()
         if hasattr(self, "status_bar") and self.status_bar:
             self.status_bar.apply_theme()
-
-    def _apply_theme_to_children(self):
-        if hasattr(self, "sidebar") and self.sidebar:
-            self.sidebar.apply_theme()
-        if hasattr(self, "editor") and self.editor:
-            self.editor.apply_theme()
-        if hasattr(self, "status_bar") and self.status_bar:
-            self.status_bar.apply_theme()
-        # [Melhoria] Garante que a barra de pesquisa atualize a cor se o usuário mudar de tema em tempo real
         if hasattr(self, "search_bar") and self.search_bar:
             self.search_bar.apply_theme()
+        if hasattr(self, "replace_bar") and self.replace_bar:
+            self.replace_bar.apply_theme()
