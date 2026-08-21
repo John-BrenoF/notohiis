@@ -49,8 +49,6 @@ class ReplaceBar(ctk.CTkFrame):
         for widget in (self.entry, self.replace_entry):
             widget.bind("<Up>", lambda e: self._navigate_custom(-1))
             widget.bind("<Down>", lambda e: self._navigate_custom(1))
-            widget.bind("<Alt-Left>", lambda e: self._mark_custom(True))
-            widget.bind("<Alt-Right>", lambda e: self._mark_custom(False))
 
         self.btn_replace = ctk.CTkButton(self.frame_bottom, text="Substituir", width=100, command=self._replace)
         self.btn_replace.pack(side="left", padx=(55, 5))
@@ -101,21 +99,13 @@ class ReplaceBar(ctk.CTkFrame):
         self._navigate(step)
         return "break"
 
-    def _mark_custom(self, state):
-        if self.ctx.editor:
-            self.ctx.editor.toggle_mark_current(state)
-        return "break"
-
     def _handle_enter(self, event=None):
         if self.ctx.editor:
             term = self.entry.get()
             replacement = self.replace_entry.get()
             if not term: return "break"
             
-            if self.ctx.editor.marked_matches:
-                self.ctx.editor.replace_marked(term, replacement)
-            else:
-                self.ctx.editor.replace_current(term, replacement)
+            self.ctx.editor.replace_current(term, replacement)
         return "break"
 
     def _replace_all_custom(self, event=None):
