@@ -454,7 +454,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
                 self.popup.selection_set(idx)
                 self.popup.see(idx)
             return "break"
-
+ 
         elif event.keysym in ("Up", "p", "Prior"):
             current = self.popup.curselection()
             idx = (current[0] - 1) if current else 0
