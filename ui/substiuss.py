@@ -112,7 +112,7 @@ class ReplaceBar(ctk.CTkFrame):
             replacement = self.replace_entry.get()
             if not term: return "break"
             
-            if self.ctx.editor.marked_matches:
+            if hasattr(self.ctx.editor, 'marked_match_indices') and self.ctx.editor.marked_match_indices:
                 self.ctx.editor.replace_marked(term, replacement)
             else:
                 self.ctx.editor.replace_current(term, replacement)
