@@ -27,7 +27,7 @@ Notohiis é um editor de texto minimalista feito em Python — para quem valoriz
 
 ## Filosofia
 
-o código  é o mais importante , então foque nele.
+o código  é o mais importante , então foque no código então.
 
 - **Minimalismo intencional** — interface limpa, sem ruído visual.
 - **Extensibilidade** — o que faltar, você cria com plugins em Python.
