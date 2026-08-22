@@ -92,6 +92,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
 
         # Estado da busca
         self.search_matches = []
+        self.marked_match_indices = set()
         self.current_match_index = -1
         self._config_search_tags()
 
@@ -103,6 +104,11 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         """Configura as cores das tags de highlight de busca."""
         self.textbox._textbox.tag_configure("search_match", background="#4a4a4a", foreground="#ffffff")
         self.textbox._textbox.tag_configure("search_active", background="#d7ba7d", foreground="#000000")
+        self.textbox._textbox.tag_configure("search_marked", background="#3399ff", foreground="#ffffff")
+        
+        self.textbox._textbox.tag_raise("search_match")
+        self.textbox._textbox.tag_raise("search_active")
+        self.textbox._textbox.tag_raise("search_marked")
 
     def apply_theme(self):
         theme = AppContext().theme.get("editor", {})
@@ -142,10 +148,11 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         return "break"
 
     def clear_search_highlight(self):
-        """Limpa as marcações de busca do editor."""
         self.textbox._textbox.tag_remove("search_match", "1.0", tk.END)
         self.textbox._textbox.tag_remove("search_active", "1.0", tk.END)
+        self.textbox._textbox.tag_remove("search_marked", "1.0", tk.END)
         self.search_matches = []
+        self.marked_match_indices = set()
         self.current_match_index = -1
 
     def highlight_search(self, term: str, match_case: bool = False):
@@ -168,7 +175,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             start_pos = end_pos
         
         if self.search_matches:
-            return self.goto_next_match(0) # Foca na primeira ocorrência sem pular
+            return self.goto_next_match(0) 
             
         return 0, 0
 
@@ -186,6 +193,38 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.set_cursor(start_pos)
         
         return self.current_match_index + 1, len(self.search_matches)
+
+    def toggle_mark_current(self, state: bool):
+        if not self.search_matches or self.current_match_index == -1:
+            return
+            
+        start_pos, end_pos = self.search_matches[self.current_match_index]
+        
+        if state:
+            self.marked_match_indices.add(self.current_match_index)
+            self.textbox._textbox.tag_add("search_marked", start_pos, end_pos)
+        else:
+            self.marked_match_indices.discard(self.current_match_index)
+            self.textbox._textbox.tag_remove("search_marked", start_pos, end_pos)
+
+    def replace_marked(self, term: str, replacement: str):
+        if not self.marked_match_indices:
+            return
+            
+        self.begin_undo_group()
+        
+        sorted_indices = sorted(list(self.marked_match_indices), reverse=True)
+        
+        for idx in sorted_indices:
+            start_pos, end_pos = self.search_matches[idx]
+            current_text = self.textbox.get(start_pos, end_pos)
+            
+            if current_text.lower() == term.lower():
+                self.textbox.delete(start_pos, end_pos)
+                self.textbox.insert(start_pos, replacement)
+                
+        self.end_undo_group()
+        self.highlight_search(term)
 
     def replace_current(self, term: str, replacement: str):
         """Substitui o termo atual selecionado."""
@@ -311,11 +350,9 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.edit_reset()
 
     def begin_undo_group(self) -> None:
-        """Inicia um bloco atômico desabilitando temporariamente a pilha."""
         self.textbox._textbox.configure(autoseparators=False)
 
     def end_undo_group(self) -> None:
-        """Fecha o bloco atômico e força um separador."""
         self.edit_separator()
 
     def is_in_transaction(self) -> bool:
@@ -328,7 +365,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         AppContext().handle_typing(char)
 
     def _on_text_scroll(self, *args):
-        """Callback for the textbox's yscrollcommand."""
         self.redraw_line_numbers()
         self._update_status_bar()
 
@@ -336,17 +372,14 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.redraw_line_numbers()
         self._update_status_bar()
         
-        # Dispara realce de sintaxe Python
         if AppContext().py_plugin:
             AppContext().py_plugin.highlight()
             self._trigger_autocomplete(event)
             
-        # Executa plugins externos de forma desacoplada
         for plugin in getattr(AppContext(), 'external_plugins', []):
             if hasattr(plugin, 'run'):
                 plugin.run()
 
-        # Se houver um gerenciador de abas ativo, sincroniza o conteúdo atual
         if getattr(AppContext(), 'tab_bridge', None):
             AppContext().tab_bridge.update_active_tab_content(self.get_text())
 
@@ -355,28 +388,22 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         return "break"
 
     def _select_all(self, event=None):
-        """Seleciona todo o texto do editor."""
         self.textbox._textbox.tag_add(tk.SEL, "1.0", tk.END)
         self.textbox._textbox.mark_set(tk.INSERT, tk.END)
         self.textbox._textbox.see(tk.INSERT)
         return "break"
 
-    # --- Navegação Rápida (Alt + Seta + Número) ---
-
     def _start_navigation_up(self, event=None):
-        """Inicia modo de navegação para cima."""
         self.navigation_mode = "up"
         self._schedule_navigation_timeout()
         return "break"
 
     def _start_navigation_down(self, event=None):
-        """Inicia modo de navegação para baixo."""
         self.navigation_mode = "down"
         self._schedule_navigation_timeout()
         return "break"
 
     def _on_number_input(self, event=None):
-        """Processa entrada de número quando em modo navegação."""
         if self.navigation_mode and event and event.char.isdigit():
             lines_count = int(event.char)
             self.move_cursor_by_lines(lines_count, self.navigation_mode)
@@ -388,7 +415,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         return None
 
     def _cancel_navigation(self, event=None):
-        """Cancela modo de navegação se ativo."""
         if self.navigation_mode:
             self.navigation_mode = None
             if self.navigation_timer:
@@ -397,22 +423,18 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             return "break"
 
     def _schedule_navigation_timeout(self):
-        """Agenda timeout para cancelar navegação se não houver número."""
         if self.navigation_timer:
             self.after_cancel(self.navigation_timer)
         self.navigation_timer = self.after(1000, self._cancel_navigation)
 
     def move_cursor_by_lines(self, lines: int, direction: str) -> None:
-        """
-        Move o cursor N linhas para cima ou para baixo.
-        """
         try:
             current_index = self.textbox.index(tk.INSERT)
             current_line = int(current_index.split('.')[0])
             
             if direction == "up":
                 new_line = max(1, current_line - lines)
-            else:  # down
+            else:  
                 total_lines = self.get_line_count()
                 new_line = min(total_lines, current_line + lines)
             
@@ -422,7 +444,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             pass
 
     def _on_key_press(self, event):
-        """Intervém nas teclas de navegação quando o popup está ativo."""
         if not self.popup: return
 
         if event.keysym in ("Down", "n", "Next"):
@@ -433,7 +454,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
                 self.popup.selection_set(idx)
                 self.popup.see(idx)
             return "break"
-
+ 
         elif event.keysym in ("Up", "p", "Prior"):
             current = self.popup.curselection()
             idx = (current[0] - 1) if current else 0
@@ -464,7 +485,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             i = self.textbox.index(f"{i}+1line") 
 
     def _trigger_autocomplete(self, event=None, forced=False):
-        """Consulta o core e decide se mostra o popup."""
         if not event and not forced: return
         
         if not forced:
