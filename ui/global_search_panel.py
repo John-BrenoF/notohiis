@@ -17,6 +17,7 @@ class GlobalSearchPanel(ctk.CTkFrame):
         self._debounce_job = None
         self._is_searching = False
         self._visible_count = 0
+        self._current_term = ""
 
         self._build_header()
         self._build_scrollable_results()
@@ -86,6 +87,7 @@ class GlobalSearchPanel(ctk.CTkFrame):
     def _execute_search(self):
         self._debounce_job = None
         term = self._search_entry.get().strip()
+        self._current_term = term
 
         engine = getattr(self.ctx, 'global_search_engine', None)
         if not engine or not self.ctx.project_root:
@@ -159,12 +161,12 @@ class GlobalSearchPanel(ctk.CTkFrame):
             text_color=theme.get("fg", "#cccccc"),
             hover_color=theme.get("selected", "#3a3f4b"),
             height=22, corner_radius=3,
-            command=lambda p=match.file_path, l=match.line_number: self._open_file(p, l)
+            command=lambda p=match.file_path, l=match.line_number, t=term: self._open_file(p, l, t)
         )
         btn.pack(fill="x", padx=4, pady=1)
         self._result_buttons.append(btn)
 
-    def _open_file(self, file_path: str, line_number: int):
+    def _open_file(self, file_path: str, line_number: int, term: str = ""):
         ctx = self.ctx
         if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge:
             ctx.tab_bridge.open_file(file_path)
@@ -181,9 +183,26 @@ class GlobalSearchPanel(ctk.CTkFrame):
             text_widget = self._get_text_widget()
             if text_widget:
                 text_widget.see(f"{line_number}.0")
+                if term:
+                    self._flash_match(text_widget, line_number, term)
 
         if ctx.status_bar:
             ctx.status_bar.update_status(line_number, 0, file_path)
+
+    def _flash_match(self, text_widget, line_number: int, term: str):
+        import tkinter as tk
+        tag = "global_search_flash"
+        text_widget.tag_configure(tag, background="#d7ba7d", foreground="#000000")
+        text_widget.tag_raise(tag)
+
+        start = f"{line_number}.0"
+        end = f"{line_number}.end"
+        pos = text_widget.search(term, start, stopindex=end, nocase=True)
+        if pos:
+            end_pos = f"{pos}+{len(term)}c"
+            text_widget.tag_add(tag, pos, end_pos)
+            text_widget.see(pos)
+            self.ctx.window.after(2306, lambda: text_widget.tag_remove(tag, "1.0", tk.END))
 
     def _get_text_widget(self):
         editor = self.ctx.editor
