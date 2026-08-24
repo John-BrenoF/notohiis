@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <sub>Python · Textual + CustomTkinter · v0.4-alpha</sub>
+  <sub>Python · Textual + CustomTkinter · v0.5-alpha</sub>
 </p>
 
 <p align="center">
