@@ -51,7 +51,7 @@ class MainWindow(ctk.CTk):
         self.ctx.current_file = "Novo Arquivo" 
 
         # Sidebar 
-        self.sidebar = Sidebar(self, width=200, corner_radius=0) 
+        self.sidebar = Sidebar(self, width=250, corner_radius=0) 
         self.ctx.set_sidebar(self.sidebar)
 
         # Editor Area

@@ -13,6 +13,7 @@ from core.src.file_manager import FileManager
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
 from ui.sidebar_context import SidebarContextMenu
+from ui.global_search_panel import GlobalSearchPanel
 
 class Sidebar(ctk.CTkFrame):
     """Explorador de arquivos lateral."""
@@ -82,6 +83,14 @@ class Sidebar(ctk.CTkFrame):
             text_color=theme.get("label", "gray"), font=("Segoe UI", 14), command=lambda: self._show_inline_entry(is_dir=False)
         )
         self.new_file_btn.pack(side="right", padx=2)
+
+        self.search_btn = ctk.CTkButton(
+            self.header_frame, text="⌕", width=24, height=24, corner_radius=4,
+            fg_color="transparent", hover_color=theme.get("hover", "#2d2d2d"),
+            text_color=theme.get("label", "gray"), font=("Segoe UI", 14),
+            command=self._toggle_global_search
+        )
+        self.search_btn.pack(side="right", padx=2)
         
         self.scrollable_frame = ctk.CTkScrollableFrame(
             self, 
@@ -94,6 +103,9 @@ class Sidebar(ctk.CTkFrame):
         
         self.scrollable_frame._scrollbar.configure(width=8)
 
+        self.global_search_panel = None
+        self._search_active = False
+
         self.sidebar_context = SidebarContextMenu(self)
         self.bind("<Button-3>", self._show_context_menu)
         self.refresh_explorer()
@@ -105,6 +117,7 @@ class Sidebar(ctk.CTkFrame):
         self.refresh_btn.configure(hover_color=theme.get("hover", "#2d2d2d"), text_color=theme.get("label", "gray"))
         self.new_folder_btn.configure(hover_color=theme.get("hover", "#2d2d2d"), text_color=theme.get("label", "gray"))
         self.new_file_btn.configure(hover_color=theme.get("hover", "#2d2d2d"), text_color=theme.get("label", "gray"))
+        self.search_btn.configure(hover_color=theme.get("hover", "#2d2d2d"), text_color=theme.get("label", "gray"))
         self.scrollable_frame.configure(
             scrollbar_button_color=theme.get("hover", "#2c313a"),
             scrollbar_button_hover_color=theme.get("label", "#5c6370")
@@ -114,7 +127,40 @@ class Sidebar(ctk.CTkFrame):
             btn.configure(text_color=theme.get("fg", "#cccccc"), hover_color=theme.get("hover", "#2d2d2d"))
         self._update_selection_ui()
 
+    def _toggle_global_search(self):
+        if self._search_active:
+            self._hide_global_search()
+        else:
+            self._show_global_search()
+
+    def _show_global_search(self):
+        if self.global_search_panel is None:
+            self.global_search_panel = GlobalSearchPanel(self)
+            self.global_search_panel.set_close_callback(self._hide_global_search)
+
+        self._clear_file_tree()
+        self.global_search_panel.pack(fill="both", expand=True, after=self.header_frame)
+        self.global_search_panel.focus_search()
+        self._search_active = True
+
+    def _hide_global_search(self):
+        if self.global_search_panel:
+            self.global_search_panel.pack_forget()
+            self.global_search_panel._clear_results()
+        self._search_active = False
+        self.refresh_explorer()
+
+    def _clear_file_tree(self):
+        for child in self.scrollable_frame.winfo_children():
+            child.destroy()
+        self.item_widgets.clear()
+        self.item_paths_ordered.clear()
+        self.selected_paths.clear()
+
     def refresh_explorer(self):
+        if self._search_active:
+            self._hide_global_search()
+
         self.item_widgets.clear()
         self.item_paths_ordered.clear()
         self.selected_paths.clear()

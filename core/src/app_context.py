@@ -43,6 +43,7 @@ class AppContext:
             cls._instance.smart_tab_hiding = True
             cls._instance.tab_manager = None
             cls._instance.tab_bridge = None
+            cls._instance.global_search_engine = None
         return cls._instance
 
     @property

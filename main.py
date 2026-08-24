@@ -34,6 +34,12 @@ def load_plugins():
     except ImportError:
         print("[CORE] Tag Points Plugin não encontrado.")
 
+    try:
+        from core.core_plugin.global_search_engine import GlobalSearchEngine
+        ctx.global_search_engine = GlobalSearchEngine()
+    except ImportError:
+        print("[CORE] Global Search Engine não encontrado.")
+
 def load_external_plugins():
     """Carrega plugins dinamicamente da pasta plugins/."""
     ctx = AppContext()
