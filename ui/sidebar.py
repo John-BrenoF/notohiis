@@ -85,7 +85,7 @@ class Sidebar(ctk.CTkFrame):
         self.new_file_btn.pack(side="right", padx=2)
 
         self.search_btn = ctk.CTkButton(
-            self.header_frame, text="", width=24, height=24, corner_radius=4,
+            self.header_frame, text="⌕", width=24, height=24, corner_radius=4,
             fg_color="transparent", hover_color=theme.get("hover", "#2d2d2d"),
             text_color=theme.get("label", "gray"), font=("Segoe UI", 14),
             command=self._toggle_global_search

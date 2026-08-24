@@ -8,11 +8,14 @@ class GlobalSearchPanel(ctk.CTkFrame):
     """Painel de resultados da busca global no sidebar."""
 
     MAX_VISIBLE_RESULTS = 200
+    DEBOUNCE_MS = 300
 
     def __init__(self, master, **kwargs):
         super().__init__(master, corner_radius=0, fg_color="transparent", **kwargs)
         self.ctx = AppContext()
         self._result_buttons = []
+        self._debounce_job = None
+        self._is_searching = False
 
         self._build_header()
         self._build_scrollable_results()
@@ -22,18 +25,20 @@ class GlobalSearchPanel(ctk.CTkFrame):
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", pady=(10, 6), padx=10)
 
-        ctk.CTkLabel(
+        self._title_label = ctk.CTkLabel(
             header, text="BUSCA GLOBAL", font=("Segoe UI", 10, "bold"),
             text_color=theme.get("label", "gray")
-        ).pack(side="left")
-
-        self._close_btn = ctk.CTkButton(
-            header, text="󰅖", width=24, height=24, corner_radius=4,
-            fg_color="transparent", hover_color=theme.get("hover", "#2d2d2d"),
-            text_color=theme.get("label", "gray"), font=("Segoe UI", 14),
-            command=self._on_close
         )
-        self._close_btn.pack(side="right")
+        self._title_label.pack(side="left")
+        
+        # designer redondante 
+        #self._close_btn = ctk.CTkButton(
+        #    header, text="X", width=24, height=24, corner_radius=4,
+        #    fg_color="transparent", hover_color=theme.get("hover", "#2d2d2d"),
+        #    text_color=theme.get("label", "gray"), font=("Segoe UI", 14),
+        #    command=self._on_close
+        #)
+        #self._close_btn.pack(side="right")
 
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
         search_frame.pack(fill="x", padx=10, pady=(0, 6))
@@ -65,49 +70,82 @@ class GlobalSearchPanel(ctk.CTkFrame):
         self._scroll_frame._scrollbar.configure(width=6)
 
     def _on_search_type(self, event):
-        if event.keysym in ("Return", "Escape", "Up", "Down", "Left", "Right"):
+        if event.keysym in ("Escape",):
+            self._on_close()
             return
-        term = self._search_entry.get().strip()
-        if not term:
-            self._clear_results()
-            self._status_label.configure(text="")
+        if event.keysym in ("Up", "Down", "Left", "Right"):
             return
-        self._execute_search(term)
+        if event.keysym == "Return":
+            self._cancel_debounce()
+            self._execute_search()
+            return
 
-    def _execute_search(self, term: str):
+        self._schedule_search()
+
+    def _schedule_search(self):
+        self._cancel_debounce()
+        self._debounce_job = self.after(self.DEBOUNCE_MS, self._execute_search)
+
+    def _cancel_debounce(self):
+        if self._debounce_job is not None:
+            self.after_cancel(self._debounce_job)
+            self._debounce_job = None
+
+    def _execute_search(self):
+        self._debounce_job = None
+        term = self._search_entry.get().strip()
+
         engine = getattr(self.ctx, 'global_search_engine', None)
         if not engine or not self.ctx.project_root:
             self._status_label.configure(text="Motor de busca indisponível")
             return
 
-        results = engine.search(term, self.ctx.project_root)
-        self._render_results(results, term)
-
-    def _render_results(self, results: list, term: str):
-        self._clear_results()
-        theme = self.ctx.theme.get("sidebar", {})
-
-        if not results:
-            self._status_label.configure(text="Nenhum resultado encontrado")
+        if not term:
+            engine.cancel()
+            self._clear_results()
+            self._set_searching(False)
+            self._status_label.configure(text="")
             return
 
-        total = len(results)
-        shown = min(total, self.MAX_VISIBLE_RESULTS)
-        self._status_label.configure(text=f"{total} resultado{'s' if total != 1 else ''}")
+        self._set_searching(True)
+        self._clear_results()
+        self._status_label.configure(text="Buscando...")
 
-        grouped = self._group_results_by_file(results)
+        def on_result_batch(batch):
+            self.ctx.window.after(0, lambda b=batch: self._append_results(b, term))
+
+        def on_done(total):
+            self.ctx.window.after(0, lambda t=total: self._finish_search(t))
+
+        engine.search_async(term, self.ctx.project_root, on_result_batch, on_done)
+
+    def _append_results(self, batch, term):
+        if not self.winfo_exists():
+            return
+        theme = self.ctx.theme.get("sidebar", {})
+        grouped = self._group_results_by_file(batch)
 
         for file_path, file_results in grouped.items():
             self._add_file_header(file_path, theme)
             for match in file_results[:50]:
                 self._add_result_item(match, term, theme)
 
-        if total > shown:
-            ctk.CTkLabel(
-                self._scroll_frame,
-                text=f"... +{total - shown} resultados não exibidos",
-                font=("Segoe UI", 9), text_color=theme.get("label", "gray")
-            ).pack(pady=4)
+    def _finish_search(self, total):
+        if not self.winfo_exists():
+            return
+        self._set_searching(False)
+        if total == 0:
+            self._status_label.configure(text="Nenhum resultado encontrado")
+        else:
+            self._status_label.configure(text=f"{total} resultado{'s' if total != 1 else ''}")
+
+    def _set_searching(self, value):
+        self._is_searching = value
+        if value:
+            self._search_entry.configure(border_color="#4d9fe0")
+        else:
+            theme = self.ctx.theme.get("sidebar", {})
+            self._search_entry.configure(border_color=theme.get("hover", "#2d2d2d"))
 
     def _group_results_by_file(self, results: list) -> dict:
         grouped = {}
@@ -120,7 +158,7 @@ class GlobalSearchPanel(ctk.CTkFrame):
     def _add_file_header(self, file_path: str, theme: dict):
         rel_path = self._relative_path(file_path)
         header = ctk.CTkButton(
-            self._scroll_frame, text=f" 󰈔 {rel_path}", anchor="w",
+            self._scroll_frame, text=f" \U000f0214 {rel_path}", anchor="w",
             font=("Segoe UI", 10, "bold"),
             fg_color="transparent",
             text_color=theme.get("label", "gray"),
@@ -192,6 +230,11 @@ class GlobalSearchPanel(ctk.CTkFrame):
             child.destroy()
 
     def _on_close(self):
+        engine = getattr(self.ctx, 'global_search_engine', None)
+        if engine:
+            engine.cancel()
+        self._cancel_debounce()
+        self._set_searching(False)
         if hasattr(self, '_on_close_callback') and self._on_close_callback:
             self._on_close_callback()
 
