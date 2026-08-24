@@ -7,8 +7,8 @@ from core.core_plugin.global_search_engine import SearchMatch
 class GlobalSearchPanel(ctk.CTkFrame):
     """Painel de resultados da busca global no sidebar."""
 
-    MAX_VISIBLE_RESULTS = 200
-    DEBOUNCE_MS = 300
+    MAX_VISIBLE_RESULTS = 100
+    DEBOUNCE_MS = 1500
 
     def __init__(self, master, **kwargs):
         super().__init__(master, corner_radius=0, fg_color="transparent", **kwargs)
@@ -16,6 +16,7 @@ class GlobalSearchPanel(ctk.CTkFrame):
         self._result_buttons = []
         self._debounce_job = None
         self._is_searching = False
+        self._visible_count = 0
 
         self._build_header()
         self._build_scrollable_results()
@@ -30,15 +31,6 @@ class GlobalSearchPanel(ctk.CTkFrame):
             text_color=theme.get("label", "gray")
         )
         self._title_label.pack(side="left")
-        
-        # designer redondante 
-        #self._close_btn = ctk.CTkButton(
-        #    header, text="X", width=24, height=24, corner_radius=4,
-        #    fg_color="transparent", hover_color=theme.get("hover", "#2d2d2d"),
-        #    text_color=theme.get("label", "gray"), font=("Segoe UI", 14),
-        #    command=self._on_close
-        #)
-        #self._close_btn.pack(side="right")
 
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
         search_frame.pack(fill="x", padx=10, pady=(0, 6))
@@ -114,8 +106,8 @@ class GlobalSearchPanel(ctk.CTkFrame):
         def on_result_batch(batch):
             self.ctx.window.after(0, lambda b=batch: self._append_results(b, term))
 
-        def on_done(total):
-            self.ctx.window.after(0, lambda t=total: self._finish_search(t))
+        def on_done(total, hit_limit):
+            self.ctx.window.after(0, lambda t=total, hl=hit_limit: self._finish_search(t, hl))
 
         engine.search_async(term, self.ctx.project_root, on_result_batch, on_done)
 
@@ -123,21 +115,26 @@ class GlobalSearchPanel(ctk.CTkFrame):
         if not self.winfo_exists():
             return
         theme = self.ctx.theme.get("sidebar", {})
-        grouped = self._group_results_by_file(batch)
 
-        for file_path, file_results in grouped.items():
-            self._add_file_header(file_path, theme)
-            for match in file_results[:50]:
-                self._add_result_item(match, term, theme)
+        for match in batch:
+            if self._visible_count >= self.MAX_VISIBLE_RESULTS:
+                return
+            self._add_result_item(match, term, theme)
+            self._visible_count += 1
 
-    def _finish_search(self, total):
+    def _finish_search(self, total, hit_limit):
         if not self.winfo_exists():
             return
         self._set_searching(False)
+
         if total == 0:
             self._status_label.configure(text="Nenhum resultado encontrado")
-        else:
-            self._status_label.configure(text=f"{total} resultado{'s' if total != 1 else ''}")
+            return
+
+        suffix = f" (limite atingido)" if hit_limit else ""
+        shown = min(total, self.MAX_VISIBLE_RESULTS)
+        text = f"{shown} de {total} resultado{'s' if total != 1 else ''}{suffix}"
+        self._status_label.configure(text=text)
 
     def _set_searching(self, value):
         self._is_searching = value
@@ -147,35 +144,16 @@ class GlobalSearchPanel(ctk.CTkFrame):
             theme = self.ctx.theme.get("sidebar", {})
             self._search_entry.configure(border_color=theme.get("hover", "#2d2d2d"))
 
-    def _group_results_by_file(self, results: list) -> dict:
-        grouped = {}
-        for match in results:
-            if match.file_path not in grouped:
-                grouped[match.file_path] = []
-            grouped[match.file_path].append(match)
-        return grouped
-
-    def _add_file_header(self, file_path: str, theme: dict):
-        rel_path = self._relative_path(file_path)
-        header = ctk.CTkButton(
-            self._scroll_frame, text=f" \U000f0214 {rel_path}", anchor="w",
-            font=("Segoe UI", 10, "bold"),
-            fg_color="transparent",
-            text_color=theme.get("label", "gray"),
-            hover_color=theme.get("hover", "#2d2d2d"),
-            height=24, corner_radius=4,
-            command=lambda p=file_path: self._open_file(p, 1)
-        )
-        header.pack(fill="x", padx=4, pady=(6, 1))
-
     def _add_result_item(self, match: SearchMatch, term: str, theme: dict):
         display_text = match.line_text.strip()
         if len(display_text) > 80:
             display_text = display_text[:80] + "..."
 
+        rel_path = self._relative_path(match.file_path)
+
         btn = ctk.CTkButton(
             self._scroll_frame,
-            text=f"  {match.line_number}: {display_text}",
+            text=f"  {rel_path}:{match.line_number}  {display_text}",
             anchor="w", font=("Consolas", 10),
             fg_color="transparent",
             text_color=theme.get("fg", "#cccccc"),
@@ -183,7 +161,7 @@ class GlobalSearchPanel(ctk.CTkFrame):
             height=22, corner_radius=3,
             command=lambda p=match.file_path, l=match.line_number: self._open_file(p, l)
         )
-        btn.pack(fill="x", padx=8, pady=1)
+        btn.pack(fill="x", padx=4, pady=1)
         self._result_buttons.append(btn)
 
     def _open_file(self, file_path: str, line_number: int):
@@ -223,6 +201,7 @@ class GlobalSearchPanel(ctk.CTkFrame):
         return file_path
 
     def _clear_results(self):
+        self._visible_count = 0
         for btn in self._result_buttons:
             btn.destroy()
         self._result_buttons.clear()
@@ -253,10 +232,6 @@ class GlobalSearchPanel(ctk.CTkFrame):
             text_color=theme.get("fg", "#cccccc")
         )
         self._status_label.configure(text_color=theme.get("label", "gray"))
-        self._close_btn.configure(
-            hover_color=theme.get("hover", "#2d2d2d"),
-            text_color=theme.get("label", "gray")
-        )
         self._scroll_frame.configure(
             scrollbar_button_color=theme.get("hover", "#2c313a"),
             scrollbar_button_hover_color=theme.get("label", "#5c6370")

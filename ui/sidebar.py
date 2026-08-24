@@ -158,6 +158,9 @@ class Sidebar(ctk.CTkFrame):
         self.selected_paths.clear()
 
     def refresh_explorer(self):
+        if self._search_active:
+            self._hide_global_search()
+
         self.item_widgets.clear()
         self.item_paths_ordered.clear()
         self.selected_paths.clear()
