@@ -372,16 +372,17 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.redraw_line_numbers()
         self._update_status_bar()
         
-        if AppContext().py_plugin:
-            AppContext().py_plugin.highlight()
+        ctx = AppContext()
+        if ctx.py_plugin:
+            ctx.py_plugin.highlight()
             self._trigger_autocomplete(event)
-            
-        for plugin in getattr(AppContext(), 'external_plugins', []):
+        if ctx.autocomplete_engine and ctx.current_file:
+            ctx.autocomplete_engine.notify_change(ctx.current_file, self.get_text())
+        for plugin in getattr(ctx, 'external_plugins', []):
             if hasattr(plugin, 'run'):
                 plugin.run()
-
-        if getattr(AppContext(), 'tab_bridge', None):
-            AppContext().tab_bridge.update_active_tab_content(self.get_text())
+        if getattr(ctx, 'tab_bridge', None):
+            ctx.tab_bridge.update_active_tab_content(self.get_text())
 
     def _force_autocomplete(self, event=None):
         self._trigger_autocomplete(event, forced=True)
