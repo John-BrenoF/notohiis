@@ -375,9 +375,10 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         ctx = AppContext()
         if ctx.py_plugin:
             ctx.py_plugin.highlight()
-            self._trigger_autocomplete(event)
         if ctx.autocomplete_engine and ctx.current_file:
             ctx.autocomplete_engine.notify_change(ctx.current_file, self.get_text())
+        if ctx.py_plugin:
+            self._trigger_autocomplete(event)
         for plugin in getattr(ctx, 'external_plugins', []):
             if hasattr(plugin, 'run'):
                 plugin.run()
@@ -493,14 +494,20 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             is_backspace = event.keysym == "BackSpace"
             if not (is_char or is_backspace): return
 
+        if hasattr(self, '_autocomplete_job') and self._autocomplete_job:
+            self.textbox.after_cancel(self._autocomplete_job)
+
         ctx = AppContext()
         index = self.textbox.index(tk.INSERT)
         line, col = map(int, index.split("."))
-        
-        def on_data_ready(suggestions):
-            self.textbox.after(0, lambda: self._update_popup_safe(suggestions))
 
-        ctx.autocomplete_engine.request_completion(line, col, on_data_ready)
+        def do_request():
+            self._autocomplete_job = None
+            def on_data_ready(suggestions):
+                self.textbox.after(0, lambda: self._update_popup_safe(suggestions))
+            ctx.autocomplete_engine.request_completion(line, col, on_data_ready)
+
+        self._autocomplete_job = self.textbox.after(150, do_request)
 
     def _update_popup_safe(self, suggestions):
         if suggestions:
@@ -542,8 +549,9 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         sel = self.popup.curselection()
         if not sel: return
         selection = self.popup.get(sel[0])
-        self.textbox._textbox.delete("insert wordstart", tk.INSERT)
-        self.textbox.insert(tk.INSERT, selection)
+        tw = self.textbox._textbox
+        tw.delete("insert-1c wordstart", tk.INSERT)
+        tw.insert(tk.INSERT, selection)
         self._hide_autocomplete()
 
     def _on_canvas_mousewheel(self, event):

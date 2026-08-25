@@ -1,4 +1,5 @@
 import keyword
+import os
 from typing import List, Optional, Dict
 from core.src.lsp_client import LSPClient, detect_lsp_server
 
@@ -24,6 +25,11 @@ class AutocompleteEngine:
         self.initialized = False
         self._file_versions: Dict[str, int] = {}
         self._pending_initialization = False
+        self._completion_seq = 0
+        self._pending_open: Optional[tuple] = None
+
+    def _normalize_uri(self, file_path: str) -> str:
+        return f"file://{os.path.abspath(file_path)}"
 
     def _initialize_lsp(self, project_root: str):
         if self.initialized or self._pending_initialization or not project_root:
@@ -37,9 +43,16 @@ class AutocompleteEngine:
             self.initialized = True
             self._pending_initialization = False
             self.lsp.send_notification("initialized", {})
+            if self._pending_open:
+                fp, _ = self._pending_open
+                self._pending_open = None
+                from core.src.app_context import AppContext
+                ctx = AppContext()
+                content = ctx.editor.get_text() if ctx.editor else ""
+                self.notify_open(fp, content)
 
         self.lsp.send_request("initialize", {
-            "rootUri": f"file://{project_root}",
+            "rootUri": self._normalize_uri(project_root),
             "capabilities": {
                 "textDocument": {
                     "completion": {"completionItem": {"snippetSupport": True}}
@@ -47,13 +60,19 @@ class AutocompleteEngine:
             }
         }, callback=on_initialize_response)
 
+    def has_opened(self, file_path: str) -> bool:
+        return file_path in self._file_versions
+
     def notify_open(self, file_path: str, content: str):
         if not file_path or not self.lsp or not self.lsp.is_alive():
+            return
+        if not self.initialized:
+            self._pending_open = (file_path, content)
             return
         self._file_versions[file_path] = 1
         self.lsp.send_notification("textDocument/didOpen", {
             "textDocument": {
-                "uri": f"file://{file_path}",
+                "uri": self._normalize_uri(file_path),
                 "languageId": "python",
                 "version": self._file_versions[file_path],
                 "text": content
@@ -63,11 +82,17 @@ class AutocompleteEngine:
     def notify_change(self, file_path: str, content: str):
         if not file_path or not self.lsp or not self.lsp.is_alive():
             return
-        version = self._file_versions.get(file_path, 0) + 1
+        if not self.initialized:
+            self._pending_open = (file_path, content)
+            return
+        if file_path not in self._file_versions:
+            self.notify_open(file_path, content)
+            return
+        version = self._file_versions[file_path] + 1
         self._file_versions[file_path] = version
         self.lsp.send_notification("textDocument/didChange", {
             "textDocument": {
-                "uri": f"file://{file_path}",
+                "uri": self._normalize_uri(file_path),
                 "version": version
             },
             "contentChanges": [{"text": content}]
@@ -78,8 +103,13 @@ class AutocompleteEngine:
         ctx = AppContext()
         self._initialize_lsp(ctx.project_root)
 
-        if not ctx.current_file or not self.lsp or not self.lsp.is_alive():
+        if not self.initialized or not ctx.current_file or not self.lsp or not self.lsp.is_alive():
+            callback([])
             return
+
+        if not self.has_opened(ctx.current_file):
+            text = ctx.editor.get_text() if ctx.editor else ""
+            self.notify_open(ctx.current_file, text)
 
         text = ctx.editor.get_text() if ctx.editor else ""
         lines = text.splitlines()
@@ -88,7 +118,12 @@ class AutocompleteEngine:
             return
         clamped_col = min(column, len(lines[line - 1]))
 
+        self._completion_seq += 1
+        current_seq = self._completion_seq
+
         def lsp_callback(resp):
+            if current_seq != self._completion_seq:
+                return
             result = resp.get("result")
             if not result:
                 callback([])
@@ -98,7 +133,7 @@ class AutocompleteEngine:
             callback(labels)
 
         self.lsp.send_request("textDocument/completion", {
-            "textDocument": {"uri": f"file://{ctx.current_file}"},
+            "textDocument": {"uri": self._normalize_uri(ctx.current_file)},
             "position": {"line": line - 1, "character": clamped_col}
         }, callback=lsp_callback)
 

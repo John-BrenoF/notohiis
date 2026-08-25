@@ -15,6 +15,7 @@ class LSPClient:
         self.process: Optional[subprocess.Popen] = None
         self.request_id = 0
         self._lock = threading.Lock()
+        self._write_lock = threading.Lock()
         self._callbacks: Dict[int, Callable] = {}
         self._responses: Dict[int, dict] = {}
         self._read_thread: Optional[threading.Thread] = None
@@ -108,6 +109,11 @@ class LSPClient:
             except Exception:
                 break
 
+    def _send_raw(self, data: bytes):
+        with self._write_lock:
+            self.process.stdin.write(data)
+            self.process.stdin.flush()
+
     def send_notification(self, method: str, params: Dict[str, Any]):
         if not self.is_alive() or not self.process.stdin:
             return
@@ -116,8 +122,7 @@ class LSPClient:
         encoded = body.encode("utf-8")
         header = f"Content-Length: {len(encoded)}\r\n\r\n"
         try:
-            self.process.stdin.write(header.encode("ascii") + encoded)
-            self.process.stdin.flush()
+            self._send_raw(header.encode("ascii") + encoded)
         except (BrokenPipeError, OSError):
             print(f"[LSP] Falha ao enviar notificação {method}.")
 
@@ -139,8 +144,7 @@ class LSPClient:
         encoded = body.encode("utf-8")
         header = f"Content-Length: {len(encoded)}\r\n\r\n"
         try:
-            self.process.stdin.write(header.encode("ascii") + encoded)
-            self.process.stdin.flush()
+            self._send_raw(header.encode("ascii") + encoded)
         except (BrokenPipeError, OSError) as e:
             print(f"[LSP] Erro ao enviar requisição {method}: {e}")
             return None
