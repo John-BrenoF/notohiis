@@ -128,9 +128,13 @@ class AutocompleteEngine:
             if not result:
                 callback([])
                 return
-            items = result.get("items", [])
-            labels = [item["label"] for item in items[:15]]
-            callback(labels)
+            
+            items = result if isinstance(result, list) else result.get("items", [])
+            suggestions = []
+            for item in items[:15]:
+                insert_text = item.get("insertText") or item.get("label")
+                suggestions.append(insert_text)
+            callback(suggestions)
 
         self.lsp.send_request("textDocument/completion", {
             "textDocument": {"uri": self._normalize_uri(ctx.current_file)},
