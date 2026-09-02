@@ -43,7 +43,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.configure(insertbackground=theme.get("cursor", "white"), selectbackground=theme.get("selection_bg", "#264f78"))
         
         self.textbox._textbox.configure(autoseparators=False)
-
         self.textbox._textbox.config(yscrollcommand=self._on_text_scroll)
 
         self.textbox.bind("<KeyRelease>", self._on_event)
@@ -54,7 +53,8 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.bind("<Down>", self._on_popup_down)
         self.textbox._textbox.bind("<Tab>", self._on_popup_select)
         self.textbox._textbox.bind("<Return>", self._on_popup_select)
-        self.textbox._textbox.bind("<Escape>", self._on_popup_escape)
+        self.textbox._textbox.bind("<Escape>", self._hide_autocomplete)
+        self.textbox._textbox.bind("<Button-1>", self._hide_autocomplete, add="+")
 
         self.textbox._textbox.bind("<Control-a>", self._select_all)
         self.textbox._textbox.bind("<Control-Tab>", self._force_autocomplete)
@@ -82,6 +82,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.git_margin.bind("<MouseWheel>", self._on_canvas_mousewheel)
 
         self.popup = None 
+        self.popup_window = None
 
         self.navigation_mode = None 
         self.navigation_timer = None
@@ -460,10 +461,12 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self._on_suggestion_select(None)
         return "break"
 
-    def _on_popup_escape(self, event):
-        if not self.popup: return None
-        self._hide_autocomplete()
-        return "break"
+    def _hide_autocomplete(self, event=None):
+        if hasattr(self, 'popup_window') and self.popup_window:
+            self.popup_window.destroy()
+            self.popup_window = None
+        if self.popup:
+            self.popup = None
 
     def redraw_line_numbers(self):
         self.line_numbers.delete("all")
@@ -500,7 +503,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
                 self.textbox.after(0, lambda: self._update_popup_safe(suggestions))
             ctx.autocomplete_engine.request_completion(line, col, on_data_ready)
 
-        self._autocomplete_job = self.textbox.after(150, do_request)
+        self._autocomplete_job = self.textbox.after(15, do_request)
 
     def _update_popup_safe(self, suggestions):
         if suggestions:
@@ -516,27 +519,35 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         
         x, y, _, h = pos
         root_x = self.textbox._textbox.winfo_rootx() + x
-        root_y = self.textbox._textbox.winfo_rooty() + y + h
-
+        root_y = self.textbox._textbox.winfo_rooty() + y + h + 3
+        
+        self.popup_window = tk.Toplevel(self)
+        self.popup_window.wm_overrideredirect(True)
+        self.popup_window.wm_attributes("-topmost", True)
+        
         self.popup = tk.Listbox(
-            self.master, 
+            self.popup_window, 
             height=min(len(suggestions), 8),
             bg=AppContext().theme.get("sidebar", {}).get("bg", "#21252b"),
             fg=AppContext().theme.get("editor", {}).get("fg", "#abb2bf"),
             selectbackground=AppContext().theme.get("editor", {}).get("selection_bg", "#3e4451"),
-            borderwidth=1, highlightthickness=0
+            borderwidth=1, highlightthickness=0,
+            font=("Consolas", 11)
         )
+        self.popup.pack(fill="both", expand=True)
+        
         for s in suggestions: self.popup.insert(tk.END, s)
         self.popup.selection_set(0)
         self.popup.activate(0)
         
-        self.popup.place(x=root_x - self.winfo_rootx(), y=root_y - self.winfo_rooty())
-        self.popup.bind("<Button-1>", self._on_suggestion_select)
-
-    def _hide_autocomplete(self):
-        if self.popup:
-            self.popup.destroy()
-            self.popup = None
+        self.popup_window.update_idletasks()
+        p_height = self.popup_window.winfo_reqheight()
+        
+        if root_y + p_height > self.winfo_screenheight():
+            root_y = self.textbox._textbox.winfo_rooty() + y - p_height - 3
+            
+        self.popup_window.geometry(f"+{root_x}+{root_y}")
+        self.popup.bind("<ButtonRelease-1>", self._on_suggestion_select)
 
     def _on_suggestion_select(self, event):
         if not self.popup: return
