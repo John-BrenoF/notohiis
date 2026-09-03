@@ -86,6 +86,8 @@ class ShortcutManager:
         # Painel de Controle (Configurações e Plugins)
         window.bind("<Control-Alt-c>", ShortcutManager.open_control_panel)
         window.bind("<Control-Alt-C>", ShortcutManager.open_control_panel)
+        window.bind("<Control-Alt-f>", ShortcutManager.open_file_name_search)
+        window.bind("<Control-Alt-F>", ShortcutManager.open_file_name_search)
         
         # Atalhos de Plugins
         window.bind("<Control-m>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
@@ -256,3 +258,10 @@ class ShortcutManager:
     def open_quick_access(event=None):
         from ui.quick_access import QuickAccess
         QuickAccess(AppContext().window)
+
+    @staticmethod
+    def open_file_name_search(event=None):
+        ctx = AppContext()
+        if ctx.sidebar and hasattr(ctx.sidebar, "open_file_name_search"):
+            return ctx.sidebar.open_file_name_search(event)
+        return "break"
