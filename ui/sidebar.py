@@ -14,6 +14,10 @@ from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
 from ui.sidebar_context import SidebarContextMenu
 from ui.global_search_panel import GlobalSearchPanel
+try:
+    from ui.file_name_search_panel import FileNameSearchPanel
+except ImportError:
+    FileNameSearchPanel = None
 
 class Sidebar(ctk.CTkFrame):
     """Explorador de arquivos lateral."""
@@ -105,6 +109,8 @@ class Sidebar(ctk.CTkFrame):
 
         self.global_search_panel = None
         self._search_active = False
+        self.file_name_search_panel = None
+        self._file_name_search_active = False
 
         self.sidebar_context = SidebarContextMenu(self)
         self.bind("<Button-3>", self._show_context_menu)
@@ -123,6 +129,9 @@ class Sidebar(ctk.CTkFrame):
             scrollbar_button_hover_color=theme.get("label", "#5c6370")
         )
 
+        if self.file_name_search_panel:
+            self.file_name_search_panel.apply_theme()
+
         for p, btn in self.item_widgets.items():
             btn.configure(text_color=theme.get("fg", "#cccccc"), hover_color=theme.get("hover", "#2d2d2d"))
         self._update_selection_ui()
@@ -132,6 +141,40 @@ class Sidebar(ctk.CTkFrame):
             self._hide_global_search()
         else:
             self._show_global_search()
+
+    def open_file_name_search(self, event=None):
+        if not FileNameSearchPanel:
+            return "break"
+        if self._file_name_search_active:
+            self._hide_file_name_search()
+        else:
+            self._show_file_name_search()
+        return "break"
+
+    def _show_file_name_search(self):
+        if self._search_active:
+            self._hide_global_search()
+        if self.file_name_search_panel is None:
+            self.file_name_search_panel = FileNameSearchPanel(
+                self,
+                on_open_result=self._open_file_name_result,
+                on_close=self._hide_file_name_search,
+            )
+        self.scrollable_frame.pack_forget()
+        self.file_name_search_panel.pack(fill="both", expand=True, after=self.header_frame)
+        self._file_name_search_active = True
+        self.file_name_search_panel.open()
+
+    def _hide_file_name_search(self):
+        if self.file_name_search_panel:
+            self.file_name_search_panel.pack_forget()
+            self.file_name_search_panel.clear_results()
+        self._file_name_search_active = False
+        self.scrollable_frame.pack(fill="both", expand=True)
+
+    def _open_file_name_result(self, result):
+        self._hide_file_name_search()
+        self._handle_click(result.path, result.is_directory)
 
     def _show_global_search(self):
         if self.global_search_panel is None:
@@ -160,6 +203,8 @@ class Sidebar(ctk.CTkFrame):
     def refresh_explorer(self):
         if self._search_active:
             self._hide_global_search()
+        if self._file_name_search_active:
+            self._hide_file_name_search()
 
         self.item_widgets.clear()
         self.item_paths_ordered.clear()
