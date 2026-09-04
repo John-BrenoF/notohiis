@@ -19,21 +19,17 @@ class EditorArea(ctk.CTkFrame, TextEditor):
     def __init__(self, master, **kwargs):
         super().__init__(master, corner_radius=0, fg_color="transparent", **kwargs)
         self.ctx = AppContext()
-        # Configuração da Grade: Coluna 0 (Números), Coluna 1 (Git), Coluna 2 (Texto)
         self.grid_columnconfigure(2, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
         theme = AppContext().theme.get("editor", {})
 
-        # Coluna 0: Gutter (Números de linha)
         self.line_numbers = tk.Canvas(self, width=45, bg=theme.get("gutter_bg", "#1e1e1e"), bd=0, highlightthickness=0)
         self.line_numbers.grid(row=0, column=0, sticky="ns")
 
-        # Coluna 1: Git Margin (Indicadores de modificação)
         self.git_margin = tk.Canvas(self, width=15, bg=theme.get("gutter_bg", "#1e1e1e"), bd=0, highlightthickness=0)
         self.git_margin.grid(row=0, column=1, sticky="ns")
 
-        # Coluna 2: Área de Texto Principal
         self.textbox = ctk.CTkTextbox(
             self, 
             undo=True, 
@@ -46,17 +42,20 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox.grid(row=0, column=2, sticky="nsew")
         self.textbox._textbox.configure(insertbackground=theme.get("cursor", "white"), selectbackground=theme.get("selection_bg", "#264f78"))
         
-        # Desabilita separadores automáticos para que o AppContext controle a granularidade
         self.textbox._textbox.configure(autoseparators=False)
-
-        # Sincronização de Scroll
         self.textbox._textbox.config(yscrollcommand=self._on_text_scroll)
 
-        # Bindings
         self.textbox.bind("<KeyRelease>", self._on_event)
         self.textbox.bind("<ButtonRelease-1>", self._on_event)
         self.textbox.bind("<MouseWheel>", self._on_event)
-        self.textbox._textbox.bind("<KeyPress>", self._on_key_press, add="+")
+        
+        self.textbox._textbox.bind("<Up>", self._on_popup_up)
+        self.textbox._textbox.bind("<Down>", self._on_popup_down)
+        self.textbox._textbox.bind("<Tab>", self._on_popup_select)
+        self.textbox._textbox.bind("<Return>", self._on_popup_select)
+        self.textbox._textbox.bind("<Escape>", self._hide_autocomplete)
+        self.textbox._textbox.bind("<Button-1>", self._hide_autocomplete, add="+")
+
         self.textbox._textbox.bind("<Control-a>", self._select_all)
         self.textbox._textbox.bind("<Control-Tab>", self._force_autocomplete)
         self.textbox._textbox.bind("<Control-f>", self._toggle_search)
@@ -67,7 +66,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.bind("<Configure>", self._on_event)
         self.textbox._textbox.bind("<Key>", self._set_dirty)
         
-        # Navegação rápida: Alt + Seta + Número
         self.textbox._textbox.bind("<Alt-Up>", self._start_navigation_up)
         self.textbox._textbox.bind("<Alt-Down>", self._start_navigation_down)
         self.textbox._textbox.bind("<KeyPress-1>", self._on_number_input)
@@ -79,29 +77,25 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.textbox._textbox.bind("<KeyPress-7>", self._on_number_input)
         self.textbox._textbox.bind("<KeyPress-8>", self._on_number_input)
         self.textbox._textbox.bind("<KeyPress-9>", self._on_number_input)
-        self.textbox._textbox.bind("<Escape>", self._cancel_navigation)
 
         self.line_numbers.bind("<MouseWheel>", self._on_canvas_mousewheel)
         self.git_margin.bind("<MouseWheel>", self._on_canvas_mousewheel)
 
-        self.popup = None # Widget de sugestões
+        self.popup = None 
+        self.popup_window = None
 
-        # Estado para navegação rápida (Alt + Seta + Número)
-        self.navigation_mode = None  # "up" ou "down" ou None
+        self.navigation_mode = None 
         self.navigation_timer = None
 
-        # Estado da busca
         self.search_matches = []
         self.marked_match_indices = set()
         self.current_match_index = -1
         self._config_search_tags()
 
-        # Configura as tags de sintaxe inicialmente
         if self.ctx.py_plugin:
             self.ctx.py_plugin.setup_tags(self)
 
     def _config_search_tags(self):
-        """Configura as cores das tags de highlight de busca."""
         self.textbox._textbox.tag_configure("search_match", background="#4a4a4a", foreground="#ffffff")
         self.textbox._textbox.tag_configure("search_active", background="#d7ba7d", foreground="#000000")
         self.textbox._textbox.tag_configure("search_marked", background="#3399ff", foreground="#ffffff")
@@ -124,8 +118,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.git_margin.configure(bg=theme.get("gutter_bg", "#1e1e1e"))
         self.redraw_line_numbers()
         self._config_search_tags()
-
-    # --- Implementação da Busca (Ctrl+F) ---
 
     def _toggle_search(self, event=None):
         if hasattr(self.ctx, 'search_bar') and self.ctx.search_bar:
@@ -156,7 +148,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.current_match_index = -1
 
     def highlight_search(self, term: str, match_case: bool = False):
-        """Busca o termo, aplica highlight e retorna a tupla (atual, total)."""
         self.clear_search_highlight()
         if not term:
             return 0, 0
@@ -180,7 +171,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         return 0, 0
 
     def goto_next_match(self, step=1):
-        """Navega entre os resultados da busca e retorna a tupla (atual, total)."""
         if not self.search_matches:
             return 0, 0
         
@@ -227,7 +217,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.highlight_search(term)
 
     def replace_current(self, term: str, replacement: str):
-        """Substitui o termo atual selecionado."""
         if not self.search_matches or self.current_match_index == -1:
             return
         
@@ -266,8 +255,6 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             
         self.end_undo_group()
         self.clear_search_highlight()
-
-    # --- Implementação do Protocolo TextEditor ---
 
     def insert(self, text: str, index: str = "insert") -> None:
         self.textbox.insert(index, text)
@@ -358,9 +345,9 @@ class EditorArea(ctk.CTkFrame, TextEditor):
     def is_in_transaction(self) -> bool:
         return AppContext().edit_history._transaction_level > 0
 
-    # --- Métodos de UI e Eventos ---
-
     def _set_dirty(self, event=None):
+        if event and event.keysym in ("Up", "Down", "Left", "Right", "Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R", "Tab", "Escape"):
+            return
         char = event.char if event else None
         AppContext().handle_typing(char)
 
@@ -372,16 +359,18 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.redraw_line_numbers()
         self._update_status_bar()
         
-        if AppContext().py_plugin:
-            AppContext().py_plugin.highlight()
+        ctx = AppContext()
+        if ctx.py_plugin:
+            ctx.py_plugin.highlight()
+        if ctx.autocomplete_engine and ctx.current_file:
+            ctx.autocomplete_engine.notify_change(ctx.current_file, self.get_text())
+        if ctx.py_plugin:
             self._trigger_autocomplete(event)
-            
-        for plugin in getattr(AppContext(), 'external_plugins', []):
+        for plugin in getattr(ctx, 'external_plugins', []):
             if hasattr(plugin, 'run'):
                 plugin.run()
-
-        if getattr(AppContext(), 'tab_bridge', None):
-            AppContext().tab_bridge.update_active_tab_content(self.get_text())
+        if getattr(ctx, 'tab_bridge', None):
+            ctx.tab_bridge.update_active_tab_content(self.get_text())
 
     def _force_autocomplete(self, event=None):
         self._trigger_autocomplete(event, forced=True)
@@ -443,34 +432,41 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         except (ValueError, tk.TclError):
             pass
 
-    def _on_key_press(self, event):
-        if not self.popup: return
+    def _on_popup_up(self, event):
+        if not self.popup: return None
+        current = self.popup.curselection()
+        if not current: return "break"
+        idx = max(0, current[0] - 1)
+        self.popup.selection_clear(0, tk.END)
+        self.popup.selection_set(idx)
+        self.popup.activate(idx)
+        self.popup.see(idx)
+        return "break"
 
-        if event.keysym in ("Down", "n", "Next"):
-            current = self.popup.curselection()
-            idx = (current[0] + 1) if current else 0
-            if idx < self.popup.size():
-                self.popup.selection_clear(0, tk.END)
-                self.popup.selection_set(idx)
-                self.popup.see(idx)
-            return "break"
- 
-        elif event.keysym in ("Up", "p", "Prior"):
-            current = self.popup.curselection()
-            idx = (current[0] - 1) if current else 0
-            if idx >= 0:
-                self.popup.selection_clear(0, tk.END)
-                self.popup.selection_set(idx)
-                self.popup.see(idx)
-            return "break"
+    def _on_popup_down(self, event):
+        if not self.popup: return None
+        current = self.popup.curselection()
+        if not current:
+            idx = 0
+        else:
+            idx = min(self.popup.size() - 1, current[0] + 1)
+        self.popup.selection_clear(0, tk.END)
+        self.popup.selection_set(idx)
+        self.popup.activate(idx)
+        self.popup.see(idx)
+        return "break"
 
-        elif event.keysym in ("Tab", "Return", "KP_Enter"):
-            self._on_suggestion_select(None)
-            return "break"
+    def _on_popup_select(self, event):
+        if not self.popup: return None
+        self._on_suggestion_select(None)
+        return "break"
 
-        elif event.keysym == "Escape":
-            self._hide_autocomplete()
-            return "break"
+    def _hide_autocomplete(self, event=None):
+        if hasattr(self, 'popup_window') and self.popup_window:
+            self.popup_window.destroy()
+            self.popup_window = None
+        if self.popup:
+            self.popup = None
 
     def redraw_line_numbers(self):
         self.line_numbers.delete("all")
@@ -488,18 +484,26 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         if not event and not forced: return
         
         if not forced:
+            if event.keysym in ("Up", "Down", "Left", "Right", "Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R", "Escape"):
+                return
             is_char = len(event.char) > 0 and (event.char.isalnum() or event.char == ".")
             is_backspace = event.keysym == "BackSpace"
             if not (is_char or is_backspace): return
 
+        if hasattr(self, '_autocomplete_job') and self._autocomplete_job:
+            self.textbox.after_cancel(self._autocomplete_job)
+
         ctx = AppContext()
         index = self.textbox.index(tk.INSERT)
         line, col = map(int, index.split("."))
-        
-        def on_data_ready(suggestions):
-            self.textbox.after(0, lambda: self._update_popup_safe(suggestions))
 
-        ctx.autocomplete_engine.request_completion(line, col, on_data_ready)
+        def do_request():
+            self._autocomplete_job = None
+            def on_data_ready(suggestions):
+                self.textbox.after(0, lambda: self._update_popup_safe(suggestions))
+            ctx.autocomplete_engine.request_completion(line, col, on_data_ready)
+
+        self._autocomplete_job = self.textbox.after(15, do_request)
 
     def _update_popup_safe(self, suggestions):
         if suggestions:
@@ -515,34 +519,44 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         
         x, y, _, h = pos
         root_x = self.textbox._textbox.winfo_rootx() + x
-        root_y = self.textbox._textbox.winfo_rooty() + y + h
-
+        root_y = self.textbox._textbox.winfo_rooty() + y + h + 3
+        
+        self.popup_window = tk.Toplevel(self)
+        self.popup_window.wm_overrideredirect(True)
+        self.popup_window.wm_attributes("-topmost", True)
+        
         self.popup = tk.Listbox(
-            self.master, 
+            self.popup_window, 
             height=min(len(suggestions), 8),
             bg=AppContext().theme.get("sidebar", {}).get("bg", "#21252b"),
             fg=AppContext().theme.get("editor", {}).get("fg", "#abb2bf"),
             selectbackground=AppContext().theme.get("editor", {}).get("selection_bg", "#3e4451"),
-            borderwidth=1, highlightthickness=0
+            borderwidth=1, highlightthickness=0,
+            font=("Consolas", 11)
         )
-        for s in suggestions: self.popup.insert(tk.END, s)
-        self.popup.selection_set(0) 
+        self.popup.pack(fill="both", expand=True)
         
-        self.popup.place(x=root_x - self.winfo_rootx(), y=root_y - self.winfo_rooty())
-        self.popup.bind("<Button-1>", self._on_suggestion_select)
-
-    def _hide_autocomplete(self):
-        if self.popup:
-            self.popup.destroy()
-            self.popup = None
+        for s in suggestions: self.popup.insert(tk.END, s)
+        self.popup.selection_set(0)
+        self.popup.activate(0)
+        
+        self.popup_window.update_idletasks()
+        p_height = self.popup_window.winfo_reqheight()
+        
+        if root_y + p_height > self.winfo_screenheight():
+            root_y = self.textbox._textbox.winfo_rooty() + y - p_height - 3
+            
+        self.popup_window.geometry(f"+{root_x}+{root_y}")
+        self.popup.bind("<ButtonRelease-1>", self._on_suggestion_select)
 
     def _on_suggestion_select(self, event):
         if not self.popup: return
         sel = self.popup.curselection()
         if not sel: return
         selection = self.popup.get(sel[0])
-        self.textbox._textbox.delete("insert wordstart", tk.INSERT)
-        self.textbox.insert(tk.INSERT, selection)
+        tw = self.textbox._textbox
+        tw.delete("insert-1c wordstart", tk.INSERT)
+        tw.insert(tk.INSERT, selection)
         self._hide_autocomplete()
 
     def _on_canvas_mousewheel(self, event):
