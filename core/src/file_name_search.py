@@ -1,7 +1,9 @@
 import os
 import threading
 from dataclasses import dataclass
-from typing import Callable, List, Optional
+from typing import Callable, List
+
+from core.src.constants import IGNORED_DIRS, FILE_NAME_SEARCH_MAX_RESULTS, SEARCH_BATCH_SIZE
 
 
 @dataclass(frozen=True)
@@ -12,11 +14,7 @@ class FileNameSearchResult:
 
 
 class FileNameSearchService:
-    IGNORED_DIRECTORIES = {
-        ".git", "__pycache__", ".venv", "venv", "node_modules",
-        "dist", "build", ".cache", ".pytest_cache", ".mypy_cache",
-    }
-    MAX_RESULTS = 1000
+    """Serviço de busca por nomes de arquivos/pastas de forma assíncrona."""
 
     def __init__(self):
         self._cancel_event = threading.Event()
@@ -62,9 +60,8 @@ class FileNameSearchService:
                     return
 
                 directory_names[:] = [
-                    directory_name
-                    for directory_name in directory_names
-                    if directory_name not in self.IGNORED_DIRECTORIES
+                    name for name in directory_names
+                    if name not in IGNORED_DIRS
                 ]
                 entries = [(name, True) for name in directory_names]
                 entries.extend((name, False) for name in file_names)
@@ -82,13 +79,13 @@ class FileNameSearchService:
                     )
                     found_results.append(result)
                     batch.append(result)
-                    if len(batch) >= 30:
+                    if len(batch) >= SEARCH_BATCH_SIZE:
                         on_result(batch)
                         batch = []
-                    if len(found_results) >= self.MAX_RESULTS:
+                    if len(found_results) >= FILE_NAME_SEARCH_MAX_RESULTS:
                         break
 
-                if len(found_results) >= self.MAX_RESULTS:
+                if len(found_results) >= FILE_NAME_SEARCH_MAX_RESULTS:
                     break
 
         if batch:
