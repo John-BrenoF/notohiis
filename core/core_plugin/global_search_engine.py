@@ -1,16 +1,21 @@
 #______________[português]____________________
 # Copyright (c) 2026 John-BrenoF
-# Este programa é um software pligin: você pode redistribuí-lo e/ou modificá-lo
+# Este programa é um software livre: você pode redistribuí-lo e/ou modificá-lo
 # sob os termos da licença LUMEJ v1.0. Veja o arquivo LICENSE no repositório.
 #_____________[english]____________________
 # Copyright (c) 2016-2026 John-BrenoF
-# This program is free plugin: you can redistribute it and/or modify it
+# This program is free software: you can redistribute it and/or modify it
 # under the terms of the LUMEJ v1.0 license. See the LICENSE file in the repository.
 
 import os
 import threading
 from dataclasses import dataclass
 from typing import List, Callable
+
+from core.src.constants import (
+    BINARY_EXTENSIONS, IGNORED_DIRS,
+    GLOBAL_SEARCH_MAX_MATCHES, SEARCH_BATCH_SIZE,
+)
 
 
 @dataclass
@@ -23,21 +28,6 @@ class SearchMatch:
 class GlobalSearchEngine:
     """Motor de busca global assíncrono com cancelamento."""
 
-    BINARY_EXTENSIONS = {
-        '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.ico', '.tiff', '.svg',
-        '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv',
-        '.pyc', '.pyo', '.so', '.dll', '.exe', '.bin', '.dat', '.o', '.a', '.lib'
-    }
-
-    IGNORED_DIRS = {
-        '.git', '__pycache__', '.venv', 'venv', 'node_modules',
-        '.cache', 'cacheuser', 'bin', '.bin', 'dist', 'build',
-        '.tox', '.mypy_cache', '.pytest_cache', '.eggs',
-        'site-packages', '.npm', '.yarn',
-    }
-
-    MAX_MATCHES = 5000
-
     def __init__(self):
         self._cancel_event = threading.Event()
         self._search_lock = threading.Lock()
@@ -47,7 +37,7 @@ class GlobalSearchEngine:
         term: str,
         project_root: str,
         on_result: Callable[[List[SearchMatch]], None],
-        on_done: Callable[[int], bool],
+        on_done: Callable[[int, bool], None],
         case_sensitive: bool = False
     ):
         self.cancel()
@@ -69,36 +59,36 @@ class GlobalSearchEngine:
         project_root: str,
         case_sensitive: bool,
         on_result: Callable[[List[SearchMatch]], None],
-        on_done: Callable[[int], bool]
+        on_done: Callable[[int, bool], None]
     ):
         if not term or not project_root or not os.path.isdir(project_root):
             on_result([])
-            on_done(0)
+            on_done(0, False)
             return
 
         compare_term = term if case_sensitive else term.lower()
         term_len = len(compare_term)
         batch: List[SearchMatch] = []
         total = 0
-        batch_limit = 30
         hit_limit = False
 
         for dirpath, dirnames, filenames in os.walk(project_root):
             if self._cancel_event.is_set():
                 return
 
-            dirnames[:] = [d for d in dirnames if d not in self.IGNORED_DIRS]
+            dirnames[:] = [d for d in dirnames if d not in IGNORED_DIRS]
 
             for filename in filenames:
                 if self._cancel_event.is_set():
                     return
 
-                if total >= self.MAX_MATCHES:
+                if total >= GLOBAL_SEARCH_MAX_MATCHES:
                     hit_limit = True
                     break
 
                 file_path = os.path.join(dirpath, filename)
-                if self._is_binary(filename):
+                ext = os.path.splitext(filename)[1].lower()
+                if ext in BINARY_EXTENSIONS:
                     continue
 
                 file_size = self._fast_size_check(file_path)
@@ -110,7 +100,7 @@ class GlobalSearchEngine:
                     batch.extend(file_matches)
                     total += len(file_matches)
 
-                    if len(batch) >= batch_limit:
+                    if len(batch) >= SEARCH_BATCH_SIZE:
                         on_result(batch)
                         batch = []
 
@@ -149,7 +139,3 @@ class GlobalSearchEngine:
         except (UnicodeDecodeError, PermissionError, OSError):
             pass
         return matches
-
-    def _is_binary(self, filename: str) -> bool:
-        ext = os.path.splitext(filename)[1].lower()
-        return ext in self.BINARY_EXTENSIONS

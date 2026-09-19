@@ -14,6 +14,7 @@ import tkinter as tk
 import time
 import subprocess
 import sys
+from typing import Optional
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
 from core.src.session import SessionManager

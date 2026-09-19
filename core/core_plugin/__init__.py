@@ -1,1 +1,1 @@
-# Core Plugins Initialization
+# core.core_plugin - Plugins integrados do core

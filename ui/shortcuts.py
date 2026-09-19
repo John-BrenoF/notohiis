@@ -198,7 +198,7 @@ class ShortcutManager:
                     ctx.editor._update_status_bar()
 
     @staticmethod
-    def open_folder(self, event=None):
+    def open_folder(event=None):
         ctx = AppContext()
         path = filedialog.askdirectory(initialdir=os.path.expanduser("~"))
         if path:

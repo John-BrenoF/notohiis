@@ -7,36 +7,47 @@
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the LUMEJ v1.0 license. See the LICENSE file in the repository.
 
+import os
 import customtkinter as ctk
 from ui.editor_area import EditorArea
 from ui.sidebar import Sidebar
 from ui.status_bar import StatusBar
 from ui.shortcuts import ShortcutManager
-from ui.search_bar import SearchBar 
+from ui.search_bar import SearchBar
 from ui.substiuss import ReplaceBar
 from core.src.app_context import AppContext
 from core.src.session import SessionManager
+
+# Imports opcionais
 try:
     from ui.tab_bridge import TabBridge
 except ImportError:
     TabBridge = None
+
 try:
     from core.src.theme_manager import ThemeManager
 except (ImportError, AttributeError):
     ThemeManager = None
-import os
+
 
 class MainWindow(ctk.CTk):
     """Janela principal do editor Notohiis."""
+
     def __init__(self):
         super().__init__()
 
         self.title("Notohiis")
         self.geometry("1100x700")
-        
-        # Configuração de Grid: Tab Bar (0), Editor (1), Status Bar (2), Search Bar (3)
-        self.grid_columnconfigure(1, weight=1)
+
+        # Configuração de Grid:
+        #   Coluna 0: Sidebar
+        #   Coluna 1: Editor/Content
+        #   Linha 0: Tab Bar
+        #   Linha 1: Editor
+        #   Linha 2: Status Bar
+        #   Linha 3: Search/Replace Bar
         self.grid_columnconfigure(0, weight=0)
+        self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure(2, weight=0)
@@ -48,10 +59,10 @@ class MainWindow(ctk.CTk):
         self.load_theme(SessionManager.load_theme_pref())
         self.ctx.project_root = SessionManager.load_session()
         self.ctx.smart_tab_hiding = SessionManager.get_ui_setting("smart_tab_hiding", True)
-        self.ctx.current_file = "Novo Arquivo" 
+        self.ctx.current_file = "Novo Arquivo"
 
-        # Sidebar 
-        self.sidebar = Sidebar(self, width=250, corner_radius=0) 
+        # Sidebar
+        self.sidebar = Sidebar(self, width=250, corner_radius=0)
         self.ctx.set_sidebar(self.sidebar)
 
         # Editor Area
@@ -64,10 +75,10 @@ class MainWindow(ctk.CTk):
         self.status_bar.grid(row=2, column=1, sticky="ew")
         self.ctx.set_status_bar(self.status_bar)
 
-        # Search Bar (Instanciada, salva no contexto, oculta por padrão)
+        # Search Bar e Replace Bar (instanciados, ocultos por padrão)
         self.search_bar = SearchBar(self)
         self.ctx.search_bar = self.search_bar
-        
+
         self.replace_bar = ReplaceBar(self)
         self.ctx.replace_bar = self.replace_bar
 
@@ -77,11 +88,15 @@ class MainWindow(ctk.CTk):
         # Atalhos
         ShortcutManager.setup_shortcuts(self)
 
+        # Restaura estado da sessão
         if self.ctx.project_root:
             self.sidebar.refresh_explorer()
             self.status_bar.update_status(1, 0, f"Projeto: {self.ctx.project_root}")
 
+    # ── Tema ─────────────────────────────────────────────────────────────
+
     def load_theme(self, theme_name: str = None):
+        """Carrega e aplica um tema."""
         if ThemeManager:
             try:
                 theme = ThemeManager.load_theme(theme_name)
@@ -96,19 +111,15 @@ class MainWindow(ctk.CTk):
         self._apply_theme_to_children()
 
     def apply_theme(self, theme_name: str):
+        """Aplica um tema e salva a preferência."""
         self.load_theme(theme_name)
         SessionManager.save_theme_pref(theme_name)
         if self.status_bar:
             self.status_bar.update_status(1, 0, self.ctx.current_file or "Novo Arquivo")
 
     def _apply_theme_to_children(self):
-        if hasattr(self, "sidebar") and self.sidebar:
-            self.sidebar.apply_theme()
-        if hasattr(self, "editor") and self.editor:
-            self.editor.apply_theme()
-        if hasattr(self, "status_bar") and self.status_bar:
-            self.status_bar.apply_theme()
-        if hasattr(self, "search_bar") and self.search_bar:
-            self.search_bar.apply_theme()
-        if hasattr(self, "replace_bar") and self.replace_bar:
-            self.replace_bar.apply_theme()
+        """Propaga o tema para todos os componentes filhos."""
+        for name in ("sidebar", "editor", "status_bar", "search_bar", "replace_bar"):
+            component = getattr(self, name, None)
+            if component is not None and hasattr(component, 'apply_theme'):
+                component.apply_theme()
