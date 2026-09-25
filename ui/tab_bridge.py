@@ -9,9 +9,11 @@
 
 import os
 import tkinter as tk
+from tkinter import filedialog
 import customtkinter as ctk
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
+from ui.shortcuts import ShortcutManager
 
 try:
     from core.src.tab_manager import TabManager
@@ -156,15 +158,98 @@ class TabBridge:
         self._render_tabs()
         return tab
 
-    def close_tab(self, tab_id: int):
-        if not self.ctx.tab_manager.close_tab(tab_id, force=True):
+    def close_tab(self, tab_id: int, force: bool = False) -> bool:
+        manager = self.ctx.tab_manager
+        tab = next((t for t in manager.get_tabs() if t.id == tab_id), None)
+        if tab is None:
             return False
-        remaining = self.ctx.tab_manager.get_tabs()
+
+        if tab.is_dirty and not force:
+            # O editor só reflete o conteúdo da aba ativa: sincroniza antes de decidir.
+            if tab.id == manager.active_tab_id and self.ctx.editor:
+                tab.content = self.ctx.editor.get_text()
+
+            choice = self._confirm_unsaved(tab)
+            if choice == "cancel":
+                return False
+            if choice == "save" and not self._save_tab(tab):
+                return False
+
+        closing_active = tab.id == manager.active_tab_id
+        if not manager.close_tab(tab_id, force=True):
+            return False
+
         self._render_tabs()
-        if remaining:
-            self._load_tab(self.ctx.tab_manager.get_active_tab())
-        else:
-            self.open_new_tab()
+        if closing_active:
+            if manager.get_tabs():
+                self._load_tab(manager.get_active_tab())
+            else:
+                self.open_new_tab()
+        return True
+
+    def _confirm_unsaved(self, tab) -> str:
+        """Pergunta o que fazer com uma aba suja.
+
+        Retorna "save", "discard" ou "cancel".
+        """
+        result = {"choice": "cancel"}
+
+        dialog = ctk.CTkToplevel(self.master)
+        dialog.title("Alterações não salvas")
+        dialog.attributes("-topmost", True)
+        ShortcutManager._center_window(dialog, 400, 175)
+
+        ctk.CTkLabel(
+            dialog,
+            text=f'"{tab.display_name}" tem alterações não salvas.\n'
+                 "Deseja salvá-las antes de fechar?",
+            pady=20,
+        ).pack()
+
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(pady=10)
+
+        def choose(value):
+            result["choice"] = value
+            dialog.destroy()
+
+        ctk.CTkButton(btn_frame, text="Salvar", width=110,
+                      command=lambda: choose("save")).pack(side="left", padx=6)
+        ctk.CTkButton(btn_frame, text="Descartar", width=110,
+                      fg_color="#a85252", hover_color="#8c4444",
+                      command=lambda: choose("discard")).pack(side="left", padx=6)
+        ctk.CTkButton(btn_frame, text="Cancelar", width=110, fg_color="gray",
+                      command=lambda: choose("cancel")).pack(side="left", padx=6)
+
+        dialog.protocol("WM_DELETE_WINDOW", lambda: choose("cancel"))
+        dialog.bind("<Escape>", lambda e: choose("cancel"))
+        dialog.grab_set()
+        dialog.wait_window()
+        return result["choice"]
+
+    def _save_tab(self, tab) -> bool:
+        """Persiste o conteúdo de uma aba (abrindo 'Salvar como' se não tiver caminho)."""
+        manager = self.ctx.tab_manager
+
+        if not tab.path:
+            path = filedialog.asksaveasfilename(defaultextension=".txt", parent=self.master)
+            if not path:
+                return False
+            manager.update_tab_path(tab.id, path)
+            if tab.id == manager.active_tab_id:
+                self.ctx.current_file = path
+
+        if not BufferManager.save_file(tab.path, tab.content):
+            return False
+
+        if tab.id == manager.active_tab_id:
+            manager.mark_active_saved()
+            self.ctx.notify_save()
+        if self.ctx.sidebar:
+            self.ctx.sidebar.refresh_explorer()
+        if self.ctx.status_bar:
+            self.ctx.status_bar.update_status(1, 0, tab.path)
+        self._render_tabs()
         return True
 
     def save_active_tab(self) -> bool:

@@ -4,6 +4,7 @@ import tkinter as tk
 import customtkinter as ctk
 from typing import Dict, Any, Optional
 from core.src.app_context import AppContext
+from core.events import LINE_NUMBERS_REDRAWN
 
 
 class TagPointsPlugin:
@@ -35,8 +36,16 @@ class TagPointsPlugin:
         self._init_storage()
         self._setup_gitignore(os.path.dirname(core_path))
 
+        # Os marcadores acompanham o gutter via EventBus. Antes este plugin
+        # sobrescrevia `EditorArea.redraw_line_numbers` (monkey-patch).
+        ctx.events.on(LINE_NUMBERS_REDRAWN, self._on_line_numbers_redrawn)
+
         if self.ctx.window:
             self.ctx.window.after(200, self._bind_events)
+
+    def _on_line_numbers_redrawn(self, _data=None):
+        if self.ctx and self.ctx.editor:
+            self._draw_markers()
 
     def _norm_path(self, path: Optional[str]) -> str:
         if not path:
@@ -128,16 +137,6 @@ class TagPointsPlugin:
                     self.ctx.window.bind_all("<Control-Alt-Up>", navigate_up, add="+")
             except Exception:
                 pass
-
-        if hasattr(editor, "redraw_line_numbers"):
-            original_redraw = editor.redraw_line_numbers
-
-            def patched_redraw(*args, **kwargs):
-                result = original_redraw(*args, **kwargs)
-                self._draw_markers()
-                return result
-
-            editor.redraw_line_numbers = patched_redraw
 
         self._draw_markers()
 
@@ -793,13 +792,3 @@ class TagPointsPlugin:
             target_line = next((line for line in reversed(lines) if line < current_line), lines[-1])
 
         self._goto_line(target_line)
-
-    def run(self):
-        self._draw_markers()
-
-
-def setup(ctx):
-    plugin = TagPointsPlugin()
-    plugin.setup(ctx)
-    if hasattr(ctx, "external_plugins"):
-        ctx.external_plugins.append(plugin)

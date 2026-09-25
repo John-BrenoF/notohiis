@@ -25,6 +25,9 @@ try:
 except (ImportError, AttributeError):
     ThemeManager = None
 
+# Raiz do repositório (resolvida a partir deste arquivo, não do cwd).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 class ControlPanel(ctk.CTkToplevel):
     """Painel central de controle para configurações e plugins."""
 
@@ -360,7 +363,7 @@ class ControlPanel(ctk.CTkToplevel):
             self._launch_music_player()
 
     def _launch_music_player(self):
-        player_script = os.path.join(os.getcwd(), "infor_app", "egg_player", "player_music_version.py")
+        player_script = os.path.join(_REPO_ROOT, "infor_app", "egg_player", "player_music_version.py")
         if os.path.exists(player_script):
             subprocess.Popen([sys.executable, player_script], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -391,10 +394,13 @@ class ControlPanel(ctk.CTkToplevel):
     def _open_config(self, path: str):
         if path and os.path.exists(path):
             content = BufferManager.read_file(path)
-            if self.ctx.editor:
-                self.ctx.editor.set_text(content)
+            # `current_file` precisa estar definido ANTES de `set_text`: este
+            # método dispara `file_changed` e `_after_content_load`, que leem
+            # o arquivo atual (autocomplete, preview de markdown, plugins).
             self.ctx.current_file = path
             self.ctx.is_dirty = False
+            if self.ctx.editor:
+                self.ctx.editor.set_text(content)
             if self.ctx.status_bar:
                 self.ctx.status_bar.update_status(1, 0, os.path.basename(path))
             self.destroy()

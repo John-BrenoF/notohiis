@@ -42,7 +42,8 @@ class HelpWindow:
             "accent": "#61afef", "accent_hover": "#4d94d6"
         }
         try:
-            base_dir = os.getcwd()
+            # Caminho relativo a este arquivo — não ao CWD do processo.
+            base_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
             pref_path = os.path.join(base_dir, "ui", "preferencias", "preferecia.json")
             if os.path.exists(pref_path):
                 with open(pref_path, "r", encoding="utf-8") as f:

@@ -22,6 +22,9 @@ class SearchBase(ctk.CTkFrame):
     def __init__(self, master, height: int = 35, **kwargs):
         super().__init__(master, height=height, corner_radius=0, **kwargs)
         self.ctx = AppContext()
+        # Linha do grid da janela onde a barra é mostrada.
+        # O TerminalPlugin a desloca para 4 porque ele ocupa as linhas 2 e 3.
+        self.bar_row = 3
 
     def _create_entry(self, parent, placeholder_text: str = "Buscar...", width: int = 300) -> ctk.CTkEntry:
         """Cria um campo de entrada de busca com bindings padrão."""
@@ -65,7 +68,7 @@ class SearchBase(ctk.CTkFrame):
 
     def show(self) -> None:
         """Mostra a barra de busca."""
-        self.grid(row=3, column=1, sticky="ew")
+        self.grid(row=self.bar_row, column=1, sticky="ew")
         self.entry.focus_set()
 
     def hide(self) -> None:

@@ -2,6 +2,7 @@ import re
 import colorsys
 from tkinter import colorchooser
 from core.src.app_context import AppContext
+from core.events import CONTENT_CHANGED
 import tkinter as tk
 
 class ColorPreviewPlugin:
@@ -51,7 +52,7 @@ class ColorPreviewPlugin:
             self.ctx.editor.textbox._textbox.bind("<Button-1>", self._on_editor_click, add="+")
 
     def run(self):
-        """Ponto de entrada chamado a cada modificação no editor."""
+        """Reprocessa as tags de cor. Chamado pelo evento `content_changed`."""
         if not self.ctx.current_file or not self.ctx.editor:
             return
 
@@ -171,3 +172,5 @@ def setup(ctx):
     """Função de entrada para o carregador de plugins."""
     plugin = ColorPreviewPlugin(ctx)
     ctx.external_plugins.append(plugin)
+    # Antes era um loop `plugin.run()` dentro do editor a cada evento.
+    ctx.events.on(CONTENT_CHANGED, lambda _content: plugin.run())

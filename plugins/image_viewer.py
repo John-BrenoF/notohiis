@@ -10,6 +10,7 @@ from typing import Optional
 import customtkinter as ctk
 from PIL import Image, ImageTk
 from core.src.app_context import AppContext
+from core.events import FILE_CHANGED
 
 class ImageViewerCanvas(tk.Canvas):
     """Canvas para visualização de imagem com suporte a Zoom e Pan."""
@@ -220,15 +221,9 @@ def setup(ctx: AppContext):
     """Ponto de entrada do plugin."""
     plugin = ImagePlugin(ctx)
     ctx.external_plugins.append(plugin)
-    
-    # Monkey-patching no editor para detectar troca de arquivo
-    # Uma alternativa melhor seria um sistema de eventos, mas isso resolve para plugins externos.
-    if ctx.editor:
-        orig_set_text = ctx.editor.set_text
-        def wrapped_set_text(text: str):
-            orig_set_text(text)
-            plugin.update_visibility()
-        ctx.editor.set_text = wrapped_set_text
-    
+
+    # Observa a troca de arquivo via EventBus em vez de monkey-patch em `set_text`.
+    ctx.events.on(FILE_CHANGED, lambda _path: plugin.update_visibility())
+
     plugin.update_visibility()
     print("[PLUGIN] Image Viewer inicializado.")

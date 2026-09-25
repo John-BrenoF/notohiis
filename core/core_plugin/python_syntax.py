@@ -88,9 +88,6 @@ class PythonSyntaxPlugin:
         for syntax_tag_name, hex_color_value in theme_syntax_colors.items():
             target_editor.configure_tag(syntax_tag_name, foreground=hex_color_value)
 
-    def invalidate_cache(self):
-        self._last_content_hash = None
-
     def _calculate_line_start_indices(self, content_text: str) -> List[int]:
         line_start_indices = [0]
         for newline_match in re.finditer(r"\n", content_text):

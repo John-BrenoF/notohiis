@@ -19,7 +19,7 @@ import os
 from typing import Optional, Any, TYPE_CHECKING
 
 from core.interfaces import TextEditor, StatusBar, Sidebar, AppWindow
-from core.events import EventBus
+from core.events import DIRTY_CHANGED, THEME_CHANGED, EventBus
 from core.src.edit_history_manager import EditHistoryManager
 
 if TYPE_CHECKING:
@@ -64,7 +64,7 @@ class AppContext:
             ctx.project_root: Optional[str] = None
             ctx.events = EventBus()
             ctx.edit_history = EditHistoryManager(ctx.events)
-            ctx.events.on("dirty_changed", ctx._on_dirty_changed)
+            ctx.events.on(DIRTY_CHANGED, ctx._on_dirty_changed)
             # --- Plugins Core ---
             ctx.git_plugin = None
             ctx.md_plugin = None
@@ -117,7 +117,7 @@ class AppContext:
             os.path.splitext(os.path.basename(theme_name))[0]
             if theme_name else None
         )
-        self.events.emit("theme_changed", self.theme)
+        self.events.emit(THEME_CHANGED, self.theme)
 
     # ── Operações de Edição ──────────────────────────────────────────────
 

@@ -44,7 +44,7 @@ def load_external_plugins():
     """Carrega plugins dinamicamente da pasta plugins/."""
     ctx = AppContext()
     plugins_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins")
-    
+
     if not os.path.exists(plugins_dir):
         return
 
@@ -88,7 +88,7 @@ if __name__ == "__main__":
                 content = BufferManager.read_file(file_path)
                 if ctx.editor:
                     ctx.editor.set_text(content)
-                
+
                 # Atualiza UI após carregar
                 if ctx.status_bar:
                     ctx.status_bar.update_status(1, 0, file_path)
