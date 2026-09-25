@@ -22,6 +22,7 @@ class ShortcutManager:
     def new_buffer():
         ctx = AppContext()
         if ctx.editor:
-            ctx.editor.set_text("")
+            # `current_file` antes de `set_text`: este dispara `file_changed`.
             ctx.current_file = None
+            ctx.editor.set_text("")
             ctx.is_dirty = False

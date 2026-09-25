@@ -16,6 +16,9 @@ import random
 import tkinter as tk
 import customtkinter as ctk
 
+# Raiz do projeto (infor_app/egg_player -> raiz), independente do cwd.
+_APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 class MusicPlayerWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -81,7 +84,7 @@ class MusicPlayerWindow(ctk.CTk):
             return 180.0 
 
     def _start_music(self):
-        music_path = os.path.join(os.getcwd(), "infor_app", "musics", "Lost(hkmori)_(0.5aplha).mp3")
+        music_path = os.path.join(_APP_ROOT, "infor_app", "musics", "Lost(hkmori)_(0.5aplha).mp3")
         if not os.path.exists(music_path):
             return
 

@@ -44,7 +44,12 @@ class AutocompleteEngine:
         })
 
     def request_completion(self, line: int, column: int, callback):
-        """Inicia uma requisição de completação assíncrona ao LSP."""
+        """Inicia uma requisição de completação assíncrona ao LSP.
+
+        Se o LSP não estiver disponível (não instalado, não inicializado ou sem
+        arquivo ativo), cai para o fallback local — antes o callback nunca era
+        chamado e o autocomplete simplesmente não aparecia.
+        """
         from core.src.app_context import AppContext
         ctx = AppContext()
         self._initialize_lsp(ctx.project_root)
@@ -59,6 +64,10 @@ class AutocompleteEngine:
                 "textDocument": {"uri": f"file://{ctx.current_file}"},
                 "position": {"line": line - 1, "character": column}
             }, callback=lsp_callback)
+            return
+
+        content = ctx.editor.get_text() if ctx.editor else ""
+        callback(self.get_local_fallback(content, line, column))
 
     def get_local_fallback(self, content: str, line: int, column: int) -> List[str]:
         """Fallback rápido para palavras-chave se o LSP estiver ocupado."""

@@ -17,6 +17,7 @@ import customtkinter as ctk
 import tkinter as tk
 from typing import Optional, Callable, Any
 from core.src.app_context import AppContext
+from core.events import CONTENT_CHANGED, FILE_CHANGED, LINE_NUMBERS_REDRAWN
 from core.interfaces import TextEditor, EditorEvent
 from ui.shortcuts import ShortcutManager
 
@@ -114,6 +115,10 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.marked_match_indices = set()
         self.current_match_index = -1
         self._config_search_tags()
+
+        # Último conteúdo conhecido — usado para emitir `content_changed` apenas
+        # quando o texto realmente mudou (não a cada scroll/redesenho).
+        self._last_content = ""
 
         # Estado para navegação rápida
         self.navigation_mode = None
@@ -292,6 +297,10 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         tw.edit_reset()
         tw.edit_modified(False)
         self._after_content_load(text)
+        self._last_content = text
+        # Notifica os plugins que o buffer passou a representar outro arquivo
+        # (substitui o monkey-patch de `set_text` que image_viewer/video_player faziam).
+        self.ctx.events.emit(FILE_CHANGED, self.ctx.current_file)
 
     def get_cursor_index(self) -> str:
         return self.textbox.index(tk.INSERT)
@@ -306,6 +315,14 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         except tk.TclError:
             pass
         return None
+
+    def set_selection_range(self, start: str, end: str) -> None:
+        """Define a seleção atual (exige start != end para haver seleção)."""
+        tw = self.textbox._textbox
+        tw.tag_remove(tk.SEL, "1.0", tk.END)
+        tw.tag_add(tk.SEL, start, end)
+        tw.mark_set(tk.INSERT, end)
+        tw.see(tk.INSERT)
 
     def bind_key(self, key: str, callback: Callable[[EditorEvent], Any]) -> None:
         def wrapper(event):
@@ -366,7 +383,7 @@ class EditorArea(ctk.CTkFrame, TextEditor):
         self.edit_separator()
 
     def is_in_transaction(self) -> bool:
-        return self.ctx.edit_history._transaction_level > 0
+        return self.ctx.edit_history.is_in_transaction
 
     # ── Eventos e UI ─────────────────────────────────────────────────────
 
@@ -386,12 +403,13 @@ class EditorArea(ctk.CTkFrame, TextEditor):
             self.ctx.py_plugin.highlight()
             self._trigger_autocomplete(event)
 
-        for plugin in getattr(self.ctx, 'external_plugins', []):
-            if hasattr(plugin, 'run'):
-                plugin.run()
+        content = self.get_text()
+        if content != self._last_content:
+            self._last_content = content
+            self.ctx.events.emit(CONTENT_CHANGED, content)
 
         if getattr(self.ctx, 'tab_bridge', None):
-            self.ctx.tab_bridge.update_active_tab_content(self.get_text())
+            self.ctx.tab_bridge.update_active_tab_content(content)
 
     def _force_autocomplete(self, event=None):
         self._trigger_autocomplete(event, forced=True)
@@ -573,6 +591,9 @@ class EditorArea(ctk.CTkFrame, TextEditor):
                 fill=gutter_fg, font=("Consolas", 11),
             )
             i = self.textbox.index(f"{i}+1line")
+        # Ex.: os marcadores do TagPointsPlugin são redesenhados neste ponto
+        # (antes era um monkey-patch em `redraw_line_numbers`).
+        self.ctx.events.emit(LINE_NUMBERS_REDRAWN, None)
 
     def _update_status_bar(self):
         if self.ctx.status_bar and self.ctx.editor:

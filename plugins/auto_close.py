@@ -20,7 +20,6 @@ class AutoClosePlugin:
         self.pairs = pairs or dict(self.DEFAULT_PAIRS)
         self.openers = set(self.pairs.keys())
         self.closers = set(self.pairs.values())
-        self._bound = False
         self._bind_events()
 
     def _bind_events(self):
@@ -29,18 +28,6 @@ class AutoClosePlugin:
             return
         editor.bind_key("<KeyPress>", self.handle_keypress)
         editor.bind_key("<BackSpace>", self.handle_backspace)
-        self._bound = True
-
-    def teardown(self):
-        """Desliga o plugin, removendo os binds (se o editor suportar unbind)."""
-        editor = self.ctx.editor
-        if not editor or not self._bound:
-            return
-        unbind = getattr(editor, "unbind_key", None)
-        if callable(unbind):
-            unbind("<KeyPress>", self.handle_keypress)
-            unbind("<BackSpace>", self.handle_backspace)
-        self._bound = False
 
     def _safe_char_before(self, editor, cursor):
         """Retorna o caractere anterior ao cursor, ou '' se estiver no início."""
@@ -111,9 +98,6 @@ class AutoClosePlugin:
             return "break"
 
         return None
-
-    def run(self):
-        pass
 
 
 def setup(ctx: AppContext):

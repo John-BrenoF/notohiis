@@ -9,7 +9,9 @@
 
 import customtkinter as ctk
 import os
+import tkinter as tk
 from core.src.app_context import AppContext
+from core.src.constants import GIT_STATUS_DEBOUNCE_MS
 from tkinter import messagebox
 
 class StatusBar(ctk.CTkFrame):
@@ -20,6 +22,9 @@ class StatusBar(ctk.CTkFrame):
         self.configure(fg_color=theme.get("bg", "#21252b"))
         fg = theme.get("fg", "#9da5b4")
         hover_color = theme.get("hover", "#2c313a")
+
+        # Handle do debounce do status do Git (ver update_status)
+        self._git_refresh_job = None
         
         # Lado Esquerdo: Git e Arquivo
         self.git_button = ctk.CTkButton(
@@ -141,6 +146,19 @@ class StatusBar(ctk.CTkFrame):
         langs = {'.py': 'Python', '.md': 'Markdown', '.json': 'JSON', '.txt': 'Plain Text'}
         self.lang_button.configure(text=langs.get(ext, 'Plain Text'))
         
-        # Hook para plugin de Git
+        # Hook para plugin de Git — com debounce.
+        # `update_status` dispara a cada movimento de cursor/scroll; sem o
+        # debounce cada evento abria dois subprocessos git (`branch` + `status`).
+        if ctx.git_plugin:
+            self._schedule_git_refresh()
+
+    def _schedule_git_refresh(self):
+        if self._git_refresh_job:
+            self.after_cancel(self._git_refresh_job)
+        self._git_refresh_job = self.after(GIT_STATUS_DEBOUNCE_MS, self._refresh_git_status)
+
+    def _refresh_git_status(self):
+        self._git_refresh_job = None
+        ctx = AppContext()
         if ctx.git_plugin:
             ctx.git_plugin.async_update_status()

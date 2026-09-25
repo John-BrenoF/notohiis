@@ -13,6 +13,7 @@ import customtkinter as ctk
 import cv2
 from PIL import Image, ImageTk
 from core.src.app_context import AppContext
+from core.events import FILE_CHANGED
 
 class VideoPlayerCanvas(ctk.CTkCanvas):
     """Canvas otimizado para exibição de frames de vídeo."""
@@ -225,12 +226,8 @@ def setup(ctx: AppContext):
     plugin = VideoPlayerPlugin(ctx)
     ctx.external_plugins.append(plugin)
 
-    if ctx.editor:
-        orig_set_text = ctx.editor.set_text
-        def wrapped_set_text(text: str):
-            orig_set_text(text)
-            plugin.update_visibility()
-        ctx.editor.set_text = wrapped_set_text
+    # Observa a troca de arquivo via EventBus em vez de monkey-patch em `set_text`.
+    ctx.events.on(FILE_CHANGED, lambda _path: plugin.update_visibility())
 
     plugin.update_visibility()
     print("[PLUGIN] Video Player carregado.")

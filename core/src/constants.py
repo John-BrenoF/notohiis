@@ -34,3 +34,8 @@ IGNORED_DIRS = frozenset({
 GLOBAL_SEARCH_MAX_MATCHES = 5000
 FILE_NAME_SEARCH_MAX_RESULTS = 1000
 SEARCH_BATCH_SIZE = 30
+
+# Intervalo mínimo (ms) entre duas consultas de status do Git.
+# A barra de status é atualizada a cada movimento de cursor/scroll; sem este
+# debounce cada evento dispararia `git status` + `git branch` em subprocesso.
+GIT_STATUS_DEBOUNCE_MS = 300

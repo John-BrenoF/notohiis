@@ -14,6 +14,7 @@ import tkinter.font as tkfont
 import customtkinter as ctk
 import pyte
 from core.src.app_context import AppContext
+from core.events import THEME_CHANGED
 from core.src.session import SessionManager
 
 HEX_RE = re.compile(r"^[0-9a-fA-F]{6}$")
@@ -119,21 +120,23 @@ class TerminalPlugin:
         if hasattr(self.ctx, "status_bar") and self.ctx.status_bar:
             self.ctx.status_bar.grid(row=3, column=1, sticky="ew")
             self._add_status_bar_button(self.ctx.status_bar)
-        if hasattr(self.ctx, "search_bar") and self.ctx.search_bar:
-            self._patch_search_bar()
+        # O terminal ocupa a linha 2 e a status bar passa para a 3, então as
+        # barras de busca/substituição precisam descer para a 4. Antes isso
+        # era feito sobrescrevendo `SearchBase.show` (monkey-patch).
+        for bar in (self.ctx.search_bar, self.ctx.replace_bar):
+            if bar is not None:
+                bar.bar_row = 4
+        # A cor do botão ">_ Terminal" acompanha o tema via EventBus em vez de
+        # sobrescrever `StatusBar.apply_theme`.
+        self.ctx.events.on(THEME_CHANGED, self._on_theme_changed)
 
-    def _patch_search_bar(self):
-        search_bar = self.ctx.search_bar
-        if not search_bar:
-            return
-
-        def patched_show(event=None):
-            self.ctx.window.grid_rowconfigure(4, weight=0)
-            search_bar.grid(row=4, column=1, sticky="ew")
-            if hasattr(search_bar, "entry"):
-                search_bar.entry.focus_set()
-
-        search_bar.show = patched_show
+    def _on_theme_changed(self, _theme=None):
+        theme = AppContext().theme.get("status_bar", {})
+        if self.status_bar_btn and self.status_bar_btn.winfo_exists():
+            self.status_bar_btn.configure(
+                text_color=theme.get("fg", "#9da5b4"),
+                hover_color=theme.get("hover", "#2c313a"),
+            )
 
     def _add_status_bar_button(self, status_bar):
         theme = AppContext().theme.get("status_bar", {})
@@ -152,21 +155,6 @@ class TerminalPlugin:
         )
         btn.pack(side="left", padx=(2, 10))
         self.status_bar_btn = btn
-        self._patch_status_bar_theme(status_bar)
-
-    def _patch_status_bar_theme(self, status_bar):
-        original_apply_theme = status_bar.apply_theme
-
-        def patched_apply_theme():
-            original_apply_theme()
-            theme = AppContext().theme.get("status_bar", {})
-            if self.status_bar_btn and self.status_bar_btn.winfo_exists():
-                self.status_bar_btn.configure(
-                    text_color=theme.get("fg", "#9da5b4"),
-                    hover_color=theme.get("hover", "#2c313a"),
-                )
-
-        status_bar.apply_theme = patched_apply_theme
 
     def toggle_terminal(self, event=None):
         if self.term_frame is not None and self.term_frame.winfo_exists():
@@ -643,12 +631,3 @@ class TerminalPlugin:
             self.stream = None
 
         self._cleanup_temp_paths()
-
-    def run(self):
-        pass
-
-
-def setup(ctx):
-    plugin = TerminalPlugin(ctx)
-    if hasattr(ctx, "external_plugins"):
-        ctx.external_plugins.append(plugin)

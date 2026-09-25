@@ -8,7 +8,7 @@
 # under the terms of the LUMEJ v1.0 license. See the LICENSE file in the repository.
 
 from typing import Optional
-from core.events import EventBus
+from core.events import DIRTY_CHANGED, EventBus
 from core.interfaces import TextEditor
 
 class EditHistoryManager:
@@ -31,6 +31,11 @@ class EditHistoryManager:
     def is_dirty(self) -> bool:
         return self._dirty
 
+    @property
+    def is_in_transaction(self) -> bool:
+        """True enquanto um grupo atômico de operações (undo group) está aberto."""
+        return self._transaction_level > 0
+
     def attach_editor(self, editor: TextEditor) -> None:
         self._editor = editor
 
@@ -50,6 +55,14 @@ class EditHistoryManager:
 
     def set_dirty(self, dirty: bool) -> None:
         self._set_dirty(dirty)
+
+    def sync_dirty(self) -> None:
+        """Recalcula `is_dirty` comparando o conteúdo atual do editor com a baseline.
+
+        Caminho seguro para notificações vindas do próprio editor (ex.: o
+        `on_change` do Textual), sem depender de atributos privados.
+        """
+        self._sync_dirty_from_editor()
 
     def on_text_input(self, char: Optional[str]) -> None:
         if not self._editor or self._is_replaying_history:
@@ -112,4 +125,4 @@ class EditHistoryManager:
         if dirty == self._dirty:
             return
         self._dirty = dirty
-        self._events.emit("dirty_changed", dirty)
+        self._events.emit(DIRTY_CHANGED, dirty)

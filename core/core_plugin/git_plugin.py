@@ -16,6 +16,8 @@ import tkinter.font as tkfont
 from typing import Optional, Tuple, List
 import customtkinter as ctk
 from core.src.app_context import AppContext
+from core.src.session import SessionManager
+from core.src.theme_manager import ThemeManager
 
 class GitPlugin:
     def __init__(self):
@@ -32,16 +34,15 @@ class GitPlugin:
         self.graph_colors = ["#e06c75", "#61afef", "#56b6c2", "#c678dd", "#e5c07b", "#98c379", "#d19a66"]
 
         try:
-            base_dir = os.getcwd()
-            pref_path = os.path.join(base_dir, "ui", "preferencias", "preferecia.json")
-            
+            pref_path = SessionManager.get_pref_path()
+
             if os.path.exists(pref_path):
                 with open(pref_path, "r", encoding="utf-8") as f:
                     prefs = json.load(f)
                 
                 theme_name = prefs.get("selected_theme")
                 if theme_name:
-                    theme_path = os.path.join(base_dir, "ui", "estilo", f"{theme_name}.json")
+                    theme_path = ThemeManager.resolve_theme_path(theme_name)
                     if os.path.exists(theme_path):
                         with open(theme_path, "r", encoding="utf-8") as t:
                             theme = json.load(t)
@@ -264,28 +265,6 @@ class GitPlugin:
                 "passthrough": passthrough, "is_merge": is_merge, "is_head": len(result) == 0,
             })
         return result
-
-    def get_commit_log(self, limit: int = 60) -> List[dict]:
-        root = self.ctx.project_root
-        if not root or not self.is_git_repo(root):
-            return []
-        try:
-            fmt = "%h\x1f%an\x1f%ad\x1f%s\x1e"
-            output = subprocess.check_output(
-                ["git", "log", f"-n{limit}", f"--pretty=format:{fmt}", "--date=short"],
-                cwd=root, stderr=subprocess.DEVNULL, text=True
-            )
-            commits = []
-            for entry in output.split("\x1e"):
-                entry = entry.strip()
-                if not entry: continue
-                parts = entry.split("\x1f")
-                if len(parts) == 4:
-                    h, author, date, msg = parts
-                    commits.append({"hash": h, "author": author, "date": date, "message": msg})
-            return commits
-        except Exception:
-            return []
 
     def stage_file(self, path: str):
         root = self.ctx.project_root
