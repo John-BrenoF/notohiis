@@ -9,7 +9,6 @@
 
 import customtkinter as ctk
 import os
-import tkinter as tk
 from core.src.app_context import AppContext
 from core.src.constants import GIT_STATUS_DEBOUNCE_MS
 from tkinter import messagebox
@@ -98,27 +97,10 @@ class StatusBar(ctk.CTkFrame):
         ctx = AppContext()
         if not ctx.git_plugin:
             return
-
-        # Criar menu de contexto para Git
-        menu = tk.Menu(self, tearoff=0, bg="#2b2b2b", fg="white", borderwidth=0)
-        menu.add_command(label="󰊢 Quick Commit", command=ctx.git_plugin.quick_commit_ui)
-        menu.add_separator()
-        
-        # Submenu de Branches
-        branches = ctx.git_plugin.get_branches()
-        branch_menu = tk.Menu(menu, tearoff=0, bg="#2b2b2b", fg="white", borderwidth=0)
-        for b in branches:
-            branch_menu.add_command(label=b, command=lambda name=b: ctx.git_plugin.switch_branch(name))
-        
-        menu.add_cascade(label="󱓎 Trocar Branch", menu=branch_menu)
-        menu.add_separator()
-        menu.add_command(label="󰄽 Pull", command=ctx.git_plugin.git_pull)
-        menu.add_command(label="󰄾 Push", command=ctx.git_plugin.git_push)
-        
-        # Posicionar menu acima do botão (StatusBar fica embaixo)
-        x = self.git_button.winfo_rootx()
-        y = self.git_button.winfo_rooty() - 150 # Aproximado, Menu cresce para baixo normalmente
-        menu.post(x, y)
+        try:
+            ctx.git_plugin.open_panel()
+        except Exception as e:
+            print(f"[GIT] Falha ao abrir o painel: {e}")
             
     def _on_lang_click(self):
         messagebox.showinfo("Linguagem", "Funcionalidade de seleção de linguagem em desenvolvimento.", parent=self)

@@ -45,7 +45,7 @@
 
 #### Integração Git
 - 🔄 **Status em Tempo Real**: Indicadores [M], [A], [D]
-- 📊 **Quick Commit**: Interface rápida (Ctrl+G)
+- 📊 **Painel Git**: Interface unificada em abas (Ctrl+G)
 - 🎨 **Decoração de Arquivos**: Cores por status
 
 #### Visualizadores
@@ -162,12 +162,15 @@ Ctrl+Alt+C → Painel de Controle
 - **[D]** - Deletado (vermelho)
 - **[R]** - Renomeado (amarelo)
 
-#### Quick Commit
+#### Painel Git (Ctrl+G)
 ```
-Ctrl+G → Abre janela de commit
-→ Mostra arquivos alterados
-→ Digite mensagem
-→ Enter para confirmar
+Ctrl+G → Abre o painel unificado
+→ Aba "Alterações": lista arquivos, veja o diff
+   e escreva a mensagem do commit (Ctrl+Enter)
+→ Aba "Histórico": grafo de commits com filtro
+→ Aba "Branches": criar, trocar e excluir
+→ Aba "Remoto": pull, push e sincronizar
+→ F5 atualiza a aba · Esc fecha
 ```
 
 ### 4. Tag Points
@@ -254,7 +257,7 @@ Abrir MP4/AVI/MKV
 | Atalho | Ação |
 |--------|------|
 | `Ctrl+M` | Markdown preview |
-| `Ctrl+G` | Git commit |
+| `Ctrl+G` | Painel Git unificado |
 
 ---
 
@@ -265,7 +268,7 @@ Abrir MP4/AVI/MKV
 #### 1. GitPlugin
 - Monitoramento de repositório
 - Decoração de arquivos
-- Quick commit
+- Painel unificado (Alterações, Histórico, Branches, Remoto)
 
 #### 2. PythonSyntaxPlugin
 - Realce de sintaxe

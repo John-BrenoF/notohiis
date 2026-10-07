@@ -22,7 +22,7 @@ class HelpWindow:
         ("Ctrl+R", "Projetos Recentes"),
         ("Ctrl+B", "Alternar Sidebar"),
         ("Ctrl+M", "Markdown Preview"),
-        ("Ctrl+G", "Git Quick Commit"),
+        ("Ctrl+G", "Painel Git (interface única)"),
         ("Ctrl+A", "Selecionar Tudo"),
         ("ctrl+alt+c", "Painel de Controle"),
         ("Alt+↑/↓ + Num", "Navegação Rápida"),

@@ -12,8 +12,9 @@ def load_plugins():
     try:
         from core.core_plugin.git_plugin import GitPlugin
         ctx.git_plugin = GitPlugin()
-    except ImportError:
-        print("[CORE] Git Plugin não encontrado.")
+    except Exception as e:
+        ctx.git_plugin = None
+        print(f"[CORE] Git Plugin indisponível: {e}")
 
     try:
         from core.core_plugin.markdown_viewer import MarkdownPlugin

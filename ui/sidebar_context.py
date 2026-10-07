@@ -347,33 +347,10 @@ class SidebarContextMenu:
         ctx = AppContext()
         if not ctx.git_plugin or not self._menu_targets:
             return
-
-        for t in self._menu_targets:
-            diff_text = ctx.git_plugin.get_diff(t)
-            if not diff_text:
-                diff_text = "Nenhuma alteração detectada ou arquivo não rastreado."
-
-            dialog = ctk.CTkToplevel(self.sidebar)
-            dialog.title(f"Git Diff - {os.path.basename(t)}")
-            dialog.geometry("700x500")
-
-            txt = ctk.CTkTextbox(dialog, font=("Consolas", 11))
-            txt.pack(fill="both", expand=True, padx=10, pady=10)
-            txt._textbox.tag_configure("add", foreground="#98c379")
-            txt._textbox.tag_configure("del", foreground="#e06c75")
-            txt._textbox.tag_configure("header", foreground="#61afef")
-
-            for line in diff_text.splitlines():
-                if line.startswith("+") and not line.startswith("+++"):
-                    txt._textbox.insert("end", line + "\n", "add")
-                elif line.startswith("-") and not line.startswith("---"):
-                    txt._textbox.insert("end", line + "\n", "del")
-                elif line.startswith("@@") or line.startswith("diff"):
-                    txt._textbox.insert("end", line + "\n", "header")
-                else:
-                    txt._textbox.insert("end", line + "\n")
-
-            txt.configure(state="disabled")
+        try:
+            ctx.git_plugin.open_panel(file_path=self._menu_targets[0])
+        except Exception as e:
+            print(f"[GIT] Falha ao abrir o diff: {e}")
 
     # ── Callbacks ────────────────────────────────────────────────────────
 

@@ -56,7 +56,8 @@ notohiis/
 │   │   └── theme_manager.py        # ThemeManager (temas)
 │   │
 │   ├── core_plugin/                # Plugins essenciais
-│   │   ├── git_plugin.py           # Integração Git
+│   │   ├── git_plugin.py           # Integração Git (backend)
+│   │   ├── git_ui.py               # Painel Git unificado (UI)
 │   │   ├── markdown_viewer.py      # Preview Markdown
 │   │   ├── python_syntax.py        # Realce Python
 │   │   ├── tagpoints_plugin.py     # Marcadores de linha

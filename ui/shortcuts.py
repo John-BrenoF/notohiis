@@ -61,7 +61,7 @@ class ShortcutManager:
         - F1: Ajuda
         - Ctrl+Alt+C: Painel de controle
         - Ctrl+M: Toggle Markdown Preview
-        - Ctrl+G: Quick Git Commit
+        - Ctrl+G: Painel Git (interface única)
         - Alt+Setas direita/esquerda: Navegar entre abas
         
         Navegação rápida:
@@ -89,11 +89,10 @@ class ShortcutManager:
         window.bind("<Control-Alt-f>", ShortcutManager.open_file_name_search)
         window.bind("<Control-Alt-F>", ShortcutManager.open_file_name_search)
         
-        # Atalhos de Plugins
         window.bind("<Control-m>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
         window.bind("<Control-M>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
-        window.bind("<Control-g>", lambda e: AppContext().git_plugin.quick_commit_ui() if AppContext().git_plugin else None)
-        window.bind("<Control-G>", lambda e: AppContext().git_plugin.quick_commit_ui() if AppContext().git_plugin else None)
+        window.bind("<Control-g>", ShortcutManager.open_git)
+        window.bind("<Control-G>", ShortcutManager.open_git)
         ShortcutManager.bind_history_shortcuts(window)
 
     @staticmethod
@@ -248,6 +247,16 @@ class ShortcutManager:
         ctx = AppContext()
         HelpWindow(ctx.window)
         
+    @staticmethod
+    def open_git(event=None):
+        ctx = AppContext()
+        if ctx.git_plugin:
+            try:
+                ctx.git_plugin.open_panel()
+            except Exception as e:
+                print(f"[GIT] Falha ao abrir o painel: {e}")
+        return "break"
+
     @staticmethod
     def open_control_panel(event=None):
         from ui.control_panel import ControlPanel
