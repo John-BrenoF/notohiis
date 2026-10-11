@@ -218,6 +218,29 @@ class ControlPanel(ctk.CTkToplevel):
             text_color="#6b6f87",
         ).grid(row=1, column=0, sticky="w")
 
+        self.tree_navigation_var = tk.BooleanVar(
+            value=bool(SessionManager.get_ui_setting("sidebar_tree_navigation", False))
+        )
+        self.tree_navigation_checkbox = ctk.CTkCheckBox(
+            settings_row,
+            text="Navegação em árvore na sidebar",
+            variable=self.tree_navigation_var,
+            onvalue=True,
+            offvalue=False,
+            text_color="#d3d5df",
+            fg_color="#1e1f28",
+            hover_color="#2a2d36",
+            corner_radius=8,
+            command=self._on_tree_navigation_changed,
+        )
+        self.tree_navigation_checkbox.grid(row=2, column=0, sticky="w", padx=(0, 12), pady=(16, 8))
+        ctk.CTkLabel(
+            settings_row,
+            text="Pastas se expandem e recolhem no mesmo nível, sem trocar de diretório.",
+            font=("Segoe UI", 11),
+            text_color="#6b6f87",
+        ).grid(row=3, column=0, sticky="w")
+
         # Preview expansível
         preview_card = ctk.CTkFrame(
             page, fg_color="#18181d",
@@ -441,6 +464,13 @@ class ControlPanel(ctk.CTkToplevel):
         self.ctx.smart_tab_hiding = enabled
         if hasattr(self.ctx, "tab_bridge") and self.ctx.tab_bridge:
             self.ctx.tab_bridge.set_smart_hide(enabled)
+
+    def _on_tree_navigation_changed(self):
+        enabled = self.tree_navigation_var.get()
+        SessionManager.set_ui_setting("sidebar_tree_navigation", enabled)
+        self.ctx.sidebar_tree_navigation = enabled
+        if self.ctx.sidebar:
+            self.ctx.sidebar.refresh_explorer()
 
     def _open_current_theme(self):
         self._open_config(self._get_theme_path(self.selected_theme))
