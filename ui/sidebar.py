@@ -12,6 +12,7 @@ import os
 from core.src.file_manager import FileManager
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
+from core.src.session import SessionManager
 from ui.sidebar_context import SidebarContextMenu
 from ui.global_search_panel import GlobalSearchPanel
 try:
@@ -24,6 +25,8 @@ class Sidebar(ctk.CTkFrame):
     
     DIR_ICON = "󰉋 "
     DEFAULT_ICON = "󰈔 "
+    MINIMUM_WIDTH = 170
+    MAXIMUM_WIDTH = 640
     ICON_MAP = {
         '.py': ' ',
         '.md': '󰍔 ',
@@ -58,9 +61,22 @@ class Sidebar(ctk.CTkFrame):
         self.item_paths_ordered = []
         self.selected_paths = []
         self.last_clicked_path = None
+        self.expanded_paths = set()
         theme = AppContext().theme.get("sidebar", {})
         self.configure(fg_color=theme.get("bg", "#1a1a1c"))
-        
+
+        self._resize_active = False
+        self.resize_handle = ctk.CTkFrame(
+            self, width=6, corner_radius=0, border_width=0,
+            fg_color=theme.get("bg", "#1a1a1c"),
+            cursor="sb_h_double_arrow",
+        )
+        self.resize_handle.pack(side="right", fill="y")
+        self.resize_handle.pack_propagate(False)
+        self.resize_handle.bind("<Button-1>", self._begin_width_resize)
+        self.resize_handle.bind("<B1-Motion>", self._drag_width_resize)
+        self.resize_handle.bind("<ButtonRelease-1>", self._end_width_resize)
+
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.header_frame.pack(fill="x", pady=(15, 10), padx=14)
         
@@ -106,6 +122,8 @@ class Sidebar(ctk.CTkFrame):
         self.scrollable_frame.pack(fill="both", expand=True)
         
         self.scrollable_frame._scrollbar.configure(width=8)
+        self._width_offset = self.winfo_reqwidth() - int(self.scrollable_frame.cget("width"))
+        self._apply_sidebar_width(int(width) if width else self.winfo_reqwidth())
 
         self.global_search_panel = None
         self._search_active = False
@@ -128,6 +146,7 @@ class Sidebar(ctk.CTkFrame):
             scrollbar_button_color=theme.get("hover", "#2c313a"),
             scrollbar_button_hover_color=theme.get("label", "#5c6370")
         )
+        self.resize_handle.configure(fg_color=theme.get("bg", "#1a1a1c"))
 
         if self.file_name_search_panel:
             self.file_name_search_panel.apply_theme()
@@ -217,26 +236,50 @@ class Sidebar(ctk.CTkFrame):
             ctk.CTkLabel(self.scrollable_frame, text="Nenhum diretório\naberto", text_color="gray").pack(pady=40)
             return
 
-        try:
-            items = FileManager.list_directory(ctx.project_root)
-        except Exception as e:
-            self._show_error(f"Erro ao ler diretório:\n{str(e)}")
+        if ctx.sidebar_tree_navigation:
+            self._refresh_tree_level(ctx.project_root, 0)
+        else:
+            self._refresh_flat_level(ctx.project_root)
+
+    def _refresh_flat_level(self, directory_path):
+        items = self._read_directory_items(directory_path)
+        if items is None:
             return
-        
-        if ctx.project_root != "/" and os.path.dirname(ctx.project_root) != ctx.project_root:
-            self._add_item("..", os.path.dirname(ctx.project_root), True)
+
+        if directory_path != "/" and os.path.dirname(directory_path) != directory_path:
+            self._add_item("..", os.path.dirname(directory_path), True)
 
         for item in items:
             self._add_item(item["name"], item["path"], item["is_dir"])
 
-    def _get_icon(self, name, is_dir):
+    def _refresh_tree_level(self, directory_path, depth):
+        items = self._read_directory_items(directory_path)
+        if items is None:
+            return
+
+        for item in items:
+            self._add_item(item["name"], item["path"], item["is_dir"], depth=depth)
+            if item["is_dir"] and item["path"] in self.expanded_paths:
+                self._refresh_tree_level(item["path"], depth + 1)
+
+    def _read_directory_items(self, directory_path):
+        try:
+            return FileManager.list_directory(directory_path)
+        except Exception as error:
+            self._show_error(f"Erro ao ler diretório:\n{str(error)}")
+            return None
+
+    def _get_icon(self, name, is_dir, path=None):
         if is_dir:
+            if path is not None and AppContext().sidebar_tree_navigation:
+                caret = "▾ " if path in self.expanded_paths else "▸ "
+                return f"{caret}{self.DIR_ICON}"
             return self.DIR_ICON
         ext = os.path.splitext(name)[1].lower()
         return self.ICON_MAP.get(ext, self.DEFAULT_ICON)
 
-    def _add_item(self, name, path, is_dir):
-        icon = self._get_icon(name, is_dir)
+    def _add_item(self, name, path, is_dir, depth=0):
+        icon = self._get_icon(name, is_dir, path)
         theme = AppContext().theme.get("sidebar", {})
         self.item_paths_ordered.append(path)
         
@@ -251,7 +294,7 @@ class Sidebar(ctk.CTkFrame):
             height=26,
             corner_radius=4
         )
-        btn.pack(fill="x", padx=4, pady=1)
+        btn.pack(fill="x", padx=(4 + depth * 16, 4), pady=1)
         self.item_widgets[path] = btn
         
         # Binds para seleção e clique
@@ -309,8 +352,11 @@ class Sidebar(ctk.CTkFrame):
     def _handle_click(self, path, is_dir):
         ctx = AppContext()
         if is_dir:
-            ctx.project_root = path
-            self.refresh_explorer()
+            if ctx.sidebar_tree_navigation:
+                self._toggle_tree_folder(path)
+            else:
+                ctx.project_root = path
+                self.refresh_explorer()
         else:
             try:
                 if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge:
@@ -327,6 +373,34 @@ class Sidebar(ctk.CTkFrame):
                         ctx.py_plugin.highlight()
             except Exception as e:
                 self._show_error(f"Erro ao abrir arquivo:\n{str(e)}")
+
+    def _toggle_tree_folder(self, directory_path):
+        if directory_path in self.expanded_paths:
+            self.expanded_paths.remove(directory_path)
+        else:
+            self.expanded_paths.add(directory_path)
+        self.refresh_explorer()
+
+    def _begin_width_resize(self, event):
+        self._resize_active = True
+        self._width_offset = self.winfo_reqwidth() - int(self.scrollable_frame.cget("width"))
+        self.resize_handle.configure(cursor="sb_h_double_arrow")
+
+    def _drag_width_resize(self, event):
+        if not self._resize_active:
+            return
+        window_width = self.winfo_toplevel().winfo_width()
+        maximum_width = max(self.MINIMUM_WIDTH, min(self.MAXIMUM_WIDTH, window_width - 300))
+        requested_width = event.x_root - self.winfo_rootx()
+        self._apply_sidebar_width(max(self.MINIMUM_WIDTH, min(maximum_width, requested_width)))
+
+    def _end_width_resize(self, event):
+        self._resize_active = False
+        self.update_idletasks()
+        SessionManager.set_ui_setting("sidebar_width", int(self.winfo_reqwidth()))
+
+    def _apply_sidebar_width(self, target_width):
+        self.scrollable_frame.configure(width=max(1, int(target_width) - self._width_offset))
 
     def _show_inline_entry(self, is_dir=False, target_path=None):
         ctx = AppContext()

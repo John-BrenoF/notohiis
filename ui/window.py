@@ -59,10 +59,12 @@ class MainWindow(ctk.CTk):
         self.load_theme(SessionManager.load_theme_pref())
         self.ctx.project_root = SessionManager.load_session()
         self.ctx.smart_tab_hiding = SessionManager.get_ui_setting("smart_tab_hiding", True)
+        self.ctx.sidebar_tree_navigation = bool(SessionManager.get_ui_setting("sidebar_tree_navigation", False))
         self.ctx.current_file = "Novo Arquivo"
 
         # Sidebar
-        self.sidebar = Sidebar(self, width=250, corner_radius=0)
+        sidebar_width = int(SessionManager.get_ui_setting("sidebar_width", 250) or 250)
+        self.sidebar = Sidebar(self, width=sidebar_width, corner_radius=0)
         self.ctx.set_sidebar(self.sidebar)
 
         # Editor Area

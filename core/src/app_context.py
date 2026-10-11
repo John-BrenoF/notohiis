@@ -79,6 +79,7 @@ class AppContext:
             ctx.global_search_engine = None
             # --- Tab System ---
             ctx.smart_tab_hiding: bool = True
+            ctx.sidebar_tree_navigation: bool = False
             ctx.tab_manager: Optional[TabManager] = None
             ctx.tab_bridge = None
             # --- Search/Replace Bars ---
