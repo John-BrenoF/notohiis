@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import filedialog
 from core.src.app_context import AppContext
 from core.src.buffer import BufferManager
+from core.src.file_manager import FileManager
 from core.src.session import SessionManager
 
 class ShortcutManager:
@@ -199,7 +200,9 @@ class ShortcutManager:
     @staticmethod
     def open_folder(event=None):
         ctx = AppContext()
-        path = filedialog.askdirectory(initialdir=os.path.expanduser("~"))
+        path = FileManager.ask_system_directory(os.path.expanduser("~"))
+        if path is None:
+            path = filedialog.askdirectory(initialdir=os.path.expanduser("~"))
         if path:
             ctx.project_root = path
             SessionManager.save_session(path)
