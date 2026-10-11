@@ -67,8 +67,8 @@ class Sidebar(ctk.CTkFrame):
 
         self._resize_active = False
         self.resize_handle = ctk.CTkFrame(
-            self, width=6, corner_radius=0,
-            fg_color=theme.get("menu_separator", "#3e4451"),
+            self, width=6, corner_radius=0, border_width=0,
+            fg_color=theme.get("bg", "#1a1a1c"),
             cursor="sb_h_double_arrow",
         )
         self.resize_handle.pack(side="right", fill="y")
@@ -146,7 +146,7 @@ class Sidebar(ctk.CTkFrame):
             scrollbar_button_color=theme.get("hover", "#2c313a"),
             scrollbar_button_hover_color=theme.get("label", "#5c6370")
         )
-        self.resize_handle.configure(fg_color=theme.get("menu_separator", "#3e4451"))
+        self.resize_handle.configure(fg_color=theme.get("bg", "#1a1a1c"))
 
         if self.file_name_search_panel:
             self.file_name_search_panel.apply_theme()
@@ -397,7 +397,7 @@ class Sidebar(ctk.CTkFrame):
     def _end_width_resize(self, event):
         self._resize_active = False
         self.update_idletasks()
-        SessionManager.set_ui_setting("sidebar_width", int(self.winfo_width()))
+        SessionManager.set_ui_setting("sidebar_width", int(self.winfo_reqwidth()))
 
     def _apply_sidebar_width(self, target_width):
         self.scrollable_frame.configure(width=max(1, int(target_width) - self._width_offset))
