@@ -6,8 +6,9 @@ from ui.window import MainWindow
 from core.src.app_context import AppContext
 from core.src.autocomplete_engine import AutocompleteEngine
 
+PLUGIN_LOAD_DELAY_MS = 150
+
 def load_plugins():
-    """Carregamento dinâmico e seguro de plugins core."""
     ctx = AppContext()
     try:
         from core.core_plugin.git_plugin import GitPlugin
@@ -42,7 +43,6 @@ def load_plugins():
         print("[CORE] Global Search Engine não encontrado.")
 
 def load_external_plugins():
-    """Carrega plugins dinamicamente da pasta plugins/."""
     ctx = AppContext()
     plugins_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins")
 
@@ -61,6 +61,35 @@ def load_external_plugins():
             except Exception as e:
                 print(f"[PLUGIN] Falha ao carregar {filename}: {e}")
 
+def open_startup_file():
+    if len(sys.argv) < 2 or not sys.argv[1]:
+        return
+
+    file_path = os.path.abspath(sys.argv[1])
+    if not os.path.isfile(file_path):
+        return
+
+    from core.src.buffer import BufferManager
+    ctx = AppContext()
+    if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge:
+        ctx.tab_bridge.open_file(file_path)
+    else:
+        ctx.current_file = file_path
+        ctx.is_dirty = False
+        content = BufferManager.read_file(file_path)
+        if ctx.editor:
+            ctx.editor.set_text(content)
+
+        # Atualiza UI após carregar
+        if ctx.status_bar:
+            ctx.status_bar.update_status(1, 0, file_path)
+        if ctx.py_plugin:
+            ctx.py_plugin.highlight()
+
+def start_after_open():
+    load_external_plugins()
+    open_startup_file()
+
 if __name__ == "__main__":
     # Configuração de tema do CustomTkinter
     ctk.set_appearance_mode("Dark")
@@ -73,27 +102,7 @@ if __name__ == "__main__":
     app = MainWindow()
 
     load_plugins()
-    load_external_plugins()
 
-    # Lógica para abrir arquivo via argumento de linha de comando (nth file.txt)
-    if len(sys.argv) > 1 and sys.argv[1]:
-        file_path = os.path.abspath(sys.argv[1])
-        if os.path.isfile(file_path):
-            from core.src.buffer import BufferManager
-            ctx = AppContext()
-            if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge:
-                ctx.tab_bridge.open_file(file_path)
-            else:
-                ctx.current_file = file_path
-                ctx.is_dirty = False
-                content = BufferManager.read_file(file_path)
-                if ctx.editor:
-                    ctx.editor.set_text(content)
-
-                # Atualiza UI após carregar
-                if ctx.status_bar:
-                    ctx.status_bar.update_status(1, 0, file_path)
-                if ctx.py_plugin:
-                    ctx.py_plugin.highlight()
+    app.after(PLUGIN_LOAD_DELAY_MS, start_after_open)
 
     app.mainloop()
