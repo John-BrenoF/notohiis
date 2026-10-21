@@ -1,5 +1,5 @@
 from ui.sidebar import Sidebar
-from core.src.app_context import AppContext
+from notohiis_core import AppContext
 
 Sidebar.register_plugin_icons(
     new_icons={

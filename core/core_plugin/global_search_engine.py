@@ -12,7 +12,7 @@ import threading
 from dataclasses import dataclass
 from typing import List, Callable
 
-from core.src.constants import (
+from notohiis_core import (
     BINARY_EXTENSIONS, IGNORED_DIRS,
     GLOBAL_SEARCH_MAX_MATCHES, SEARCH_BATCH_SIZE,
 )

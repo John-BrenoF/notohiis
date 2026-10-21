@@ -1,8 +1,8 @@
 import re
 import colorsys
 from tkinter import colorchooser
-from core.src.app_context import AppContext
-from core.events import CONTENT_CHANGED
+from notohiis_core import AppContext
+from notohiis_core import CONTENT_CHANGED
 import tkinter as tk
 
 class ColorPreviewPlugin:

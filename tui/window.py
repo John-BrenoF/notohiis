@@ -1,3 +1,17 @@
+import os
+import sys
+
+try:
+    import notohiis_core
+except ModuleNotFoundError as erro:
+    raise SystemExit(
+        "Core nativo (Rust) não compilado — rode: bash core/native/build.sh"
+    ) from erro
+
+notohiis_core.set_project_root(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
 from textual.widgets import Header
@@ -5,10 +19,8 @@ from tui.sidebar import Sidebar
 from tui.editor_area import EditorArea
 from tui.status_bar import StatusBar
 from tui.shortcuts import ShortcutManager
-from core.src.app_context import AppContext
-from core.src.session import SessionManager
-import os
-import sys
+from notohiis_core import AppContext
+from notohiis_core import SessionManager
 
 class TuiWindow(App):
     """Janela principal TUI."""
@@ -107,7 +119,7 @@ class TuiWindow(App):
             ctx.current_file = file_path
             
             if os.path.exists(file_path) and os.path.isfile(file_path):
-                from core.src.buffer import BufferManager
+                from notohiis_core import BufferManager
                 content = BufferManager.read_file(file_path)
                 editor = self.query_one(EditorArea)
                 editor.set_text(content)

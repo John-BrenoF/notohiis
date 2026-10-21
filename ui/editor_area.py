@@ -16,8 +16,8 @@ busca/substituição, autocompletar e navegação rápida.
 import customtkinter as ctk
 import tkinter as tk
 from typing import Optional, Callable, Any
-from core.src.app_context import AppContext
-from core.events import CONTENT_CHANGED, FILE_CHANGED, LINE_NUMBERS_REDRAWN
+from notohiis_core import AppContext
+from notohiis_core import CONTENT_CHANGED, FILE_CHANGED, LINE_NUMBERS_REDRAWN
 from core.interfaces import TextEditor, EditorEvent
 from ui.shortcuts import ShortcutManager
 

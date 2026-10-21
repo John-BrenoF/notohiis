@@ -10,13 +10,13 @@ import os
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog
-from core.src.app_context import AppContext
-from core.src.buffer import BufferManager
-from core.src.file_manager import FileManager
-from core.src.session import SessionManager
+from notohiis_core import AppContext
+from notohiis_core import BufferManager
+from notohiis_core import FileManager
+from notohiis_core import SessionManager
 
 class ShortcutManager:
-    """Gerencia os atalhos de teclado da aplicação."""
+
 
     HISTORY_UNDO_SEQUENCES = ("<Control-z>",)
     HISTORY_REDO_SEQUENCES = (
@@ -32,7 +32,7 @@ class ShortcutManager:
             widget.bind(sequence, ShortcutManager.undo)
         for sequence in ShortcutManager.HISTORY_REDO_SEQUENCES:
             widget.bind(sequence, ShortcutManager.redo)
-    
+
     @staticmethod
     def next_tab(event=None):
         ctx = AppContext()
@@ -51,7 +51,7 @@ class ShortcutManager:
     def setup_shortcuts(window):
         """
         Configura todos os atalhos de teclado da aplicação.
-        
+
         Atalhos principais:
         - Ctrl+A: Seleciona todo o texto
         - Ctrl+B: Toggle Sidebar
@@ -64,7 +64,7 @@ class ShortcutManager:
         - Ctrl+M: Toggle Markdown Preview
         - Ctrl+G: Painel Git (interface única)
         - Alt+Setas direita/esquerda: Navegar entre abas
-        
+
         Navegação rápida:
         - Alt+↑/↓ + Número (1-9): Mover cursor N linhas para cima/baixo
         - Ex: Alt+↑+5 move 5 linhas para cima
@@ -83,13 +83,13 @@ class ShortcutManager:
         window.bind("<Control-R>", ShortcutManager.open_quick_access)
         window.bind("<Alt-Right>", ShortcutManager.next_tab)
         window.bind("<Alt-Left>", ShortcutManager.prev_tab)
-        
+
         # Painel de Controle (Configurações e Plugins)
         window.bind("<Control-Alt-c>", ShortcutManager.open_control_panel)
         window.bind("<Control-Alt-C>", ShortcutManager.open_control_panel)
         window.bind("<Control-Alt-f>", ShortcutManager.open_file_name_search)
         window.bind("<Control-Alt-F>", ShortcutManager.open_file_name_search)
-        
+
         window.bind("<Control-m>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
         window.bind("<Control-M>", lambda e: AppContext().md_plugin.toggle_preview() if AppContext().md_plugin else None)
         window.bind("<Control-g>", ShortcutManager.open_git)
@@ -136,7 +136,7 @@ class ShortcutManager:
     @staticmethod
     def _center_window(window, width, height):
         window.update_idletasks()
-        
+
         # Define como transiente e não redimensionável para que o compositor Wayland (Niri/Hyprland)
         # entenda que é um diálogo e aplique as regras de flutuação e centralização.
         master = AppContext().window
@@ -192,7 +192,7 @@ class ShortcutManager:
             if BufferManager.save_file(ctx.current_file, content):
                 ctx.notify_save()
                 if ctx.sidebar: ctx.sidebar.refresh_explorer()
-                # O próprio editor costuma atualizar o status via eventos de teclado, 
+                # O próprio editor costuma atualizar o status via eventos de teclado,
                 # mas forçamos aqui para garantir sincronia após o save.
                 if hasattr(ctx.editor, '_update_status_bar'):
                     ctx.editor._update_status_bar()
@@ -230,16 +230,16 @@ class ShortcutManager:
             dialog.title("Descartar Alterações")
             dialog.attributes("-topmost", True)
             ShortcutManager._center_window(dialog, 350, 150)
-            
+
             ctk.CTkLabel(dialog, text="Alterações não salvas serão perdidas.\nContinuar?", pady=20).pack()
-            
+
             btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
             btn_frame.pack(pady=10)
-            
+
             ctk.CTkButton(btn_frame, text="Sim", width=100, command=lambda: [dialog.destroy(), proceed()]).pack(side="left", padx=10)
             ctk.CTkButton(btn_frame, text="Não", width=100, fg_color="gray", command=dialog.destroy).pack(side="left", padx=10)
             return "break"
-            
+
         proceed()
         return "break"
 
@@ -249,7 +249,7 @@ class ShortcutManager:
 
         ctx = AppContext()
         HelpWindow(ctx.window)
-        
+
     @staticmethod
     def open_git(event=None):
         ctx = AppContext()

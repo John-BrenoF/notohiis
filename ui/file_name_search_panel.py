@@ -1,7 +1,7 @@
 import customtkinter as ctk
 
-from core.src.app_context import AppContext
-from core.src.file_name_search import FileNameSearchResult, FileNameSearchService
+from notohiis_core import AppContext
+from notohiis_core import FileNameSearchResult, FileNameSearchService
 
 
 class FileNameSearchPanel(ctk.CTkFrame):

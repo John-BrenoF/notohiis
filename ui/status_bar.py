@@ -9,8 +9,8 @@
 
 import customtkinter as ctk
 import os
-from core.src.app_context import AppContext
-from core.src.constants import GIT_STATUS_DEBOUNCE_MS
+from notohiis_core import AppContext
+from notohiis_core import GIT_STATUS_DEBOUNCE_MS
 from tkinter import messagebox
 
 class StatusBar(ctk.CTkFrame):

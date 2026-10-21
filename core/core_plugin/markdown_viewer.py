@@ -6,7 +6,7 @@ from typing import Optional
 import customtkinter as ctk
 import markdown2
 from tkinterweb import HtmlFrame
-from core.src.app_context import AppContext
+from notohiis_core import AppContext
 
 MARKDOWN_EXTENSIONS = (".md", ".markdown", ".mdown", ".mkd")
 MARKDOWN_EXTRAS = [

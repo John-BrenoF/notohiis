@@ -13,9 +13,9 @@ import tkinter as tk
 import tkinter.font as tkfont
 import customtkinter as ctk
 import pyte
-from core.src.app_context import AppContext
-from core.events import THEME_CHANGED
-from core.src.session import SessionManager
+from notohiis_core import AppContext
+from notohiis_core import THEME_CHANGED
+from notohiis_core import SessionManager
 
 HEX_RE = re.compile(r"^[0-9a-fA-F]{6}$")
 EXIT_RE = re.compile(rb"\x1b\]133;D;?(\d*)?(?:\x07|\x1b\\)")

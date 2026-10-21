@@ -15,8 +15,8 @@ from ui.status_bar import StatusBar
 from ui.shortcuts import ShortcutManager
 from ui.search_bar import SearchBar
 from ui.substiuss import ReplaceBar
-from core.src.app_context import AppContext
-from core.src.session import SessionManager
+from notohiis_core import AppContext
+from notohiis_core import SessionManager
 
 # Imports opcionais
 try:
@@ -25,7 +25,7 @@ except ImportError:
     TabBridge = None
 
 try:
-    from core.src.theme_manager import ThemeManager
+    from notohiis_core import ThemeManager
 except (ImportError, AttributeError):
     ThemeManager = None
 

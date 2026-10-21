@@ -10,8 +10,8 @@
 
 import customtkinter as ctk
 import os
-from core.src.app_context import AppContext
-from core.src.session import SessionManager
+from notohiis_core import AppContext
+from notohiis_core import SessionManager
 from ui.shortcuts import ShortcutManager
 
 class QuickAccess(ctk.CTkToplevel):
