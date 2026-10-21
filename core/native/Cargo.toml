@@ -10,9 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["extension-module"]
-# Necessário quando a extensão é carregada pelo CPython (build de produção).
 extension-module = ["pyo3/extension-module"]
-# Necessário para `cargo test`: linka o libpython e inicializa o interpretador.
 test-python = ["pyo3/auto-initialize"]
 
 [dependencies]
