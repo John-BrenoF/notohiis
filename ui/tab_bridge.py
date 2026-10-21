@@ -11,12 +11,12 @@ import os
 import tkinter as tk
 from tkinter import filedialog
 import customtkinter as ctk
-from core.src.app_context import AppContext
-from core.src.buffer import BufferManager
+from notohiis_core import AppContext
+from notohiis_core import BufferManager
 from ui.shortcuts import ShortcutManager
 
 try:
-    from core.src.tab_manager import TabManager
+    from notohiis_core import TabManager
 except ImportError:
     TabManager = None
 

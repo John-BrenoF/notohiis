@@ -2,7 +2,7 @@ import re
 import hashlib
 from typing import List, Tuple, Optional, Set
 import bisect
-from core.src.app_context import AppContext
+from notohiis_core import AppContext
 
 
 class PythonSyntaxLexer:

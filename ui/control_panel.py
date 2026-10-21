@@ -15,13 +15,13 @@ import time
 import subprocess
 import sys
 from typing import Optional
-from core.src.app_context import AppContext
-from core.src.buffer import BufferManager
-from core.src.session import SessionManager
+from notohiis_core import AppContext
+from notohiis_core import BufferManager
+from notohiis_core import SessionManager
 from infor_app.reader import get_infor
 
 try:
-    from core.src.theme_manager import ThemeManager
+    from notohiis_core import ThemeManager
 except (ImportError, AttributeError):
     ThemeManager = None
 

@@ -1,4 +1,4 @@
-from core.src.app_context import AppContext
+from notohiis_core import AppContext
 
 class AutoClosePlugin:
     """

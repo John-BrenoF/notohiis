@@ -1,5 +1,5 @@
 from textual.widgets import Footer
-from core.src.app_context import AppContext
+from notohiis_core import AppContext
 
 class StatusBar(Footer):
     """Footer do terminal para atalhos e status."""

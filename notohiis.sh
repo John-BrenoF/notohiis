@@ -216,6 +216,21 @@ fi
 
 export PYTHONPATH="${PYTHONPATH:-}:$SCRIPT_DIR"
 
+if ! (cd "$SCRIPT_DIR" && "$PYTHON_BIN" -c "import notohiis_core") >/dev/null 2>&1; then
+    echo "[INFO] Core nativo (Rust) não compilado."
+    if command -v cargo >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/core/native/build.sh" ]; then
+        echo "[INFO] Compilando o core nativo (a primeira vez pode demorar)..."
+        bash "$SCRIPT_DIR/core/native/build.sh" || true
+    fi
+    if ! (cd "$SCRIPT_DIR" && "$PYTHON_BIN" -c "import notohiis_core") >/dev/null 2>&1; then
+        echo "[ERRO] O Notohiis roda apenas com o core em Rust." >&2
+        echo "[ERRO] Compile com: bash core/native/build.sh" >&2
+        echo "[ERRO] (requer Rust: https://rustup.rs)" >&2
+        exit 1
+    fi
+    echo "[OK] Core nativo compilado."
+fi
+
 cd "$SCRIPT_DIR"
 
 echo "[SUCCESS] Ambiente pronto. Iniciando Notohiis..."

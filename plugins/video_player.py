@@ -12,8 +12,8 @@ from typing import Optional
 import customtkinter as ctk
 import cv2
 from PIL import Image, ImageTk
-from core.src.app_context import AppContext
-from core.events import FILE_CHANGED
+from notohiis_core import AppContext
+from notohiis_core import FILE_CHANGED
 
 class VideoPlayerCanvas(ctk.CTkCanvas):
     """Canvas otimizado para exibição de frames de vídeo."""

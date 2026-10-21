@@ -9,7 +9,7 @@
 
 import os
 import customtkinter as ctk
-from core.src.app_context import AppContext
+from notohiis_core import AppContext
 from core.core_plugin.global_search_engine import SearchMatch
 
 
@@ -182,7 +182,7 @@ class GlobalSearchPanel(ctk.CTkFrame):
         else:
             ctx.current_file = file_path
             ctx.is_dirty = False
-            from core.src.buffer import BufferManager
+            from notohiis_core import BufferManager
             content = BufferManager.read_file(file_path)
             if ctx.editor:
                 ctx.editor.set_text(content)

@@ -3,8 +3,8 @@ import json
 import tkinter as tk
 import customtkinter as ctk
 from typing import Dict, Any, Optional
-from core.src.app_context import AppContext
-from core.events import LINE_NUMBERS_REDRAWN
+from notohiis_core import AppContext
+from notohiis_core import LINE_NUMBERS_REDRAWN
 
 
 class TagPointsPlugin:

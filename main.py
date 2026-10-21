@@ -2,9 +2,19 @@ import sys
 import os
 import importlib.util
 import customtkinter as ctk
+
+try:
+    import notohiis_core
+except ModuleNotFoundError as erro:
+    raise SystemExit(
+        "Core nativo (Rust) não compilado — rode: bash core/native/build.sh"
+    ) from erro
+
+notohiis_core.set_project_root(os.path.dirname(os.path.abspath(__file__)))
+
 from ui.window import MainWindow
-from core.src.app_context import AppContext
-from core.src.autocomplete_engine import AutocompleteEngine
+from notohiis_core import AppContext
+from notohiis_core import AutocompleteEngine
 
 PLUGIN_LOAD_DELAY_MS = 150
 
@@ -22,6 +32,7 @@ def load_plugins():
         ctx.md_plugin = MarkdownPlugin()
     except ImportError:
         print("[CORE] Markdown Plugin não encontrado.")
+
 
     try:
         from core.core_plugin.python_syntax import PythonSyntaxPlugin
@@ -69,7 +80,7 @@ def open_startup_file():
     if not os.path.isfile(file_path):
         return
 
-    from core.src.buffer import BufferManager
+    from notohiis_core import BufferManager
     ctx = AppContext()
     if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge:
         ctx.tab_bridge.open_file(file_path)

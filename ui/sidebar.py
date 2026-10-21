@@ -9,10 +9,10 @@
 import customtkinter as ctk
 import tkinter as tk
 import os
-from core.src.file_manager import FileManager
-from core.src.app_context import AppContext
-from core.src.buffer import BufferManager
-from core.src.session import SessionManager
+from notohiis_core import FileManager
+from notohiis_core import AppContext
+from notohiis_core import BufferManager
+from notohiis_core import SessionManager
 from ui.sidebar_context import SidebarContextMenu
 from ui.global_search_panel import GlobalSearchPanel
 try:

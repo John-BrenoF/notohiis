@@ -1,5 +1,5 @@
-from core.src.app_context import AppContext
-from core.src.buffer import BufferManager
+from notohiis_core import AppContext
+from notohiis_core import BufferManager
 
 class ShortcutManager:
     """Gerencia ações do terminal."""

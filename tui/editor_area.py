@@ -12,9 +12,9 @@ from typing import Any, Callable, Dict, Optional, Tuple
 from textual import events
 from textual.widgets import TextArea
 
-from core.events import FILE_CHANGED
+from notohiis_core import FILE_CHANGED
 from core.interfaces import EditorEvent, TextEditor
-from core.src.app_context import AppContext
+from notohiis_core import AppContext
 
 # Sintaxe Tk -> Textual: `<Control-Alt-Down>` vira `ctrl+alt+down`.
 _TK_MODIFIERS = {

@@ -11,7 +11,7 @@ import os
 import json
 import customtkinter as ctk
 from PIL import Image
-from core.src.app_context import AppContext
+from notohiis_core import AppContext
 from infor_app.reader import get_infor
 
 class HelpWindow:

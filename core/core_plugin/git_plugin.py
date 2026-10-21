@@ -13,9 +13,9 @@ import subprocess
 import threading
 from typing import List, Optional, Tuple
 
-from core.src.app_context import AppContext
-from core.src.session import SessionManager
-from core.src.theme_manager import ThemeManager
+from notohiis_core import AppContext
+from notohiis_core import SessionManager
+from notohiis_core import ThemeManager
 
 
 class GitPlugin:

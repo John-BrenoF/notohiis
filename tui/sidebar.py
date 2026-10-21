@@ -1,6 +1,6 @@
 from textual.widgets import DirectoryTree
 import os
-from core.src.app_context import AppContext
+from notohiis_core import AppContext
 
 class Sidebar(DirectoryTree):
     """Explorador de arquivos TUI."""
@@ -17,7 +17,7 @@ class Sidebar(DirectoryTree):
             self.path = self.ctx.project_root
 
     def on_directory_tree_file_selected(self, event):
-        from core.src.buffer import BufferManager
+        from notohiis_core import BufferManager
         path = str(event.path)
         self.ctx.current_file = path
         self.ctx.is_dirty = False

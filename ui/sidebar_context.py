@@ -12,8 +12,8 @@
 import os
 import tkinter as tk
 import customtkinter as ctk
-from core.src.file_manager import FileManager
-from core.src.app_context import AppContext
+from notohiis_core import FileManager
+from notohiis_core import AppContext
 
 
 # ── Renomeação Inline ───────────────────────────────────────────────────

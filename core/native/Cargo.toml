@@ -1,0 +1,25 @@
+[package]
+name = "notohiis_core"
+version = "0.1.0"
+edition = "2021"
+license = "LUMEJ-1.0"
+
+[lib]
+name = "notohiis_core"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["extension-module"]
+# Necessário quando a extensão é carregada pelo CPython (build de produção).
+extension-module = ["pyo3/extension-module"]
+# Necessário para `cargo test`: linka o libpython e inicializa o interpretador.
+test-python = ["pyo3/auto-initialize"]
+
+[dependencies]
+pyo3 = { version = "0.26", features = ["abi3-py39", "py-clone"] }
+serde_json = "1"
+libc = "0.2"
+
+[profile.release]
+opt-level = 2
+lto = "thin"

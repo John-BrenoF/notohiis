@@ -13,7 +13,7 @@ Elimina a duplicação de lógica de busca e navegação.
 """
 
 import customtkinter as ctk
-from core.src.app_context import AppContext
+from notohiis_core import AppContext
 
 
 class SearchBase(ctk.CTkFrame):
