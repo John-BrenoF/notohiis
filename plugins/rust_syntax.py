@@ -15,8 +15,9 @@ class RustSyntaxLexer:
         r"""(?P<lifetime>'[A-Za-z_]\w*)""",
         r"(?P<atributo>#!?\[)",
         r"(?P<definicao>\b(?:fn|struct|enum|trait|type|mod|union|impl)\b\s+)"
-        r"(?P<def_nome>[A-Za-z_]\w*)",
+        r"(?P<def_nome>(?![A-Za-z_]+::)[A-Za-z_]\w*)",
         r"(?P<macro_nome>\b[a-z_]\w*!)",
+        r"(?P<caminho>\b(?:[A-Za-z_]\w*::)+[A-Za-z_]\w*)",
         r"(?P<mesmo>\bself\b)",
         r"(?P<keyword>\b(?:as|async|await|break|const|continue|crate|dyn|else|enum"
         r"|extern|false|fn|for|if|impl|in|let|loop|match|mod|move|mut|pub|ref|return"
@@ -25,7 +26,10 @@ class RustSyntaxLexer:
         r"|become)\b)",
         r"(?P<tipo>\b(?:bool|char|str|i8|i16|i32|i64|i128|isize|u8|u16|u32|u64"
         r"|u128|usize|f32|f64|String|Vec|Option|Result|Box|Rc|Arc|Cow|Cell|RefCell"
-        r"|Mutex|RwLock|HashMap|HashSet|BTreeMap|BTreeSet|Path|PathBuf|OsString"
+        r"|Mutex|RwLock|Barrier|Condvar|Once|OnceLock|LazyLock|AtomicBool|AtomicI8"
+        r"|AtomicI16|AtomicI32|AtomicI64|AtomicIsize|AtomicU8|AtomicU16|AtomicU32"
+        r"|AtomicU64|AtomicUsize|AtomicPtr|PoisonError|TryLockError"
+        r"|HashMap|HashSet|BTreeMap|BTreeSet|Path|PathBuf|OsString"
         r"|Ordering|Error|Iterator|Some|None|Ok|Err|Copy|Clone|Debug|Default|Display"
         r"|Drop|From|Into|ToString)\b)",
         r"(?P<numero>\b(?:0[xX][0-9a-fA-F_]+|0[bB][01_]+|0[oO][0-7_]+"
@@ -46,6 +50,7 @@ class RustSyntaxLexer:
         "definicao": "keyword",
         "keyword": "keyword",
         "macro_nome": "builtin",
+        "caminho": "builtin",
         "tipo": "builtin",
         "numero": "number",
     }
