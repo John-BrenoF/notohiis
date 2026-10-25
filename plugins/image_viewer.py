@@ -154,71 +154,90 @@ class ImagePlugin:
 
         path = self.ctx.current_file
         is_image = path and os.path.splitext(path)[1].lower() in self.EXTENSIONS
-        
+
         if is_image:
             self.btn_toggle.pack(side="right", padx=10)
-            # Se o arquivo mudou e estava ativo, resetamos o estado
-            if self.is_active.get(path):
-                self.btn_toggle.configure(fg_color="#1f538d", text="Ver Texto")
-            else:
-                self.btn_toggle.configure(fg_color=["#3B8ED0", "#1F6AA5"], text="Visualizar Imagem")
+            if not self.is_active.get(path):
+                self.toggle_view()
+            elif not (self.canvas and self.canvas.winfo_manager()):
+                self._mostrar_imagem(path)
         else:
             self.btn_toggle.pack_forget()
-            # Se o canvas de imagem estava visível, restaura o editor original
             if self.canvas and self.canvas.winfo_manager():
-                self.canvas.grid_remove()
-                if self.info_bar: self.info_bar.place_forget()
-                
-                editor = self.ctx.editor
-                if editor:
-                    editor.textbox.grid(row=0, column=2, sticky="nsew")
-                    editor.line_numbers.grid(row=0, column=0, sticky="ns")
-                    editor.git_margin.grid(row=0, column=1, sticky="ns")
-                    editor.grid_rowconfigure(0, weight=1)
+                self._mostrar_texto()
+            self.is_active.clear()
 
     def toggle_view(self):
         path = self.ctx.current_file
         if not path or not self.ctx.editor: return
+        if os.path.splitext(path)[1].lower() not in self.EXTENSIONS: return
+
+        if self.is_active.get(path, False):
+            self._mostrar_texto()
+            self.is_active[path] = False
+            self.btn_toggle.configure(fg_color=["#3B8ED0", "#1F6AA5"], text="Visualizar Imagem")
+        else:
+            self._mostrar_imagem(path)
+
+    def _criar_widgets(self):
+        if self.canvas: return
+        editor = self.ctx.editor
+        theme_bg = self.ctx.theme.get("editor", {}).get("bg", "#1e1e1e")
+        self.canvas = ImageViewerCanvas(editor, bg=theme_bg)
+        self.info_bar = ctk.CTkLabel(editor, text="", font=("Segoe UI", 10), fg_color="#21252b")
+
+    def _mostrar_imagem(self, path):
+        if not self.ctx.editor: return
+        self._criar_widgets()
 
         editor = self.ctx.editor
-        active = self.is_active.get(path, False)
+        editor.textbox.grid_remove()
+        editor.line_numbers.grid_remove()
+        editor.git_margin.grid_remove()
 
-        if not self.canvas:
-            theme_bg = self.ctx.theme.get("editor", {}).get("bg", "#1e1e1e")
-            self.canvas = ImageViewerCanvas(editor, bg=theme_bg)
-            self.info_bar = ctk.CTkLabel(editor, text="", font=("Segoe UI", 10), fg_color="#21252b")
+        self.canvas.grid(row=0, column=0, columnspan=3, sticky="nsew")
+        self.canvas.load_image(path)
+        self._atualizar_info(path)
 
-        if not active:
-            # Entrar em modo visualização
-            editor.textbox.grid_remove()
-            editor.line_numbers.grid_remove()
-            editor.git_margin.grid_remove()
+        self.is_active.clear()
+        self.is_active[path] = True
+        self.btn_toggle.configure(fg_color="#1f538d", text="Ver Texto")
 
-            self.canvas.grid(row=0, column=0, columnspan=3, sticky="nsew")
-            self.canvas.load_image(path)
-            
-            # Atualiza info da imagem
-            img = self.canvas.image_raw
-            size = os.path.getsize(path) / 1024
-            self.info_bar.configure(text=f" 󰋩 {img.width}x{img.height} | {size:.1f} KB | Zoom: {int(self.canvas.scale*100)}%")
-            self.info_bar.place(relx=1.0, rely=0.0, anchor="ne", x=-20, y=10)
+    def _editor_coberto(self):
+        editor = self.ctx.editor
+        if not editor: return False
+        for filho in editor.winfo_children():
+            if filho is self.canvas or filho is self.info_bar:
+                continue
+            if filho.winfo_manager() != "grid":
+                continue
+            if str(filho.grid_info().get("row")) == "0":
+                return True
+        return False
 
-            self.is_active[path] = True
-            self.btn_toggle.configure(fg_color="#1f538d", text="Ver Texto")
-        else:
-            # Voltar para o editor
+    def _mostrar_texto(self):
+        if self.canvas:
             self.canvas.grid_remove()
+        if self.info_bar:
             self.info_bar.place_forget()
-            
+
+        editor = self.ctx.editor
+        if editor and not self._editor_coberto():
             editor.textbox.grid(row=0, column=2, sticky="nsew")
             editor.line_numbers.grid(row=0, column=0, sticky="ns")
             editor.git_margin.grid(row=0, column=1, sticky="ns")
+            editor.grid_rowconfigure(0, weight=1)
 
-            self.is_active[path] = False
-            self.btn_toggle.configure(fg_color=["#3B8ED0", "#1F6AA5"], text="Visualizar Imagem")
+    def _atualizar_info(self, path):
+        img = self.canvas.image_raw
+        if not img or not os.path.exists(path):
+            self.info_bar.place_forget()
+            return
+        size = os.path.getsize(path) / 1024
+        self.info_bar.configure(text=f" 󰋩 {img.width}x{img.height} | {size:.1f} KB | Zoom: {int(self.canvas.scale*100)}%")
+        self.info_bar.place(relx=1.0, rely=0.0, anchor="ne", x=-20, y=10)
 
 def setup(ctx: AppContext):
-    """Ponto de entrada do plugin."""
     plugin = ImagePlugin(ctx)
     ctx.external_plugins.append(plugin)
 
