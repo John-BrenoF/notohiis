@@ -1,0 +1,5 @@
+native/target/
+native/*.so
+native/*.pyd
+tool_nth.abi3.so
+__pycache__/
