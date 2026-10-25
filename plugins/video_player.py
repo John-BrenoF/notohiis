@@ -61,6 +61,7 @@ class VideoPlayerPlugin:
         self.fps = 30
         self.total_frames = 0
         self.current_frame_idx = 0
+        self.loop_id = 0
 
     def _inject_ui(self):
         if not hasattr(self, 'btn_view') and self.ctx.status_bar:
@@ -77,12 +78,15 @@ class VideoPlayerPlugin:
         if not hasattr(self, 'btn_view'): return
 
         path = self.ctx.current_file
-        if path and os.path.splitext(path)[1].lower() in self.EXTENSIONS:
+        eh_video = path and os.path.splitext(path)[1].lower() in self.EXTENSIONS
+        if eh_video:
             self.btn_view.pack(side="right", padx=10)
+            if not self.is_active.get(path):
+                self.toggle_player()
         else:
             self.btn_view.pack_forget()
-            if self.player_frame and self.player_frame.winfo_manager():
-                self.toggle_player() # Força fechamento se mudar para arquivo não-vídeo
+            self._fechar_player()
+            self.is_active.clear()
 
     def _create_widgets(self):
         editor = self.ctx.editor
@@ -107,38 +111,72 @@ class VideoPlayerPlugin:
     def toggle_player(self):
         path = self.ctx.current_file
         if not path or not self.ctx.editor: return
+        if os.path.splitext(path)[1].lower() not in self.EXTENSIONS: return
 
+        if self.is_active.get(path, False):
+            self._fechar_player()
+            self.is_active[path] = False
+            self.btn_view.configure(fg_color=["#3B8ED0", "#1F6AA5"], text="Assistir Vídeo")
+        else:
+            self._abrir_player(path)
+
+    def _mostrar_player(self):
         editor = self.ctx.editor
-        active = self.is_active.get(path, False)
+        if not editor or not self.player_frame: return
+        editor.textbox.grid_remove()
+        editor.line_numbers.grid_remove()
+        editor.git_margin.grid_remove()
+        self.player_frame.grid(row=0, column=0, columnspan=3, sticky="nsew")
 
+    def _abrir_player(self, path):
+        if not self.ctx.editor: return
         if not self.player_frame:
             self._create_widgets()
-
-        if not active:
-            # Ativar Player
-            editor.textbox.grid_remove()
-            editor.line_numbers.grid_remove()
-            editor.git_margin.grid_remove()
-            self.player_frame.grid(row=0, column=0, columnspan=3, sticky="nsew")
-            
-            self._load_video(path)
-            self.is_active[path] = True
-            self.btn_view.configure(fg_color="#1f538d", text="Ver Texto")
-        else:
-            # Voltar Editor
+        if self.is_active:
             self._stop_playback()
-            self.player_frame.grid_remove()
+
+        self._mostrar_player()
+        if not self._load_video(path):
+            self._fechar_player()
+            return
+
+        self.is_active.clear()
+        self.is_active[path] = True
+        self.btn_view.configure(fg_color="#1f538d", text="Ver Texto")
+
+    def _editor_coberto(self):
+        editor = self.ctx.editor
+        if not editor: return False
+        for filho in editor.winfo_children():
+            if filho is self.player_frame:
+                continue
+            if filho.winfo_manager() != "grid":
+                continue
+            if str(filho.grid_info().get("row")) == "0":
+                return True
+        return False
+
+    def _fechar_player(self):
+        if not self.player_frame or not self.player_frame.winfo_manager():
+            return
+
+        self._stop_playback()
+        self.player_frame.grid_remove()
+
+        editor = self.ctx.editor
+        if editor and not self._editor_coberto():
             editor.textbox.grid(row=0, column=2, sticky="nsew")
             editor.line_numbers.grid(row=0, column=0, sticky="ns")
             editor.git_margin.grid(row=0, column=1, sticky="ns")
-            
-            self.is_active[path] = False
-            self.btn_view.configure(fg_color=["#3B8ED0", "#1F6AA5"], text="Assistir Vídeo")
+            editor.grid_rowconfigure(0, weight=1)
 
     def _load_video(self, path):
         with self.cap_lock:
             self.cap = cv2.VideoCapture(path)
-            if not self.cap.isOpened(): return
+            if not self.cap.isOpened():
+                self.cap.release()
+                self.cap = None
+                return False
 
             self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
             self.fps = self.cap.get(cv2.CAP_PROP_FPS) or 30
@@ -148,23 +186,31 @@ class VideoPlayerPlugin:
         self.stop_event.clear()
         self.playing = True
         self.btn_play.configure(text="⏸")
-        
-        # Inicia thread de leitura
-        threading.Thread(target=self._reader_thread, daemon=True).start()
-        # Inicia loop de atualização da UI
-        self._update_ui_loop()
+        while not self.frame_queue.empty():
+            try: self.frame_queue.get_nowait()
+            except queue.Empty: break
 
-    def _reader_thread(self):
+        # Inicia thread de leitura
+        threading.Thread(target=self._reader_thread, args=(self.cap,), daemon=True).start()
+        # Inicia loop de atualização da UI
+        self.loop_id += 1
+        self._update_ui_loop(self.loop_id)
+        return True
+
+    def _reader_thread(self, cap):
         """Thread para decodificar frames sem travar a UI."""
-        while not self.stop_event.is_set() and self.cap:
+        while not self.stop_event.is_set() and self.cap is cap:
             if self.playing:
                 with self.cap_lock:
-                    ret, frame = self.cap.read()
+                    ret, frame = cap.read()
                     if not ret:
                         self.playing = False
                         break
                     
-                    self.current_frame_idx = int(self.cap.get(cv2.CAP_PROP_POS_FRAMES))
+                    self.current_frame_idx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
+
+                if self.cap is not cap:
+                    break
                 
                 # Conversão BGR -> RGB -> PIL
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -179,9 +225,9 @@ class VideoPlayerPlugin:
             else:
                 time.sleep(0.1)
 
-    def _update_ui_loop(self):
+    def _update_ui_loop(self, loop_id):
         """Loop na thread principal para desenhar os frames."""
-        if self.stop_event.is_set(): return
+        if self.stop_event.is_set() or loop_id != self.loop_id: return
 
         try:
             img = self.frame_queue.get_nowait()
@@ -195,7 +241,7 @@ class VideoPlayerPlugin:
         except queue.Empty:
             pass
 
-        self.ctx.window.after(10, self._update_ui_loop)
+        self.ctx.window.after(10, lambda: self._update_ui_loop(loop_id))
 
     def _toggle_play(self):
         self.playing = not self.playing
@@ -212,6 +258,7 @@ class VideoPlayerPlugin:
 
     def _stop_playback(self):
         self.stop_event.set()
+        self.loop_id += 1
         self.playing = False
         with self.cap_lock:
             if self.cap:
