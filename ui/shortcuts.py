@@ -48,6 +48,15 @@ class ShortcutManager:
         return "break"
 
     @staticmethod
+    def close_tab(event=None):
+        ctx = AppContext()
+        if hasattr(ctx, 'tab_bridge') and ctx.tab_bridge and ctx.tab_manager:
+            active = ctx.tab_manager.get_active_tab()
+            if active:
+                ctx.tab_bridge.close_tab(active.id)
+        return "break"
+
+    @staticmethod
     def setup_shortcuts(window):
         """
         Configura todos os atalhos de teclado da aplicação.
@@ -64,6 +73,7 @@ class ShortcutManager:
         - Ctrl+M: Toggle Markdown Preview
         - Ctrl+G: Painel Git (interface única)
         - Alt+Setas direita/esquerda: Navegar entre abas
+        - Ctrl+W: Fechar aba ativa
 
         Navegação rápida:
         - Alt+↑/↓ + Número (1-9): Mover cursor N linhas para cima/baixo
@@ -83,6 +93,8 @@ class ShortcutManager:
         window.bind("<Control-R>", ShortcutManager.open_quick_access)
         window.bind("<Alt-Right>", ShortcutManager.next_tab)
         window.bind("<Alt-Left>", ShortcutManager.prev_tab)
+        window.bind("<Control-w>", ShortcutManager.close_tab)
+        window.bind("<Control-W>", ShortcutManager.close_tab)
 
         # Painel de Controle (Configurações e Plugins)
         window.bind("<Control-Alt-c>", ShortcutManager.open_control_panel)
