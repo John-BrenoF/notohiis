@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.JohnBrenoF.notohiis</id>
+  <name>Notohiis</name>
+  <summary>Editor de texto minimalista, simples por padrão e poderoso quando você precisa</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-LUMEJ-1.0</project_license>
+
+  <developer id="io.github.johnbrenof">
+    <name>John-BrenoF</name>
+  </developer>
+
+  <description>
+    <p>
+      Notohiis é um editor de texto minimalista feito em Python — para quem
+      valoriza foco e controle total sobre a própria ferramenta.
+    </p>
+    <p>Recursos:</p>
+    <ul>
+      <li>Interface gráfica (CustomTkinter) e modo terminal (Textual)</li>
+      <li>Temas completos via JSON</li>
+      <li>Sistema de plugins com carregamento dinâmico</li>
+      <li>Git nativo, realce de sintaxe e múltiplas linguagens</li>
+      <li>Autocomplete com servidor de linguagem (jedi-language-server)</li>
+      <li>Leve mesmo com vários plugins carregados</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.JohnBrenoF.notohiis.desktop</launchable>
+  <url type="homepage">https://github.com/John-BrenoF/notohiis</url>
+  <url type="bugtracker">https://github.com/John-BrenoF/notohiis/issues</url>
+  <url type="vcs-browser">https://github.com/John-BrenoF/notohiis</url>
+
+  <categories>
+    <category>Utility</category>
+    <category>TextEditor</category>
+  </categories>
+
+  <content_rating type="oars-1.1"/>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Notohiis — tela principal</caption>
+      <image>https://github.com/user-attachments/assets/f4703e9f-9ae9-48d8-8d65-69cbc4df4f5d</image>
+    </screenshot>
+    <screenshot>
+      <caption>Modo terminal (TUI)</caption>
+      <image>https://github.com/user-attachments/assets/42614cc1-1a6d-40b0-8de3-f6e3836982e1</image>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.5.0" date="2026-11-05"/>
+  </releases>
+</component>

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Notohiis
+GenericName=Text Editor
+Comment=Editor de texto minimalista
+Comment[pt_BR]=Editor de texto minimalista
+Exec=notohiis %F
+Icon=io.github.JohnBrenoF.notohiis
+Terminal=false
+Categories=Utility;TextEditor;
+Keywords=text;editor;notes;notas;plaintext;
+MimeType=text/plain;
+StartupNotify=true
