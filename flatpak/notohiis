@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SRC="/app/lib/notohiis"
+STATE="${XDG_DATA_HOME:-$HOME/.local/share}/notohiis/app"
+
+KEEP=(
+    "plugins"
+    "themes"
+    "ui/preferencias"
+    "ui/tasile"
+    "core/cacheuser"
+    "infor_app/musics"
+    ".session_config"
+    "Novo Arquivo"
+)
+
+sincronizar() {
+    local backup p
+    backup="$(mktemp -d)"
+
+    for p in "${KEEP[@]}"; do
+        if [ -e "$STATE/$p" ]; then
+            mkdir -p "$backup/$(dirname "$p")"
+            cp -a "$STATE/$p" "$backup/$p"
+        fi
+    done
+
+    rm -rf "$STATE"
+    mkdir -p "$STATE"
+    cp -a "$SRC/." "$STATE/"
+
+    for p in "${KEEP[@]}"; do
+        if [ -e "$backup/$p" ]; then
+            rm -rf "$STATE/$p"
+            mkdir -p "$STATE/$(dirname "$p")"
+            cp -a "$backup/$p" "$STATE/$p"
+        fi
+    done
+
+    rm -rf "$backup"
+}
+
+LOCK="${XDG_RUNTIME_DIR:-/tmp}/notohiis-sync.lock"
+exec 9>"$LOCK"
+flock -w 120 9
+
+src_ver="$(cat "$SRC/.flatpak-version" 2>/dev/null || echo none)"
+state_ver="$(cat "$STATE/.flatpak-version" 2>/dev/null || echo none)"
+if [ "$src_ver" != "$state_ver" ]; then
+    sincronizar
+fi
+
+flock -u 9
+exec 9>&-
+
+export TCL_LIBRARY="/app/lib/tcl8.6"
+export TK_LIBRARY="/app/lib/tk8.6"
+export PYTHONPATH="$STATE${PYTHONPATH:+:$PYTHONPATH}"
+
+cd "$STATE"
+
+modo="gui"
+if [ "${1:-}" = "--tui" ]; then
+    modo="tui"
+    shift
+fi
+
+if [ "$modo" = "tui" ]; then
+    exec python3 -c 'from tui.window import TuiWindow; TuiWindow().run()' "$@"
+fi
+
+if [ -f "$STATE/ui/welcome_dev!.py" ]; then
+    python3 "$STATE/ui/welcome_dev!.py" "$@" \
+        || echo "[AVISO] welcome_dev falhou, prosseguindo..." >&2
+fi
+
+exec python3 "$STATE/main.py" "$@"

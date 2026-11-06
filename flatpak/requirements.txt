@@ -1,0 +1,11 @@
+customtkinter
+packaging
+markdown2
+Pillow
+svglib
+reportlab
+opencv-python
+pyte
+textual
+tkinterweb
+jedi-language-server

@@ -1,0 +1,134 @@
+app-id: io.github.JohnBrenoF.notohiis
+runtime: org.freedesktop.Platform
+runtime-version: "25.08"
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: notohiis
+
+finish-args:
+  # GUI (CustomTkinter)
+  - --share=ipc
+  # Tk 8.6 é X11 (XWayland); fallback-x11 não encaminha DISPLAY quando o
+  # Wayland está disponível, então usamos o socket x11 direto.
+  - --socket=x11
+  - --socket=wayland
+  - --device=dri
+  # Abrir/salvar arquivos (filedialog do Tk usa caminho direto)
+  - --filesystem=home
+  # Plugin de Git: repassa `git` para o host via flatpak-spawn --host
+  - --talk-name=org.freedesktop.Flatpak
+
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /share/man
+  - /share/doc
+  - /bin/tclsh*
+  - /bin/wish*
+  - "*.a"
+  - "*.la"
+  - __pycache__
+
+modules:
+
+  # Tcl 8.6 
+
+  - name: tcl
+    buildsystem: simple
+    build-commands:
+      - cd unix && ./configure --prefix=/app --enable-shared
+      - make -C unix -j$FLATPAK_BUILDER_N_JOBS
+      - make -C unix install
+      # o Makefile do Tcl instala a lib com `chmod 555`; o eu-strip do
+      # flatpak-builder precisa de escrita para compactar o debuginfo
+      - chmod -R u+w /app
+    sources:
+      - type: archive
+        url: https://prdownloads.sourceforge.net/tcl/tcl8.6.16-src.tar.gz
+        sha256: 91cb8fa61771c63c262efb553059b7c7ad6757afa5857af6265e4b0bdc2a14a5
+
+  - name: tk
+    buildsystem: simple
+    build-commands:
+      - cd unix && ./configure --prefix=/app --enable-shared --with-tcl=/app/lib
+      - make -C unix -j$FLATPAK_BUILDER_N_JOBS
+      - make -C unix install
+      - chmod -R u+w /app
+    sources:
+      - type: archive
+        url: https://prdownloads.sourceforge.net/tcl/tk8.6.16-src.tar.gz
+        sha256: be9f94d3575d4b3099d84bc3c10de8994df2d7aa405208173c709cc404a7e5fe
+
+  - name: python3
+    buildsystem: simple
+    build-options:
+      env:
+        TCLTK_CFLAGS: "-I/app/include"
+        TCLTK_LIBS: "-L/app/lib -ltcl8.6 -ltk8.6"
+    build-commands:
+      - ./configure --prefix=/app --with-ensurepip=install --disable-test-modules
+      - make -j$FLATPAK_BUILDER_N_JOBS
+      - make install
+      - chmod -R u+w /app
+      - /app/bin/python3 -c "import tkinter; print('tkinter', tkinter.TkVersion)"
+    sources:
+      - type: archive
+        url: https://www.python.org/ftp/python/3.13.16/Python-3.13.16.tgz
+        sha256: cfac63bddf956deafb1172ca131ae5dcaafd6f95056086e233fca205593ed427
+
+  - python3-requirements.json
+
+  - name: notohiis
+    buildsystem: simple
+    build-commands:
+      - install -Dm0755 flatpak/notohiis ${FLATPAK_DEST}/bin/notohiis
+      - install -Dm0755 flatpak/notohiis-tui ${FLATPAK_DEST}/bin/notohiis-tui
+      - install -Dm0755 flatpak/git-shim ${FLATPAK_DEST}/bin/git
+      - install -Dm0644 flatpak/io.github.JohnBrenoF.notohiis.desktop ${FLATPAK_DEST}/share/applications/io.github.JohnBrenoF.notohiis.desktop
+      - install -Dm0644 flatpak/io.github.JohnBrenoF.notohiis.metainfo.xml ${FLATPAK_DEST}/share/metainfo/io.github.JohnBrenoF.notohiis.metainfo.xml
+      - install -Dm0644 flatpak/icons/io.github.JohnBrenoF.notohiis-128x128.png ${FLATPAK_DEST}/share/icons/hicolor/128x128/apps/io.github.JohnBrenoF.notohiis.png
+      - install -Dm0644 flatpak/icons/io.github.JohnBrenoF.notohiis-256x256.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/io.github.JohnBrenoF.notohiis.png
+      - install -Dm0644 flatpak/icons/io.github.JohnBrenoF.notohiis-512x512.png ${FLATPAK_DEST}/share/icons/hicolor/512x512/apps/io.github.JohnBrenoF.notohiis.png
+      - install -d ${FLATPAK_DEST}/lib/notohiis
+      - cp -a ./. ${FLATPAK_DEST}/lib/notohiis/
+      - rm -rf ${FLATPAK_DEST}/lib/notohiis/flatpak
+    sources:
+      - type: dir
+        path: .stage
+
+  - name: notohiis-core
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      env:
+        CARGO_HOME: /run/build/notohiis-core/cargo
+        CARGO_NET_OFFLINE: "true"
+    build-commands:
+      - cargo --offline fetch --manifest-path core/native/Cargo.toml
+      - cargo --offline build --release --locked --manifest-path core/native/Cargo.toml
+      - install -Dm0755 core/native/target/release/libnotohiis_core.so ${FLATPAK_DEST}/lib/notohiis/notohiis_core.abi3.so
+    sources:
+      - type: dir
+        path: .stage
+      - cargo-sources-core.json
+
+
+  # Depurador tool-nth (Rust) + teste de fumaça dos imports
+
+  - name: tool-nth
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      env:
+        CARGO_HOME: /run/build/tool-nth/cargo
+        CARGO_NET_OFFLINE: "true"
+    build-commands:
+      - cargo --offline fetch --manifest-path core/core_plugin/tool-nth/native/Cargo.toml
+      - cargo --offline build --release --locked --manifest-path core/core_plugin/tool-nth/native/Cargo.toml
+      - install -Dm0755 core/core_plugin/tool-nth/native/target/release/libtool_nth.so ${FLATPAK_DEST}/lib/notohiis/core/core_plugin/tool-nth/tool_nth.abi3.so
+      - PYTHONPATH=${FLATPAK_DEST}/lib/notohiis /app/bin/python3 -c "import notohiis_core, customtkinter, PIL, cv2, textual, pyte, markdown2, reportlab, svglib, tkinterweb, jedi; print('smoke OK:', notohiis_core.__file__)"
+    sources:
+      - type: dir
+        path: .stage
+      - cargo-sources-tool-nth.json

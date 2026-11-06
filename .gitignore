@@ -22,3 +22,8 @@ core/native/*.pyd
 /notohiis_core*.so
 /notohiis_core*.pyd
 core/cacheuser/tags.json
+flatpak/.stage/
+flatpak/build-dir/
+flatpak/.flatpak-builder/
+flatpak/.gen/
+flatpak/README.md
