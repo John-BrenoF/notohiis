@@ -21,7 +21,7 @@
 
 <br>
 
-Notohiis é um editor de texto minimalista feito em Python — para quem valoriza foco e controle total sobre a própria ferramenta.
+Notohiis é um editor de texto minimalista para quem valoriza foco e controle total sobre a própria ferramenta.
 
 <br>
 
@@ -121,6 +121,6 @@ notohiis/
 <br>
 
 <p align="center">
-  <sub>Notohiis v0.4-alpha — "Frango com batata doce" Edition</sub><br>
+  <sub>Notohiis v0.6-alpha teste — "Frango com batata doce" Edition</sub><br>
   <sub>Feito com Python+café por você.</sub>
 </p>
