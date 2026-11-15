@@ -15,6 +15,7 @@ notohiis_core.set_project_root(os.path.dirname(os.path.abspath(__file__)))
 from ui.window import MainWindow
 from notohiis_core import AppContext
 from notohiis_core import AutocompleteEngine
+from block_plugin_loader import load_block_plugins
 
 PLUGIN_LOAD_DELAY_MS = 150
 
@@ -71,6 +72,8 @@ def load_external_plugins():
                     module.setup(ctx)
             except Exception as e:
                 print(f"[PLUGIN] Falha ao carregar {filename}: {e}")
+
+    load_block_plugins(ctx)
 
 def open_startup_file():
     if len(sys.argv) < 2 or not sys.argv[1]:

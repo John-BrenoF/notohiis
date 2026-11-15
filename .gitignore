@@ -19,6 +19,7 @@ docs
 core/native/target/
 core/native/*.so
 core/native/*.pyd
+plugins/NTH-*/target/
 /notohiis_core*.so
 /notohiis_core*.pyd
 core/cacheuser/tags.json
