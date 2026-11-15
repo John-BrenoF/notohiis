@@ -44,6 +44,15 @@ BRIGHT_COLORS = {
 
 BASH_HOOK = "PROMPT_COMMAND='__ec=$?; printf \"\\033]133;D;%s\\007\" \"$__ec\"'\n"
 ZSH_HOOK = "precmd() { local __ec=$?; printf '\\033]133;D;%s\\007' \"$__ec\" }\n"
+HOST_COMMAND_FALLBACK_HOOK = """command_not_found_handle() {
+    if flatpak-spawn --host sh -c 'command -v "$1" >/dev/null 2>&1' _ "$1"; then
+        flatpak-spawn --host "$@"
+        return $?
+    fi
+    printf 'bash: %s: comando nao encontrado\\n' "$1" >&2
+    return 127
+}
+"""
 
 FONT_CANDIDATES = (
     "Consolas", "DejaVu Sans Mono", "Liberation Mono",
@@ -258,9 +267,16 @@ class TerminalPlugin:
         except Exception:
             return "Courier"
 
+    def _resolve_shell_executable(self):
+        for candidate in (os.environ.get("SHELL"), "/bin/bash", "/bin/sh"):
+            if candidate and os.path.isfile(candidate):
+                return os.path.realpath(candidate)
+        return "/bin/sh"
+
     def _build_shell_launch(self, shell):
-        name = os.path.basename(shell)
+        name = os.path.basename(os.path.realpath(shell))
         env = os.environ.copy()
+        env["TERM"] = "xterm-256color"
         temp_paths = []
 
         if "bash" in name:
@@ -268,6 +284,8 @@ class TerminalPlugin:
             with os.fdopen(fd, "w") as handle:
                 handle.write('[ -f ~/.bashrc ] && source ~/.bashrc\n')
                 handle.write(BASH_HOOK)
+                if os.environ.get("FLATPAK_ID"):
+                    handle.write(HOST_COMMAND_FALLBACK_HOOK)
             temp_paths.append(path)
             return [shell, "--rcfile", path, "-i"], env, temp_paths
 
@@ -298,7 +316,7 @@ class TerminalPlugin:
     def spawn_shell(self):
         if self.process:
             return
-        shell = os.environ.get("SHELL", "/bin/bash")
+        shell = self._resolve_shell_executable()
         self.shell_path = shell
         args, env, temp_paths = self._build_shell_launch(shell)
         self.temp_paths = temp_paths
@@ -574,6 +592,44 @@ class TerminalPlugin:
             return "break"
         return self._scroll_view(delta)
 
+    @staticmethod
+    def _is_copy_shortcut(event):
+        if not (event.state & 0x4) or not (event.state & 0x1):
+            return False
+        return event.keysym == "Insert" or event.keysym.lower() == "c"
+
+    @staticmethod
+    def _is_paste_shortcut(event):
+        control_pressed = bool(event.state & 0x4)
+        shift_pressed = bool(event.state & 0x1)
+        if event.keysym == "Insert":
+            return shift_pressed and not control_pressed
+        return control_pressed and shift_pressed and event.keysym.lower() == "v"
+
+    def _copy_selection_to_clipboard(self):
+        if not self.output_text:
+            return
+        try:
+            selected_text = self.output_text.get("sel.first", "sel.last")
+        except tk.TclError:
+            return
+        self.output_text.clipboard_clear()
+        self.output_text.clipboard_append(selected_text)
+
+    def _paste_clipboard_into_shell(self):
+        if self.master_fd is None or not self.output_text:
+            return
+        try:
+            clipboard_text = self.output_text.clipboard_get()
+        except tk.TclError:
+            return
+        normalized_text = clipboard_text.replace("\r\n", "\n").replace("\r", "\n")
+        paste_sequence = normalized_text.replace("\n", "\r").encode("utf-8", errors="replace")
+        try:
+            os.write(self.master_fd, paste_sequence)
+        except OSError:
+            pass
+
     def _on_key(self, event):
         if self.master_fd is None:
             return "break"
@@ -581,6 +637,14 @@ class TerminalPlugin:
         if self._scroll_offset:
             self._scroll_offset = 0
             self._render()
+
+        if self._is_copy_shortcut(event):
+            self._copy_selection_to_clipboard()
+            return "break"
+
+        if self._is_paste_shortcut(event):
+            self._paste_clipboard_into_shell()
+            return "break"
 
         key = event.keysym
         ctrl_pressed = bool(event.state & 0x4)
