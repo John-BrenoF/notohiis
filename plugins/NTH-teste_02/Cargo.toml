@@ -1,0 +1,21 @@
+[package]
+name = "nth_teste_02"
+version = "0.1.0"
+edition = "2021"
+license = "LUMEJ-1.0"
+description = "Bloco de exemplo em Rust do Notohiis"
+
+[lib]
+name = "nth_teste_02"
+crate-type = ["cdylib"]
+
+[features]
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+pyo3 = { version = "0.26", features = ["abi3-py39"] }
+
+[profile.release]
+opt-level = 2
+lto = "thin"
