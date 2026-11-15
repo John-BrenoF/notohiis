@@ -16,6 +16,19 @@ KEEP=(
     "Novo Arquivo"
 )
 
+acrescenta_do_pacote() {
+    local p
+    for p in "${KEEP[@]}"; do
+        if [ -d "$SRC/$p" ]; then
+            mkdir -p "$STATE/$p"
+            cp -an "$SRC/$p/." "$STATE/$p/"
+        elif [ -e "$SRC/$p" ] && [ ! -e "$STATE/$p" ]; then
+            mkdir -p "$STATE/$(dirname "$p")"
+            cp -a "$SRC/$p" "$STATE/$p"
+        fi
+    done
+}
+
 sincronizar() {
     local backup p
     backup="$(mktemp -d)"
@@ -40,6 +53,7 @@ sincronizar() {
     done
 
     rm -rf "$backup"
+    acrescenta_do_pacote
 }
 
 LOCK="${XDG_RUNTIME_DIR:-/tmp}/notohiis-sync.lock"
