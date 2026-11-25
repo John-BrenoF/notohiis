@@ -9,14 +9,12 @@
 </p>
 
 <p align="center">
-  <sub>Python · Textual + CustomTkinter · v0.5-alpha</sub>
+  <sub>Python · rust · Textual + CustomTkinter · v0.6-alpha</sub>
 </p>
 
 <p align="center">
   <a href="#instalação">Instalação</a> ·
-  <a href="#plugins">Plugins</a> ·
-  <a href="#estrutura">Estrutura</a> ·
-  <a href="#documentação">Documentação</a>
+  <a href="#plugins">Plugins</a> 
 </p>
 
 <br>
@@ -67,6 +65,9 @@ Você decide o quanto de poder quer expor.
 
 ## Instalação
 
+instale o flatipak em laçamentos.
+---
+
 ```bash
 git clone https://github.com/John-BrenoF/notohiis.git
 cd notohiis
@@ -74,11 +75,7 @@ chmod +x notohiis.sh
 ./notohiis.sh
 ```
 
-Na primeira execução, o script cria o alias `nth`, para abrir o editor de qualquer lugar:
 
-```bash
-nth
-```
 
 <br>
 
@@ -86,41 +83,11 @@ nth
 
 Coloque um arquivo Python em `plugins/` e ele é carregado automaticamente. Nada de configuração extra.
 
-Alguns exemplos:
+estou trabalhando na documentação explicando como cria um pluguins.
 
-- **Auto-close** — fecha parênteses, colchetes e aspas
-- **Color Preview** — visualiza cores hexadecimais em tempo real
-- **Git Status** — status do Git na sidebar
-- **Markdown Live Preview** — pré-visualização em tempo real
-- **Zen Mode** — remove tudo que não é o texto
-
-<br>
-
-## Estrutura
-
-```text
-notohiis/
-├── core/      lógica principal e sistema de plugins
-├── ui/        interface gráfica (CustomTkinter)
-├── tui/       interface de terminal (Textual)
-├── plugins/   seus plugins entram aqui
-├── themes/    temas em JSON
-├── midia/     logos e imagens
-├── docs/      documentação
-└── notohiis.sh
-```
-
-<br>
-
-## Documentação
-
-- [docs/README.md](docs/README.md) — visão geral e ponto de partida
-- [docs/arquitetura.md](docs/arquitetura.md) — como core, UI, TUI e plugins se conectam
-- [docs/GUIA_COMPLETO.md](docs/GUIA_COMPLETO.md) — guia detalhado de uso, temas e plugins
 
 <br>
 
 <p align="center">
-  <sub>Notohiis v0.6-alpha teste — "Frango com batata doce" Edition</sub><br>
-  <sub>Feito com Python+café por você.</sub>
+  <sub> as batatas azuis são lindas /sub><br>
 </p>
