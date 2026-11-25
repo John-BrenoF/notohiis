@@ -47,6 +47,11 @@ Você decide o quanto de poder quer expor.
 ## Capturas de tela
 
 <p align="center">
+  <img width="800" alt="image" src="https://github.com/user-attachments/assets/9493501a-94c2-4b02-8bff-a1743b3fab47" />
+  <br><sub>bem vindo</sub>
+</p>
+
+<p align="center">
   <img width="800" alt="Notohiis — tela principal" src="https://github.com/user-attachments/assets/f4703e9f-9ae9-48d8-8d65-69cbc4df4f5d">
   <br><sub>Interface principal</sub>
 </p>
