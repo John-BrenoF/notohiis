@@ -10,6 +10,7 @@
 import os
 import customtkinter as ctk
 from ui.editor_area import EditorArea
+from ui.empty_state import EmptyStateView
 from ui.sidebar import Sidebar
 from ui.status_bar import StatusBar
 from ui.shortcuts import ShortcutManager
@@ -72,6 +73,11 @@ class MainWindow(ctk.CTk):
         self.editor.grid(row=1, column=1, sticky="nsew")
         self.ctx.set_editor(self.editor)
 
+        self.empty_state = EmptyStateView(self)
+        self.empty_state.grid(row=1, column=1, sticky="nsew")
+        self.empty_state.grid_remove()
+        self.ctx.empty_state = self.empty_state
+
         # Status Bar
         self.status_bar = StatusBar(self)
         self.status_bar.grid(row=2, column=1, sticky="ew")
@@ -113,15 +119,15 @@ class MainWindow(ctk.CTk):
         self._apply_theme_to_children()
 
     def apply_theme(self, theme_name: str):
-        """Aplica um tema e salva a preferência."""
+        # Aplica um tema e salva a preferência.
         self.load_theme(theme_name)
         SessionManager.save_theme_pref(theme_name)
-        if self.status_bar:
-            self.status_bar.update_status(1, 0, self.ctx.current_file or "Novo Arquivo")
+        if self.status_bar and self.ctx.current_file:
+            self.status_bar.update_status(1, 0, self.ctx.current_file)
 
     def _apply_theme_to_children(self):
-        """Propaga o tema para todos os componentes filhos."""
-        for name in ("sidebar", "editor", "status_bar", "search_bar", "replace_bar"):
+      #  Propaga o tema para todos os componentes filhos.
+        for name in ("sidebar", "editor", "empty_state", "status_bar", "search_bar", "replace_bar"):
             component = getattr(self, name, None)
             if component is not None and hasattr(component, 'apply_theme'):
                 component.apply_theme()

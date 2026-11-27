@@ -36,6 +36,7 @@ class TabBridge:
         self.ctx.tab_manager = TabManager()
         self.ctx.tab_bridge = self
         self.smart_hide_enabled = getattr(self.ctx, "smart_tab_hiding", True)
+        self.empty_state = getattr(self.ctx, "empty_state", None)
         self.hide_after_id = None
         self._init_ui()
         self._update_tab_visibility()
@@ -135,17 +136,36 @@ class TabBridge:
         self.ctx.smart_tab_hiding = enabled
         self._update_tab_visibility()
 
+    def _show_empty_state(self):
+        self.ctx.current_file = None
+        if self.ctx.editor:
+            self.ctx.editor.set_text("")
+            if self.ctx.editor.winfo_manager() == "grid":
+                self.ctx.editor.grid_remove()
+        if self.ctx.status_bar:
+            self.ctx.status_bar.update_status(1, 0, "Nenhuma aba aberta")
+        if self.empty_state is not None:
+            self.empty_state.grid()
+
+    def _hide_empty_state(self):
+        if self.empty_state is not None and self.empty_state.winfo_manager() == "grid":
+            self.empty_state.grid_remove()
+        if self.ctx.editor and self.ctx.editor.winfo_manager() != "grid":
+            self.ctx.editor.grid()
+
     def open_new_tab(self, path: str = None):
         if path:
             tab = self.ctx.tab_manager.open_file(path)
         else:
             tab = self.ctx.tab_manager.create_tab()
+        self._hide_empty_state()
         self._render_tabs()
         self._load_tab(tab)
         return tab
 
     def open_file(self, path: str):
         tab = self.ctx.tab_manager.open_file(path)
+        self._hide_empty_state()
         self._render_tabs()
         self._load_tab(tab)
         return tab
@@ -184,7 +204,7 @@ class TabBridge:
             if manager.get_tabs():
                 self._load_tab(manager.get_active_tab())
             else:
-                self.open_new_tab()
+                self._show_empty_state()
         return True
 
     def _confirm_unsaved(self, tab) -> str:
